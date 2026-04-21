@@ -16,7 +16,7 @@
   "start_url": "./Standalone.html",
   "background_color": "#ffffff",
   "display": "standalone",
-  "theme_color": "#3a7bd5",
+  "theme_color": "#000000",
   "screenshots": [
     {
       "src": "screenshot-mobile_1.png",
