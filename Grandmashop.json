@@ -1,0 +1,36 @@
+{
+  "short_name": "ร้านยายขายทุกอย่าง",
+  "name": "Grandmashop : Smart POS",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./Standalone.html",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "theme_color": "#3a7bd5",
+  "screenshots": [
+    {
+      "src": "screenshot-mobile_1.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "หน้าจอขายของ"
+    },
+    {
+      "src": "screenshot-mobile_2.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "หน้าจอตั้งค่าเมนู"
+    }
+  ]
+}

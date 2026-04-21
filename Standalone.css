@@ -1,0 +1,370 @@
+/* 1. ตั้งค่าพื้นฐานให้ทุกอย่างคำนวณขนาดง่ายขึ้น */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* 2. ทำให้ตัว Body ยืดหยุ่น */
+body {
+    font-family: 'Arial', sans-serif;
+    line-height: 1.5;
+    background-color: #000000;
+    padding: 10px; /* เว้นระยะจากขอบจอเล็กน้อย */
+
+
+}
+
+/* 3. กล่องหน้าหลักและหน้าตั้งค่า */
+#front-page, #back-page {
+    max-width: 500px; /* ถ้าเปิดในคอม จะกว้างไม่เกินนี้เพื่อไม่ให้บานเกินไป */
+    margin: 0 auto;  /* จัดให้อยู่กลางจอเสมอ */
+    width: 100%;     /* ถ้าในมือถือ จะกว้างเต็ม 100% */
+}
+
+/* 4. จัดการปุ่มเมนูให้เรียงกันสวยๆ */
+#options-display {
+    display: flex;       /* เปิดระบบกล่องยืดหยุ่น */
+    flex-direction: column; /* เรียงจากบนลงล่างเป็นหลัก */
+    gap: 12px;           /* เว้นระยะห่างระหว่างปุ่ม */
+}
+
+/* ปรับแต่งส่วน Header (ชื่อร้านและเมนู) */
+header {
+    text-align: center;
+    padding: 20px 0 60px 0;
+    background: linear-gradient(135deg, #a4fcff, #cfe0eb); /* ใส่สีไล่เฉดให้ดูทันสมัย */
+    border-radius: 0 0 25px 25px; /* มนเฉพาะขอบล่างให้ดูนุ่มนวล */
+    color: #000000;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+#name-main {
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding-top: 60px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+#menu-name {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    color: #333;  /*ใส่สีเทาเข้มให้อ่านง่าย*/
+    margin-top: 20px;
+    position: relative;
+    z-index: 20; /*ดันให้ลอยเหนือกล่องขาว*/
+}
+
+/* กล่อง "สรุปยอดขาย" (The Profit Dashboard) */
+
+#sales-summary {
+    background: white;
+    margin: 15px auto;
+    padding: 15px;
+    border-radius: 15px;
+    box-shadow: 0 10px 10px rgba(0,0,0,0.05);
+    text-align: center;
+}
+
+#total-sales-display {
+    display: block;
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #2ed573; /* สีเขียวเหนี่ยวทรัพย์ */
+    margin: 5px 0;
+}
+
+#profit-status {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    /* สีพื้นหลังจะถูกเปลี่ยนโดย JS ที่เราเขียนไว้ (Red/Green) */
+}
+
+/* ส่วน "นับไข่" และ "ส่วนเพิ่มเติม" (Interactive Section) */
+
+#egg-counter {
+    background: #ffffff; /* สีเหลืองนวลเหมือนไข่แดง */
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: -20px;
+    border: 5px dashed #ff9f43;
+}
+
+#options-display label {
+    display: flex;
+    align-items: center;
+    background: #ff9f43;
+    padding: 15px;
+    border-radius: 18px;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    cursor: pointer;
+}
+
+/* ทำให้ช่องติ๊ก Checkbox ใหญ่ขึ้น */
+input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 15px;
+}
+
+/* ปุ่ม "ยืนยันออเดอร์" (The Action Button) */
+.confirm-btn {
+    width: 100%;
+    padding: 20px;
+    background-color: #2ed573; /* สีเขียวสว่าง */
+    color: white;
+    font-size: 1.3rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 6px 0 none; /* ทำให้ดูเหมือนปุ่ม 3D */
+    margin: 20px 0;
+    transition: all 0.1s;
+}
+
+.confirm-btn:active {
+    transform: translateY(4px); /* เวลาจิ้มให้ปุ่มยุบลงไปจริงๆ */
+    box-shadow: 0 2px 0 #26af5a;
+}
+
+/* ช่องกรอก "ทุนวันนี้" และ "ปุ่มตั้งค่า" */
+/* ปุ่มเฟืองตั้งค่า */
+button[onclick="showSetting()"] {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    width: 45px;
+    min-height: 45px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    position: absolute; /* เอาไปลอยไว้มุมบน */
+    top: 15px;
+    right: 15px;
+}
+
+/* กล่องทุนวันนี้ */
+#break-even-box {
+   position: absolute;  /* สั่งให้ลอยตัว */
+    top: 15px;           /* ห่างจากขอบบน */
+    left: 15px;          /* ห่างจากขอบซ้าย (ชิดซ้ายสุดตามต้องการ) */
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.3); /* โปร่งแสงสวยๆ */
+    padding: 5px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    z-index: 100;      
+}
+
+#daily-cost {
+    width: 60px;
+    border: none;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: bold;
+}
+/* การจัดการหน้า "ตั้งค่า" (Back-page) */
+#back-page {
+    background: white;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+#back-page h2 {
+    margin-bottom: 20px;
+    color: #333;
+    border-left: 5px solid #ff4757;
+    padding-left: 10px;
+}
+
+#back-page p {
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+#back-page input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 1rem;
+    margin-bottom: 10px;
+}
+
+/* ใส่ Animation เวลาสลับหน้า (Smooth Transition) */
+/* สร้างคำสั่งแอนิเมชันชื่อ fadeIn */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* เอาไปใช้กับหน้าหลักและหน้าตั้งค่า */
+#front-page, #back-page {
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* แถบสถานะ "กำไร/ขาดทุน" (Dynamic Status) */
+#profit-status {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 50px; /* ทรงแคปซูล ดูทันสมัย */
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-top: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease; /* เวลาสีเปลี่ยนจะค่อยๆ เปลี่ยน ไม่ตัดฉึบ */
+    min-width: 180px;
+    text-align: center;
+}
+/* ตกแต่ง Input ให้ "หรู" ขึ้น (Premium Input) */
+input[type="text"], input[type="number"] {
+    transition: all 0.3s;
+    outline: none; /* ลบขอบสีฟ้าของเดิม */
+}
+
+input[type="text"]:focus, input[type="number"]:focus {
+    border-color: #ff4757; /* เปลี่ยนสีขอบเป็นสีแดงตามธีมร้านเรา */
+    box-shadow: 0 0 8px rgba(255, 71, 87, 0.2);
+    transform: scale(1.01); /* ยืดออกมานิดๆ เวลาพิมพ์ */
+}
+/* ส่วน "ยอดขายวันนี้" ให้ดูน่าเชื่อถือ */
+#total-sales-display {
+    background: rgba(46, 213, 115, 0.1);
+    padding: 5px 15px;
+    border-radius: 10px;
+    color: #2ed573;
+}
+
+/* การปรับแต่งเพื่อ mobile-First 11-04-2026 */
+#front-page {
+    background-color: #000000; /*ิbgด้านหลัง*/
+    min-height: 100vh;
+    padding-bottom: 40px; /*กันเนื้อจมขอบล่าง*/
+}
+
+/* ทำให้ Header ดูหรูหรา */
+header {
+    /*background: linear-gradient(135deg, #000000 0%, #000000 100%);*/ /*สี BG */
+
+    /* 1. เรียกใช้รูปภาพ */
+    background-image: url('bgApp.jpg');
+
+    /* 2. *สำคัญที่สุด* ปรับขนาดรูปให้ "คลุม" ทั้งหน้าจอเสมอ */
+    background-size: cover;
+
+    /* 3. จัดวางรูปให้อยู่ "ตรงกลาง" ทั้งแนวตั้งและแนวนอน */
+    background-position: center;
+
+    /* 4. สั่งไม่ให้รูปแสดงซ้ำ (ถ้าหน้าจอยาวกว่ารูป) */
+    background-repeat: no-repeat;
+
+    /* 5. *ทริคเด็ด* สั่งให้รูปพื้นหลัง "ตรึงอยู่กับที่" เวลาเลื่อนหน้าจอ (Parallax effect) */
+    background-attachment: scroll;
+
+    /* 6. กำหนดสีพื้นหลังสำรอง (กรณีรูปล่มหรือยังโหลดไม่เสร็จ) */
+    background-color: #f8f9fa;
+
+    color: #000000 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    position: relative;
+    padding-bottom: 80px;
+}
+
+#name-main {
+    color: #ffffff; /*สีชื่อร้าน*/
+    display: block;
+    margin-bottom: 10px;
+}
+
+#menu-name {
+    color: #e2ff42; /*สีชื่อเมนู*/
+    display: block;
+    margin-bottom: 20px;
+}
+
+/* ปรับปรุงกล่องสลับยอดขาย (Dashboard) */
+#sales-summary {
+    border: 2px solid #f1f2f6;
+    margin: 0 10px;
+    width: auto;
+    margin-top: 10px; /*ให้กล่องยอดขายเกยขึ้นไปบน Header นิดๆ ดูมีมิติ*/
+    background: white;
+    z-index: 10;
+    position: relative;
+    padding: 15px;
+    border-radius: 15px;
+}
+
+/* ตกแต่งส่วนเพิ่มเติม (checkboxes) ให้กดง่ายขึ้นบนมือถือ */
+#options-display label {
+    transition: transform 0.2s, background-color 0.2s;
+    border: 1px solid #000000;
+}
+
+#options-display label:active {
+    transform: scale(0.98); /*เวลาจิ้มในมือถือให้มันยุบลงหน่อย*/
+    background-color: #f1f2f6;
+}
+
+/*ปรับปรุงเมนูอาหารถ้ามี (ถ้ามี) */
+#Order-menu button {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 12px;
+    background-color: #333;
+    color: #e2ff42;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+/* เมื่อเอาเมาส์วาง */
+#Order-menu button:hover {
+    background-color: #8e9491;
+    transform: translateY(-2px);
+}
+
+/* เมื่อปุ่มถูกเลือก (สติ๊กเกอร์ที่เราจะแปะด้วย JS) */
+.selected {
+    background-color: #ff9f43 !important; /* สีส้ม */
+    color: white !important;
+    border: 2px solid #000000 !important;
+    font-weight: bold;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* การย้ายตำแหน่งด้วย CSS  */
+
+#front-page {
+    display: flex;
+    flex-direction: column;
+}
+
+/* "ย้ายกะเพราเหาะ" (menu-name) ลงมาข้าง */
+/* เนื่องจากมันอยู่ใน Header เราจะใช้ความสูงของ header เป็นกำหนด */
+header {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ป้องกันการคลุมดำเวลาจิ้มปุ่มซ้ำ ๆ บนมือถือ */
+button, label, #profit-status {
+    -webkit-tab-highlight-color: transparent;
+    user-select: none;
+}
+
+/* ทำให้ Scroll ลื่นไหล */
+body {
+    -webkit-overflow-scrolling: touch;
+}
