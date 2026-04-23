@@ -342,16 +342,116 @@ function updateProfitStatus(totalSales) {
     profitElement.style.color = netProfit >= 0 ? "#27ae60" : "#e74c3c";
 }
 
-async function handleCloseDay() {
+async function handleCloseDay() {   //แก้ไข เพิ่มเติม 23-04-2026
+    // 1. ดึงค่าหน่วยที่ลูกค้าตั้งไว้จาก localStorage (สมมติว่านายใช้ชื่อ 'eggUnit')
+    // ถ้ายังไม่ได้ตั้งค่า ให้ใช้คำว่า 'ไข่' เป็นค่าเริ่มต้น
+    const eggUnitName = localStorage.getItem('eggUnit') || 'ไข่';
+
     const totalSales = document.getElementById('total-sales-display').innerText.replace(/,/g, '');
     const eggCount = document.getElementById('egg-count').innerText.replace(/,/g, '');
-    if (confirm(`ยืนยันการปิดยอดวันนี้?\n💰 ยอด: ${totalSales}.-\n🥚 ไข่: ${eggCount}`)) {
+
+    // 2. ปรับตรง confirm ให้ใช้ตัวแปร eggUnitName ที่เราดึงมา
+    if (confirm(`ยืนยันการปิดยอดวันนี้?\n💰 ยอด: ${totalSales}.-\n🥚 ${eggUnitName}: ${eggCount}`)) {
         const today = new Date().toISOString().split('T')[0];
-        await db.dailysummary.put({ summary_date: today, total_sales: parseFloat(totalSales), egg_count: parseInt(eggCount) });
+        await db.dailysummary.put({ 
+            summary_date: today, 
+            total_sales: parseFloat(totalSales), 
+            egg_count: parseInt(eggCount) 
+        });
         alert("✅ ปิดยอดแล้ว!");
         loadDashboardData();
     }
 }
+
+    // 1. ฟังก์ชันเพิ่มเมนูใหม่ลงตาราง menus //เพิ่มเติม 23-04-2026
+async function addNewMenu() {
+    const name = document.getElementById('new-menu-name').value;
+    const price = document.getElementById('new-menu-price').value;
+
+    if (name && price) {
+        await db.menus.add({ 
+            name: name, 
+            price: parseFloat(price) 
+        });
+        document.getElementById('new-menu-name').value = '';
+        document.getElementById('new-menu-price').value = '';
+        renderMenuList(); // อัปเดตรายการที่โชว์ทันที
+        alert("บันทึกเมนูเรียบร้อย!");
+    } else {
+        alert("กรุณากรอกชื่อและราคาให้ครบครับ");
+    }
+}
+
+// 2. ฟังก์ชันดึงเมนูทั้งหมดมาโชว์ (เอาไว้ลบหรือดูรายการ) //เพิ่มเติม 23-04-2026
+async function renderMenuList() {
+    const allMenus = await db.menus.toArray();
+    const listContainer = document.getElementById('menu-list-items');
+    if(!listContainer) return;
+
+    listContainer.innerHTML = ''; 
+    allMenus.forEach(menu => {
+        const li = document.createElement('li');
+        li.style.cssText = "display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;";
+        li.innerHTML = `
+            <span>${menu.name} (${menu.price}.-)</span>
+            <button onclick="deleteMenu(${menu.id})" style="color:red; background:none; border:none; cursor:pointer;">ลบ</button>
+        `;
+        listContainer.appendChild(li);
+    });
+}
+
+async function deleteMenu(id) {
+    if (confirm("ยืนยันการลบเมนูนี้?")) {
+        await db.menus.delete(id);
+        renderMenuList();
+    }
+}
+
+// 3. ฟังก์ชันค้นหาเมนู (จะเรียกใช้ตอนลูกค้าพิมพ์) //เพิ่มเติม 23-04-2026
+async function searchSmartMenu(query) {
+    const resultArea = document.getElementById('search-results-area');
+    if (!query || query.length < 1) {
+        resultArea.innerHTML = '';
+        return;
+    }
+
+    // ค้นหาคำที่ใกล้เคียงในตาราง menus
+    const matches = await db.menus
+        .filter(menu => menu.name.toLowerCase().includes(query.toLowerCase()))
+        .toArray();
+
+    resultArea.innerHTML = ''; // ล้างค่าเก่า
+
+    matches.forEach(menu => {
+        const btn = document.createElement('button');
+        btn.innerText = `➕ ${menu.name} (${menu.price}.-)`;
+        btn.className = "menu-btn-search"; // นายไปตั้ง CSS ให้สวยๆ ได้
+        btn.style.cssText = "margin:5px; padding:10px; background:#e0f7fa; border-radius:5px; border:1px solid #00acc1;";
+        
+        btn.onclick = () => {
+            // เรียกฟังก์ชันเพิ่มออเดอร์เดิมของนาย 
+            // สมมติว่าฟังก์ชันเดิมนายชื่อ addToCart หรือบวกเงินโดยตรง
+            addItemToOrder(menu.name, menu.price); 
+            
+            // ล้างช่องค้นหาเมื่อกดเลือกแล้ว
+            resultArea.innerHTML = '';
+            document.getElementById('smart-search-input').value = '';
+        };
+        resultArea.appendChild(btn);
+    });
+}
+
+    //เพิ่มเติม 23-04-2026
+function openMenuManager() {
+    document.getElementById('menu-manager-section').style.display = 'block';
+    renderMenuList(); // สั่งให้โหลดรายการมาโชว์ทันทีที่เปิดหน้า
+}
+
+    //เพิ่มเติม 23-04-2026
+function closeMenuManager() {
+    document.getElementById('menu-manager-section').style.display = 'none';
+}
+
 
 async function loadDashboardData() {
     const tableBody = document.getElementById('dashboard-table-body');
@@ -597,6 +697,23 @@ async function restoreDatabase(event) {
     };
     reader.readAsText(file);
 }
+
+//เพิ่มเติม 23-04-2026
+function checkAndShowIOSGuide() {
+    // เช็คว่าเป็นอุปกรณ์ iOS (iPhone, iPad, iPod) หรือไม่
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    // เช็คว่าเปิดผ่าน Browser ปกติ (ไม่ใช่เปิดจากที่ติดตั้งแล้ว)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+    if (isIOS && !isStandalone) {
+        // ถ้าเป็น iOS และยังไม่ได้ติดตั้ง ให้โชว์กล่องแจ้งเตือน
+        document.getElementById('ios-install-guide').style.display = 'block';
+    }
+}
+
+// เรียกใช้งานทันทีเมื่อโหลดหน้าเว็บ
+window.addEventListener('load', checkAndShowIOSGuide);
 
 //........................................................
 
