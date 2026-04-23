@@ -1,2 +1,2 @@
 # Grandmashop_POS
-https://github.com/idkapiak-png/Grandmashop_POS/Standalone.html
+https://idkapiak-png.github.io/Grandmashop_POS/Standalone.html
