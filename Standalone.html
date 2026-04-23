@@ -31,9 +31,21 @@
 
             <h1 id="name-main">ร้านยายขายทุกอย่าง</h1>
 
-            <div id="sales-summary">
-                <p>💰 ยอดขายวันนี้: <span id="total-sales-display">0</span>.-</p>
-                <div id="profit-status">รอคำนวณกำไร...</div>
+            <div id="sales-summary" style="text-align: center; background: white; padding: 15px; border-radius: 15px;">
+                <p style="margin: 0;">💰 ยอดขายวันนี้:</p>
+                
+                <div id="total-sales-display" style="font-size: 2.5rem; font-weight: bold; color: #2ecc71; margin: 5px 0;">0</div>
+                <p style="margin-top: -10px; margin-bottom: 10px;">.-</p>
+
+                <div style="display: inline-block; border: 2px solid #00acc1; border-radius: 8px; padding: 5px 15px; margin-bottom: 15px; font-size: 0.9rem; color: #555;">
+                    💵 เงินสด: <span id="cash-display">0</span> | 📱 โอน: <span id="qr-display">0</span>
+                </div>
+
+                <div id="profit-status" style="display: inline-block; width: 100%;">
+                    <div style="background: #fff5f5; color: #e74c3c; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                        ⚠️ รอคำนวณกำไร...
+                    </div>
+                </div>
             </div>
 
             <h2 id="menu-name">กะเพรารสเด็ด</h2>
@@ -215,21 +227,29 @@
 
 </div>
 
-    <script src="Standalone.js"></script>
-
-
     <!--เพิ่มเติม 23-04-2026 เพิ่มระบบหลังบ้านเมนู-->
-    <div id="ios-install-guide" style="display: none; position: fixed; bottom: 20px; left: 10px; right: 10px; background: #fff; border: 2px solid #00acc1; padding: 15px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 9999;">
-        <div style="display: flex; align-items: center;">
-            <div style="font-size: 30px; margin-right: 15px;">🍎</div>
-            <div style="flex: 1; font-size: 14px; color: #333;">
-                <b>สำหรับผู้ใช้ iPhone:</b> เพื่อความสะดวกในการใช้งาน <br>
-                กดปุ่ม <img src="https://img.icons8.com/ios/50/000000/share-rounded.png" width="18" style="vertical-align: middle;"> <b>[แชร์]</b> 
-                แล้วเลือก <b>'เพิ่มไปยังหน้าจอโฮม'</b> เพื่อติดตั้งแอปจ้า
-            </div>
-            <button onclick="document.getElementById('ios-install-guide').style.display='none'" style="background: none; border: none; font-size: 20px; color: #999;">✕</button>
+    <div id="ios-install-guide" style="display: none; position: fixed; bottom: 20px; left: 15px; right: 15px; background: #ffffff; border: 1px solid #e0e0e0; padding: 18px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 9999; font-family: sans-serif;">
+    <div style="display: flex; align-items: flex-start; gap: 15px;">
+        <div style="font-size: 28px; background: #f8f9fa; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">🍎</div>
+        
+        <div style="flex: 1; font-size: 14px; color: #333; line-height: 1.5;">
+            <b style="font-size: 16px; color: #00acc1; display: block; margin-bottom: 4px;">ติดตั้งแอปบน iPhone</b>
+            เพื่อให้ใช้งานสะดวกเหมือนแอปจริง:<br>
+            1. กดปุ่ม 
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin: 0 2px;">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                <polyline points="16 6 12 2 8 6"></polyline>
+                <line x1="12" y1="2" x2="12" y2="15"></line>
+            </svg> 
+            <b>[แชร์]</b> ด้านล่างของ Safari<br>
+            2. เลือก <b>'เพิ่มไปยังหน้าจอโฮม' (Add to Home Screen)</b>
         </div>
+
+        <button onclick="document.getElementById('ios-install-guide').style.display='none'" style="background: #eee; border: none; width: 28px; height: 28px; border-radius: 50%; color: #666; font-size: 16px; cursor: pointer;">✕</button>
     </div>
+    
+    <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid #ffffff;"></div>
+</div>
 
     <script>
         if ('serviceWorker' in navigator) {
@@ -240,5 +260,8 @@
         });
     }
     </script>
+
+    <script src="Standalone.js"></script>
+
 </body>
 </html>

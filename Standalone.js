@@ -18,34 +18,73 @@ let currentOrder = { name: "", price: 0, qty: 1 };
 // กล่องที่ 2: ระบบจัดการหน้าตาเว็บและการตั้งค่า
 // ==========================================
 function showSetting() {
-    // ดึงค่าปัจจุบันไปใส่ในช่อง Input ของหน้าตั้งค่า
+    // 1. ดึงค่าชื่อร้าน และชื่อเมนูหลัก มาใส่ใน Input
     const nameInput = document.getElementById('name-input');
     const nameMain = document.getElementById('name-main');
     if (nameInput && nameMain) nameInput.value = nameMain.innerText;
-
-    // เพิ่มบรรทัดนี้ลงไปท้ายสุด
-    history.pushState({ page: 'settings' }, 'Settings', '#settings');
 
     const menuInput = document.getElementById('menu-input');
     const menuName = document.getElementById('menu-name');
     if (menuInput && menuName) menuInput.value = menuName.innerText;
 
+    // 2. --- ส่วนที่เพิ่มใหม่: ดึงค่า "ชื่อการนับ" และ "หน่วย" มาใส่ใน Input ---
+    // เพื่อให้เวลาเข้าหน้าตั้งค่า ข้อมูลเดิมจะไม่หาย
+    const counterLabelInput = document.getElementById('counter-label-input');
+    const counterUnitInput = document.getElementById('counter-unit-input');
+    
+    if (counterLabelInput) {
+        counterLabelInput.value = localStorage.getItem('counterLabel') || 'ไข่ดาว';
+    }
+    if (counterUnitInput) {
+        counterUnitInput.value = localStorage.getItem('counterUnit') || 'ฟอง';
+    }
+    // -------------------------------------------------------
+
+    // 3. จัดการเรื่อง Browser History (กันกดย้อนกลับแล้วออกจากเว็บ)
+    history.pushState({ page: 'settings' }, 'Settings', '#settings');
+
+    // 4. สลับหน้าจอ
     document.getElementById('front-page').style.display = 'none';
     document.getElementById('back-page').style.display = 'block';
 
+    // 5. โหลดข้อมูลต่างๆ มาโชว์ในหน้าตั้งค่า
     loadDashboardData();
     renderMenuSettings(); 
     renderOptionsSettings(); 
 }
 
+
+// เพิ่มเติม 23-04-2026
 function saveAndExit() {
+    // 1. ดึงค่าพื้นฐาน (ชื่อร้าน, ชื่อเมนูหลัก)
     const shopName = document.getElementById('name-input').value;
     const shopMenu = document.getElementById('menu-input').value;
 
-    // เพิ่ม: บันทึกค่าการนับ
+    // 2. ดึงค่าการนับ (เช่น ไข่, ฟอง)
     const counterLabel = document.getElementById('counter-label-input').value;
     const counterUnit = document.getElementById('counter-unit-input').value;
 
+    // --- ส่วนที่เพิ่มใหม่: บันทึกรายการเมนูในหน้าตั้งค่าลง localStorage เพื่อทำเป็น "ปุ่มด่วนหน้าหลัก" ---
+    const menuList = [];
+    const container = document.getElementById('menu-settings-list');
+    if (container) {
+        const rows = container.querySelectorAll('div'); 
+        rows.forEach(row => {
+            const inputs = row.querySelectorAll('input');
+            if (inputs.length >= 2) {
+                const name = inputs[0].value;
+                const price = parseFloat(inputs[1].value);
+                if (name.trim() !== "") {
+                    menuList.push({ name, price });
+                }
+            }
+        });
+        // เซฟลง localStorage เพื่อให้ renderOrderButtons ดึงไปโชว์ที่หน้าหลัก
+        localStorage.setItem('quickMenus', JSON.stringify(menuList));
+    }
+    // ----------------------------------------------------------------------------------
+
+    // 3. บันทึกชื่อร้านและอัปเดตหน้าจอ
     if(shopName.trim() !== "") {
         document.getElementById('name-main').innerText = shopName;
         localStorage.setItem('shopName', shopName);
@@ -55,31 +94,34 @@ function saveAndExit() {
         localStorage.setItem('shopMenu', shopMenu);
     }
 
+    // 4. บันทึกค่าการนับและอัปเดตหน้าจอ
     if(counterLabel.trim() !== "") {
         localStorage.setItem('counterLabel', counterLabel);
-        document.getElementById('display-label').innerText = "📊 วันนี้ใช้" + counterLabel + "ไปแล้ว";
+        if(document.getElementById('display-label')) 
+            document.getElementById('display-label').innerText = "📊 วันนี้ใช้ " + counterLabel + " ไปแล้ว";
     }
     if(counterUnit.trim() !== "") {
         localStorage.setItem('counterUnit', counterUnit);
-        document.getElementById('display-unit').innerText = counterUnit;
+        if(document.getElementById('display-unit')) 
+            document.getElementById('display-unit').innerText = counterUnit;
     }
 
-    // อัปเดตหัวตารางใน Dashboard ด้วย
+    // 5. อัปเดตหัวตารางใน Dashboard
     const headerLabel = document.getElementById('dashboard-unit-header');
     const headerUnit = document.getElementById('dashboard-unit-name');
-
     if (headerLabel) headerLabel.innerText = counterLabel || "รายการ";
     if (headerUnit) headerUnit.innerText = counterUnit || "หน่วย";
 
-    // เพิ่มบรรทัดนี้: ถ้าปัจจุบันอยู่ที่หน้าตั้งค่า (#settings) ให้สั่งย้อนกลับประวัติ Browser ด้วย
+    // 6. จัดการประวัติ Browser (ถ้าเปิดผ่าน hash #settings)
     if (window.location.hash === '#settings') {
         history.back(); 
     }
 
+    // 7. สลับหน้ากลับไปที่หน้าขาย (Front Page)
     document.getElementById('front-page').style.display = 'block';
     document.getElementById('back-page').style.display = 'none';
     
-    // รีเฟรชหน้าขายให้เป็นข้อมูลล่าสุดเสมอ
+    // 8. สั่งวาด UI ใหม่ (ปุ่มด่วนจะดึงค่าจาก quickMenus ที่เราเพิ่งเซฟเมื่อกี้)
     renderOrderButtons(); 
     renderExtraOptions();
 }
@@ -96,16 +138,21 @@ function saveCostAndRefresh() {
 }
 
 // ==========================================
-// กล่องที่ 3: ระบบ Dynamic Menu & Options (ดึงจาก DB)
+// กล่องที่ 3: ระบบ Dynamic Menu & Options (ดึงจาก DB) เพิ่มเติม 23-04-2026
 // ==========================================
 
 async function renderOrderButtons() {
     const menuContainer = document.getElementById('Order-menu');
     if (!menuContainer) return;
-    const allMenus = await db.menus.toArray();
-    menuContainer.innerHTML = allMenus.length ? '' : '<p style="grid-column: span 2; text-align: center; color: #888; padding: 20px;">ยังไม่มีเมนู... เพิ่มที่ตั้งค่า ⚙️</p>';
 
-    allMenus.forEach(menu => {
+    // เปลี่ยนจาก db.menus.toArray() เป็นดึงจากที่ตั้งค่าปุ่มด่วนไว้
+    // สมมติว่านายเก็บชื่อเมนูขายดีไว้ใน localStorage ชื่อ 'quickMenus'
+    const savedQuickMenus = JSON.parse(localStorage.getItem('quickMenus')) || [];
+
+    menuContainer.innerHTML = savedQuickMenus.length ? '' : 
+        '<p style="grid-column: span 2; text-align: center; color: #888; padding: 20px;">ยังไม่มีเมนูด่วน... ตั้งค่าที่ "บันทึกรายการเมนูขาย" ⚙️</p>';
+
+    savedQuickMenus.forEach(menu => {
         const btn = document.createElement('button');
         btn.innerHTML = `${menu.name}<br><small>${menu.price}.-</small>`;
         btn.onclick = () => {
@@ -184,11 +231,25 @@ async function updateExtra(id, field, value) {
 // กล่องที่ 4: ระบบการขาย (Order & Preview)
 // ==========================================
 
+//เพิ่มเติม 23-04-2026
 function orderMenu(name, price) {
     currentOrder.name = name;
     currentOrder.price = price;
     currentOrder.qty = 1;
     updateOrderPreview();
+}
+
+// --- เพิ่มฟังก์ชันนี้ลงไปได้เลยครับเพื่อน ---
+function addItemToOrder(name, price) {
+    currentOrder.name = name;
+    currentOrder.price = price;
+    currentOrder.qty = 1;
+    
+    // เมื่อเลือกจาก Search ให้ล้างไฮไลท์ปุ่มด่วน (ถ้ามี) เพื่อไม่ให้สับสน
+    document.querySelectorAll('#Order-menu button').forEach(b => b.classList.remove('selected'));
+    
+    updateOrderPreview();
+    console.log("เลือกเมนูจากคลัง: " + name);
 }
 
 function changeQty(amount) {
@@ -222,31 +283,41 @@ function updateOrderPreview() {
 
 //ปุ่มจ่ายเงิน 2 แบบ เงินสด & เงินโอน
 async function confirmOrder(paymentType) {
-    if (currentOrder.name === "") return alert("เลือกเมนูก่อนครับ!");
+    // 1. ดักจับถ้ายังไม่ได้เลือกเมนู
+    if (!currentOrder.name || currentOrder.name === "") {
+        return alert("เลือกเมนูก่อนครับ!");
+    }
+
     const { extraPrice, extraNames } = getSelectedOptions();
-    let finalTotalPrice = (currentOrder.price + extraPrice) * currentOrder.qty;
+    
+    // คำนวณราคา (ใส่ || 0 กันเหนียวไว้ทุกจุด)
+    let finalTotalPrice = ((currentOrder.price || 0) + (extraPrice || 0)) * (currentOrder.qty || 1);
 
     try {
         const now = new Date();
-        const thailandTime = now.toLocaleString('sv-SE'); 
+        const thailandTime = now.toLocaleString('sv-SE'); // ได้รูปแบบ YYYY-MM-DD HH:mm:ss
 
-        // บันทึกลง Database โดยเพิ่มฟิลด์ payment_method
         // บันทึกลง Database
         await db.orders.add({
             menu_name: currentOrder.name,
-            qty: Number(currentOrder.qty), // บังคับให้เป็นตัวเลขเพื่อความชัวร์
-            options: extraNames.join(','), 
-            total_price: finalTotalPrice,
+            qty: Number(currentOrder.qty) || 1, 
+            options: extraNames.join(', '), // ใส่ช่องว่างให้อ่านง่ายขึ้น
+            total_price: Number(finalTotalPrice) || 0,
             payment_method: paymentType,
             created_at: thailandTime
         });
         
         alert(`✅ บันทึก (${paymentType === 'Cash' ? 'เงินสด' : 'เงินโอน'}) สำเร็จ!`);
-        fetchTodaySales();
+        
+        // อัปเดตยอดรวมหน้าแรกทันที
+        await fetchTodaySales();
+        
+        // ล้างค่าหน้าจอเพื่อรับออเดอร์ถัดไป
         resetOrder(); 
         
     } catch (error) {
-        alert("❌ ผิดพลาด: " + error.message);
+        console.error("Save Error:", error);
+        alert("❌ บันทึกล้มเหลว: " + error.message);
     }
 }
 
@@ -345,10 +416,10 @@ function updateProfitStatus(totalSales) {
 async function handleCloseDay() {   //แก้ไข เพิ่มเติม 23-04-2026
     // 1. ดึงค่าหน่วยที่ลูกค้าตั้งไว้จาก localStorage (สมมติว่านายใช้ชื่อ 'eggUnit')
     // ถ้ายังไม่ได้ตั้งค่า ให้ใช้คำว่า 'ไข่' เป็นค่าเริ่มต้น
-    const eggUnitName = localStorage.getItem('eggUnit') || 'ไข่';
+    const eggUnitName = localStorage.getItem('counterUnit') || 'รายการ';
 
-    const totalSales = document.getElementById('total-sales-display').innerText.replace(/,/g, '');
-    const eggCount = document.getElementById('egg-count').innerText.replace(/,/g, '');
+    const totalSales = (document.getElementById('total-sales-display').innerText || '0').replace(/,/g, '');
+    const eggCount = (document.getElementById('egg-count').innerText || '0').replace(/,/g, '');
 
     // 2. ปรับตรง confirm ให้ใช้ตัวแปร eggUnitName ที่เราดึงมา
     if (confirm(`ยืนยันการปิดยอดวันนี้?\n💰 ยอด: ${totalSales}.-\n🥚 ${eggUnitName}: ${eggCount}`)) {
@@ -398,13 +469,6 @@ async function renderMenuList() {
         `;
         listContainer.appendChild(li);
     });
-}
-
-async function deleteMenu(id) {
-    if (confirm("ยืนยันการลบเมนูนี้?")) {
-        await db.menus.delete(id);
-        renderMenuList();
-    }
 }
 
 // 3. ฟังก์ชันค้นหาเมนู (จะเรียกใช้ตอนลูกค้าพิมพ์) //เพิ่มเติม 23-04-2026
