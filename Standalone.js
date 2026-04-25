@@ -147,7 +147,7 @@ async function renderOrderButtons() {
     });
 }
 
-// วาดรายการ "บันทึกรายการเมนูขาย" ในหน้าตั้งค่า - ดึงจาก localStorage
+// วาดรายการ "บันทึกรายการเมนูขาย" ในหน้าตั้งค่า - ดึงจาก localStorage  25-04-2026
 function renderMenuSettings() {
     const container = document.getElementById('menu-settings-list');
     if (!container) return;
@@ -157,31 +157,58 @@ function renderMenuSettings() {
     quickMenus.forEach((menu, index) => {
         const div = document.createElement('div');
         div.className = 'menu-setting-row';
-        div.style.display = "flex"; div.style.gap = "5px"; div.style.marginBottom = "8px";
+        // ใช้การตั้งค่าแบบเดิมของนาย เพื่อให้ CSS ในไฟล์ Standalone.css ยังทำงานได้ปกติ
+        div.style.display = "flex"; 
+        div.style.gap = "5px"; 
+        div.style.marginBottom = "8px";
+        
         div.innerHTML = `
-            <input type="text" value="${menu.name}" style="flex: 2; padding: 8px;">
-            <input type="number" value="${menu.price}" style="width: 70px; padding: 8px;">
-            <button onclick="this.parentElement.remove()" style="background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 5px;">🗑️</button>
+            <input type="text" value="${menu.name}" disabled style="flex: 2; padding: 8px; background: #f0f0f0;">
+            <input type="number" value="${menu.price}" disabled style="width: 70px; padding: 8px; background: #f0f0f0;">
+            <button type="button" onclick="toggleEditRow(this)" style="background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 5px;">📝</button>
+            <button type="button" onclick="this.parentElement.remove()" style="background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 5px;">🗑️</button>
         `;
         container.appendChild(div);
     });
 }
 
-// เพิ่มแถวใหม่ในหน้าตั้งค่า (หน้าขาย)
+// ฟังก์ชันสำหรับสลับโหมด แก้ไข/ล็อก (Toggle Edit) 25-04-2026
+function toggleEditRow(btn) {
+    const row = btn.parentElement;
+    const inputs = row.querySelectorAll('input');
+    const isCurrentlyDisabled = inputs[0].disabled;
+
+    inputs.forEach(input => {
+        input.disabled = !isCurrentlyDisabled;
+        // เปลี่ยนสีพื้นหลังเล็กน้อยเพื่อให้รู้ว่าช่องไหนแก้ได้/ไม่ได้
+        input.style.background = isCurrentlyDisabled ? "#ffffff" : "#f0f0f0";
+        if (isCurrentlyDisabled) input.style.border = "1px solid #00acc1";
+        else input.style.border = "1px solid #ddd";
+    });
+
+    // เปลี่ยนไอคอนปุ่ม
+    btn.innerText = isCurrentlyDisabled ? "✅" : "📝";
+    btn.style.background = isCurrentlyDisabled ? "#2ecc71" : "#3498db";
+}
+
+// ปรับส่วนเพิ่มแถวใหม่ ให้พร้อมพิมพ์ได้ทันที (ไม่ต้องกดแก้) 25-04-2026
 function addMenuField() {
     const container = document.getElementById('menu-settings-list');
     const div = document.createElement('div');
     div.className = 'menu-setting-row';
-    div.style.display = "flex"; div.style.gap = "5px"; div.style.marginBottom = "8px";
+    div.style.display = "flex"; 
+    div.style.gap = "5px"; 
+    div.style.marginBottom = "8px";
+    
     div.innerHTML = `
-        <input type="text" placeholder="ชื่อเมนู" style="flex: 2; padding: 8px;">
-        <input type="number" placeholder="ราคา" style="width: 70px; padding: 8px;">
-        <button onclick="this.parentElement.remove()" style="background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 5px;">🗑️</button>
+        <input type="text" placeholder="ชื่อเมนู" style="flex: 2; padding: 8px; border: 1px solid #00acc1;">
+        <input type="number" placeholder="ราคา" style="width: 70px; padding: 8px; border: 1px solid #00acc1;">
+        <button type="button" onclick="this.parentElement.remove()" style="background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 5px;">🗑️</button>
     `;
     container.appendChild(div);
 }
 
-// วาดส่วนเพิ่มเติม (Options)
+// วาดส่วนเพิ่มเติม (Options) 25-04-2026
 async function renderExtraOptions() {
     const container = document.getElementById('dynamic-options-list');
     if (!container) return;
@@ -193,11 +220,37 @@ async function renderExtraOptions() {
         label.style.display = "block";
         label.style.marginBottom = "5px";
         label.innerHTML = `
-            <input type="checkbox" class="extra-opt-check" data-name="${opt.name}" data-price="${opt.price}" onchange="updateOrderPreview()">
-            <span>+ ${opt.name} (${opt.price}.-)</span>
+            <input type="checkbox" class="extra-opt-check"
+            data-name="${opt.name}" 
+            data-price="${opt.price}"
+            onchange="syncOptions()">  <span>+ ${opt.name} (${opt.price}.-)</span>
         `;
         container.appendChild(label);
     });
+}
+// 25-04-2026 
+function syncOptions() {
+    // 1. ถ้าในตะกร้ายังไม่มีของเลย ก็ไม่ต้องทำอะไร
+    if (cart.length === 0) return;
+
+    // 2. ดึงค่า Options ที่ถูกติ๊กอยู่ในปัจจุบันทั้งหมด
+    let extraPrice = 0;
+    let extraNames = [];
+    document.querySelectorAll('.extra-opt-check:checked').forEach(checkbox => {
+        extraPrice += parseFloat(checkbox.getAttribute('data-price')) || 0;
+        extraNames.push(checkbox.getAttribute('data-name'));
+    });
+
+    // 3. เข้าไปแก้ไข "รายการล่าสุด" ในตะกร้า
+    let lastItem = cart[cart.length - 1];
+    
+    // อัปเดตราคา (ราคาพื้นฐาน + ราคาตัวเลือกเสริม)
+    lastItem.price = lastItem.basePrice + extraPrice;
+    // อัปเดตชื่อตัวเลือกเสริม
+    lastItem.options = extraNames.join(', ');
+
+    // 4. สั่งวาดหน้าจอใหม่
+    updateOrderPreview();
 }
 
 async function renderOptionsSettings() {
@@ -225,10 +278,23 @@ async function updateExtra(id, field, value) {
 // ==========================================
 // กล่องที่ 4: ระบบการขาย (Order & Preview)
 // ==========================================
+
+let cart = []; // ใช้เก็บรายการอาหารทั้งหมดที่เลือก
+
 function orderMenu(name, price) {
-    currentOrder.name = name;
-    currentOrder.price = price;
-    currentOrder.qty = 1;
+    // 1. เพิ่มวัตถุใหม่ลงใน Array cart ทันที (เริ่มจากราคาปกติก่อน)
+    cart.push({
+        name: name,
+        basePrice: price,     // เก็บราคาต้นฉบับไว้ (สำคัญมาก!)
+        price: price,         // ราคาที่จะโชว์ (ตอนแรกยังไม่มี Option)
+        qty: 1,
+        options: ''           // ตอนเริ่มกด เมนูยังว่างอยู่
+    });
+
+    // 2. ล้างติ๊กถูกออก เพื่อให้พร้อมสำหรับเมนูถัดไป (นายมีอยู่แล้ว เยี่ยมมาก!)
+    document.querySelectorAll('.extra-opt-check').forEach(c => c.checked = false);
+
+    // 3. อัปเดตการแสดงผล
     updateOrderPreview();
 }
 
@@ -240,10 +306,24 @@ function addItemToOrder(name, price) {
     updateOrderPreview();
 }
 
+// 25-04-2026
 function changeQty(amount) {
-    currentOrder.qty += amount;
-    if (currentOrder.qty < 1) currentOrder.qty = 1;
-    updateOrderPreview(); 
+    // 1. เช็กก่อนว่าในตะกร้า (cart) มีของหรือยัง
+    if (cart.length === 0) return;
+
+    // 2. หาตำแหน่งของ "จานล่าสุด" (คือลำดับสุดท้ายในตะกร้า)
+    let lastIndex = cart.length - 1;
+
+    // 3. ปรับจำนวน qty ของจานนั้น
+    cart[lastIndex].qty += amount;
+
+    // 4. กันบั๊ก: ถ้าลดจนน้อยกว่า 1 ให้ค้างไว้ที่ 1 จาน
+    if (cart[lastIndex].qty < 1) {
+        cart[lastIndex].qty = 1;
+    }
+
+    // 5. สั่งวาดหน้าจอใหม่เพื่อให้ตัวเลขจำนวนและราคารวมอัปเดต
+    updateOrderPreview();
 }
 
 function getSelectedOptions() {
@@ -257,39 +337,75 @@ function getSelectedOptions() {
     return { extraPrice, extraNames };
 }
 
-function updateOrderPreview() {
-    if (currentOrder.name === "") return;
-    const { extraPrice, extraNames } = getSelectedOptions();
-    let totalPrice = (currentOrder.price + extraPrice) * currentOrder.qty;
-    let detailText = `${currentOrder.name} x ${currentOrder.qty}`;
-    if (extraNames.length > 0) detailText += ` (${extraNames.join(', ')})`;
 
-    document.getElementById('order-qty').innerText = currentOrder.qty;
-    document.getElementById('order-detail').innerText = detailText;
-    document.getElementById('order-total-price').innerText = `รวมทั้งสิ้น: ${totalPrice.toLocaleString()}.-`;
+// ฟังก์ชันแสดงผล (มีปุ่มลบรายบรรทัด) 25-04-2026
+function updateOrderPreview() {
+    const detailBox = document.getElementById('order-detail');
+    const totalBox = document.getElementById('order-total-price');
+    const qtyBox = document.getElementById('order-qty'); // <-- 1. ดึงตำแหน่งที่จะโชว์ตัวเลขจาน
+
+    if (cart.length === 0) {
+        if(detailBox) detailBox.innerHTML = "ยังไม่ได้เลือกเมนู";
+        if(totalBox) totalBox.innerText = "รวมทั้งสิ้น : 0.-";
+        if(qtyBox) qtyBox.innerText = "1"; // <-- 2. ถ้าไม่มีของ ให้กลับไปเลข 1
+        return;
+    }
+
+    let grandTotal = 0;
+    // วนลูปสร้าง HTML รายบรรทัด พร้อมปุ่มลบ (X)
+    let detailHTML = cart.map((item, index) => {
+        const itemTotal = item.price * item.qty;
+        grandTotal += itemTotal;
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 4px;">
+                <span style="font-size: 1.1rem; flex: 1;">
+                    <b>${item.name}</b> ${item.options ? '<br><small>('+item.options+')</small>' : ''}
+                </span>
+                <span style="width: 100px; text-align: right;">
+                    x ${item.qty} = ${itemTotal}.-
+                </span>
+                <button onclick="deleteSpecificItem(${index})" style="background: #ff4757; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; margin-left: 10px; cursor: pointer;">×</button>
+            </div>
+        `;
+    }).join('');
+
+    if(detailBox) detailBox.innerHTML = detailHTML;
+    if(totalBox) totalBox.innerText = `รวมทั้งสิ้น : ${grandTotal.toLocaleString()}.-`;
+
+    // --- 3. เพิ่มบรรทัดนี้ เพื่อให้ตัวเลขที่ปุ่ม + / - ขยับตามรายการล่าสุด ---
+    if(qtyBox && cart.length > 0) {
+        qtyBox.innerText = cart[cart.length - 1].qty;
+    }
 }
 
-async function confirmOrder(paymentType) {
-    if (!currentOrder.name || currentOrder.name === "") return alert("เลือกเมนูก่อนครับ!");
-    const { extraPrice, extraNames } = getSelectedOptions();
-    let finalTotalPrice = ((currentOrder.price || 0) + (extraPrice || 0)) * (currentOrder.qty || 1);
+// ฟังก์ชันลบเฉพาะบางรายการ 25-04-2026
+function deleteSpecificItem(index) {
+    cart.splice(index, 1); // ลบข้อมูลใน Array ตามตำแหน่งที่กด
+    updateOrderPreview();  // วาดหน้าจอใหม่
+}
 
-    try {
-        const thailandTime = new Date().toLocaleString('sv-SE');
+// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 25-04-2026
+async function confirmOrder(paymentType) {
+    if (cart.length === 0) return alert("เลือกเมนูก่อนครับ!");
+    
+    const thailandTime = new Date().toLocaleString('sv-SE');
+    
+    // วนลูปบันทึกทีละรายการในตะกร้าลง Dexie
+    for (const item of cart) {
         await db.orders.add({
-            menu_name: currentOrder.name,
-            qty: Number(currentOrder.qty) || 1, 
-            options: extraNames.join(', '),
-            total_price: Number(finalTotalPrice) || 0,
+            menu_name: item.name,
+            qty: item.qty,
+            options: item.options,
+            total_price: item.price * item.qty,
             payment_method: paymentType,
             created_at: thailandTime
         });
-        alert(`✅ บันทึกสำเร็จ!`);
-        await fetchTodaySales();
-        resetOrder(); 
-    } catch (error) {
-        alert("❌ บันทึกล้มเหลว: " + error.message);
     }
+
+    alert("บันทึกสำเร็จทั้งหมด " + cart.length + " รายการ");
+    cart = []; // ล้างตะกร้า
+    updateOrderPreview();
+    fetchTodaySales();
 }
 
 async function fetchTodaySales() {
@@ -343,7 +459,7 @@ async function handleCloseDay() {
     const totalSales = (document.getElementById('total-sales-display').innerText || '0').replace(/,/g, '');
     const eggCount = (document.getElementById('egg-count').innerText || '0').replace(/,/g, '');
 
-    if (confirm(`ยืนยันการปิดยอดวันนี้?\n💰 ยอด: ${totalSales}.-\n🥚 ${eggUnitName}: ${eggCount}`)) {
+    if (confirm(`ยืนยันการปิดยอดวันนี้?\n💰 ยอด: ${totalSales}.-\n📈 ${eggUnitName}: ${eggCount}`)) {
         const today = new Date().toISOString().split('T')[0];
         await db.dailysummary.put({ summary_date: today, total_sales: parseFloat(totalSales), egg_count: parseInt(eggCount) });
         alert("✅ ปิดยอดแล้ว!");
@@ -364,24 +480,72 @@ async function addNewMenu() {
     } else { alert("กรุณากรอกข้อมูลให้ครบ"); }
 }
 
-// แสดงรายการใน "คลังใหญ่" และมีปุ่มเพิ่มไปหน้าแรก
+// --- ส่วนของคลังเมนูทั้งหมด --- 25-04-2026
 async function renderMenuList() {
     const allMenus = await db.menus.toArray();
     const listContainer = document.getElementById('menu-list-items');
     if(!listContainer) return;
     listContainer.innerHTML = ''; 
+    
     allMenus.forEach(menu => {
         const li = document.createElement('li');
-        li.style.cssText = "display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee; align-items:center;";
+        // ปรับ CSS ให้ยืดหยุ่นขึ้นเพื่อให้รองรับปุ่มที่เพิ่มมา
+        li.style.cssText = "display:flex; flex-direction:column; gap:8px; padding:12px; border-bottom:1px solid #eee; background:#fff;";
+        
         li.innerHTML = `
-            <span><b>${menu.name}</b> (${menu.price}.-)</span>
-            <div>
-                <button onclick="addFromStorageToQuick('${menu.name}', ${menu.price})" style="background:#00acc1; color:white; border:none; padding:5px 10px; border-radius:5px; margin-right:5px;">+ หน้าแรก</button>
-                <button onclick="deleteFullMenu(${menu.id})" style="color:#ff4757; background:none; border:none; cursor:pointer; font-weight:bold;">ลบจากคลัง</button>
+            <div style="display:flex; gap:5px;">
+                <input type="text" value="${menu.name}" disabled id="full-edit-name-${menu.id}" 
+                    style="flex:2; padding:8px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+                <input type="number" value="${menu.price}" disabled id="full-edit-price-${menu.id}" 
+                    style="width:70px; padding:8px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <button onclick="toggleEditFullDb(this, ${menu.id})" 
+                        style="background:#3498db; color:white; border:none; padding:5px 12px; border-radius:5px; margin-right:5px;">📝 แก้ไข</button>
+                    <button onclick="deleteFullMenu(${menu.id})" 
+                        style="background:none; border:none; color:#ff4757; cursor:pointer; font-size:0.9rem;">ลบจากคลัง</button>
+                </div>
+                <button onclick="addFromStorageToQuick('${menu.name}', ${menu.price})" 
+                    style="background:#00acc1; color:white; border:none; padding:8px 15px; border-radius:20px; font-weight:bold; font-size:0.85rem;">
+                    + หน้าแรก
+                </button>
             </div>
         `;
         listContainer.appendChild(li);
     });
+}
+
+// ฟังก์ชันใหม่: ใช้ชื่อ toggleEditFullDb เพื่อไม่ให้สับสนกับ toggleEditRow 25-04-2026
+async function toggleEditFullDb(btn, id) {
+    const nameInput = document.getElementById(`full-edit-name-${id}`);
+    const priceInput = document.getElementById(`full-edit-price-${id}`);
+    const isLocked = nameInput.disabled;
+
+    if (isLocked) {
+        nameInput.disabled = false;
+        priceInput.disabled = false;
+        nameInput.style.background = "#fff";
+        priceInput.style.background = "#fff";
+        nameInput.style.border = "1px solid #00acc1";
+        btn.innerText = "✅ บันทึก";
+        btn.style.background = "#2ecc71";
+    } else {
+        const newName = nameInput.value;
+        const newPrice = parseFloat(priceInput.value);
+        if (newName && !isNaN(newPrice)) {
+            await db.menus.update(id, { name: newName, price: newPrice });
+            nameInput.disabled = true;
+            priceInput.disabled = true;
+            nameInput.style.background = "#f9f9f9";
+            priceInput.style.background = "#f9f9f9";
+            nameInput.style.border = "1px solid #ddd";
+            btn.innerText = "📝 แก้ไข";
+            btn.style.background = "#3498db";
+            // สั่งอัปเดตปุ่มหน้าแรกเผื่อข้อมูลเปลี่ยน
+            renderOrderButtons(); 
+        }
+    }
 }
 
 // ฟังก์ชันทางลัด: ดึงจากคลังไปโชว์ในหน้าตั้งค่าเมนูขายทันที
@@ -474,10 +638,110 @@ window.onload = function() {
     renderExtraOptions(); 
 };
 
-// Export CSV และ Backup/Restore (คงเดิมจากโค้ดนาย)
-async function exportToCSV() { /* ... โค้ดเดิมของนาย ... */ }
-async function backupDatabase() { /* ... โค้ดเดิมของนาย ... */ }
-async function restoreDatabase(event) { /* ... โค้ดเดิมของนาย ... */ }
+// ==========================================
+// กล่องที่ 6: ระบบจัดการฐานข้อมูล (Backup, Restore, Export)  ปรับแก้ 25-04-2026
+// ==========================================
+
+// 1. ฟังก์ชันสำรองข้อมูล (Backup) - ออกมาเป็นไฟล์ .json
+async function backupDatabase() {
+    try {
+        const orders = await db.orders.toArray();
+        const dailysummary = await db.dailysummary.toArray();
+        const menus = await db.menus.toArray();
+        const extra_options = await db.extra_options.toArray();
+        const settings = {
+            shopName: localStorage.getItem('shopName'),
+            shopMenu: localStorage.getItem('shopMenu'),
+            quickMenus: localStorage.getItem('quickMenus'),
+            counterLabel: localStorage.getItem('counterLabel'),
+            counterUnit: localStorage.getItem('counterUnit'),
+            myDailyCost: localStorage.getItem('myDailyCost')
+        };
+
+        const backupData = {
+            orders,
+            dailysummary,
+            menus,
+            extra_options,
+            settings,
+            backup_date: new Date().toISOString()
+        };
+
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Backup_GrandmaPOS_${new Date().toLocaleDateString('th-TH')}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert("❌ สำรองข้อมูลไม่สำเร็จ: " + err.message);
+    }
+}
+
+// 2. ฟังก์ชันนำเข้าข้อมูล (Restore) - จากไฟล์เครื่องเก่า
+async function restoreDatabase(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            if (confirm("⚠️ การนำเข้าข้อมูลจะเขียนทับข้อมูลปัจจุบัน ยืนยันไหม?")) {
+                // ล้างข้อมูลเก่า
+                await db.orders.clear();
+                await db.dailysummary.clear();
+                await db.menus.clear();
+                await db.extra_options.clear();
+
+                // ใส่ข้อมูลใหม่ลงไป
+                if (data.orders) await db.orders.bulkAdd(data.orders);
+                if (data.dailysummary) await db.dailysummary.bulkAdd(data.dailysummary);
+                if (data.menus) await db.menus.bulkAdd(data.menus);
+                if (data.extra_options) await db.extra_options.bulkAdd(data.extra_options);
+
+                // คืนค่า Settings ลง LocalStorage
+                if (data.settings) {
+                    Object.keys(data.settings).forEach(key => {
+                        if (data.settings[key]) localStorage.setItem(key, data.settings[key]);
+                    });
+                }
+
+                alert("✅ นำเข้าข้อมูลสำเร็จ! ระบบจะทำการเริ่มใหม่");
+                location.reload();
+            }
+        } catch (err) {
+            alert("❌ ไฟล์ไม่ถูกต้องหรือเสีย: " + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+// 3. ฟังก์ชันส่งออกยอดขายเป็น CSV (สำหรับเปิดใน Excel)
+async function exportToCSV() {
+    try {
+        const orders = await db.orders.toArray();
+        if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
+
+        let csvContent = "\ufeff"; // รองรับภาษาไทยใน Excel
+        csvContent += "ID,วันที่-เวลา,รายการ,จำนวน,ตัวเลือก,ราคารวม,ชำระเงิน\n";
+
+        orders.forEach(o => {
+            csvContent += `${o.id},${o.created_at},${o.menu_name},${o.qty},"${o.options}",${o.total_price},${o.payment_method}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Report_Sales_${new Date().toLocaleDateString('th-TH')}.csv`;
+        a.click();
+    } catch (err) {
+        alert("❌ ส่งออก CSV ไม่สำเร็จ: " + err.message);
+    }
+}
 
 // iOS & Popstate
 window.addEventListener('load', () => {
