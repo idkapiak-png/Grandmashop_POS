@@ -987,7 +987,7 @@ async function showSmartReceipt(orderData) {
     document.getElementById('r-total').innerText = "รวมทั้งสิ้น: " + orderData.total_price.toLocaleString() + ".-";
     document.getElementById('r-payment').innerText = "ชำระโดย: " + (orderData.payment_method === 'Cash' ? 'เงินสด' : 'โอนเงิน (QR)');
 
-    // 3. วาดรายการสินค้า (รองรับทั้งตะกร้าหน้าขาย และ ประวัติย้อนหลัง)
+    // 3. วาดรายการสินค้า
     let itemHTML = "";
     if (orderData.items && Array.isArray(orderData.items)) {
         orderData.items.forEach(item => {
@@ -1010,23 +1010,33 @@ async function showSmartReceipt(orderData) {
     }
     document.getElementById('r-items').innerHTML = itemHTML;
 
-    // 4. สร้าง QR Code (แบบ Safe Mode กันพัง)
-    try {
-        if (typeof QRCode !== "undefined" && qrArea) {
-            const qrText = `ร้าน: ${shopName}\nยอดรวม: ${orderData.total_price}.-\nขอบคุณที่อุดหนุนครับ`;
-            new QRCode(qrArea, {
-                text: qrText,
-                width: 120,
-                height: 120,
-                correctLevel: QRCode.CorrectLevel.H
-            });
-        }
-    } catch (e) {
-        console.error("QR Code Error:", e);
-    }
-
-    // 5. เปิด Modal โชว์ใบเสร็จ
+    // 4. สั่งเปิด Modal ขึ้นมาก่อน (เพื่อให้กล่อง qrcode ปรากฏตัวบนหน้าจอ)
     modal.style.display = 'flex';
+
+    // 5. สร้าง QR Code หลังจาก Modal แสดงผลแล้ว 0.2 วินาที
+    setTimeout(() => {
+        try {
+            if (typeof QRCode !== "undefined" && qrArea) {
+                // ล้างอีกรอบเผื่อความชัวร์
+                qrArea.innerHTML = ''; 
+                
+                const qrText = `ร้าน: ${shopName}\nยอดรวม: ${orderData.total_price}.-\nขอบคุณที่อุดหนุนครับ`;
+                new QRCode(qrArea, {
+                    text: qrText,
+                    width: 120,
+                    height: 120,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                console.log("สร้าง QR Code สำเร็จ!");
+            } else {
+                console.error("ไม่พบ Library QRCode หรือพื้นที่วาง QR");
+            }
+        } catch (e) {
+            console.error("QR Code Error:", e);
+        }
+    }, 200); // รอ 0.2 วินาที
 }
 
 // ฟังก์ชันปิดใบเสร็จ (นายเขียนไว้แล้ว เอามาวางคู่กัน)
