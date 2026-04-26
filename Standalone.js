@@ -725,7 +725,7 @@ async function exportToCSV() {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
-        // --- 1. คำนวณสรุปยอด (เหมือนเดิม) ---
+        // --- 1. คำนวณสรุปยอด ---
         const now = new Date();
         const todayStr = now.toLocaleDateString('sv-SE'); 
         const startOfWeek = new Date(now);
@@ -745,28 +745,29 @@ async function exportToCSV() {
         };
 
         orders.forEach(o => {
-            // ดึงแค่วันที่ออกมาเทียบอย่างปลอดภัย
             const datePart = o.created_at.split(',')[0].trim(); 
             const oDate = new Date(datePart);
             const oDateStr = oDate.toLocaleDateString('sv-SE');
             const price = o.total_price || 0;
-            const isCash = o.payment_method === 'เงินสด';
+            
+            // แก้ไขจุดนี้: ใช้ .trim() เพื่อป้องกันช่องว่าง และเช็กคำว่า "เงินสด" ให้แม่นยำขึ้น
+            const isCash = o.payment_method && o.payment_method.trim() === 'เงินสด';
 
             if (oDate.getFullYear() === currentYear) {
                 summary.year.total += price;
-                isCash ? summary.year.cash += price : summary.year.transfer += price;
+                if (isCash) summary.year.cash += price; else summary.year.transfer += price;
 
                 if (oDate.getMonth() === currentMonth) {
                     summary.month.total += price;
-                    isCash ? summary.month.cash += price : summary.month.transfer += price;
+                    if (isCash) summary.month.cash += price; else summary.month.transfer += price;
                 }
                 if (oDate >= startOfWeek) {
                     summary.week.total += price;
-                    isCash ? summary.week.cash += price : summary.week.transfer += price;
+                    if (isCash) summary.week.cash += price; else summary.week.transfer += price;
                 }
                 if (oDateStr === todayStr) {
                     summary.today.total += price;
-                    isCash ? summary.today.cash += price : summary.today.transfer += price;
+                    if (isCash) summary.today.cash += price; else summary.today.transfer += price;
                 }
             }
         });
@@ -784,21 +785,19 @@ async function exportToCSV() {
         csvContent += "รายละเอียดออเดอร์,,,\n";
         csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคารวม (บาท),ช่องทางการชำระเงิน\n";
 
-        let lastDateForDivider = ""; // ตัวแปรคุมการขีดเส้น
+        let lastDateSeen = ""; 
 
         orders.forEach((o) => {
-            // ดึงเฉพาะวันที่มาเทียบ (ตัดเวลาทิ้งชัวร์ๆ)
             const currentDateOnly = o.created_at.split(',')[0].trim();
 
-            // --- จุดสำคัญ: ขีดเส้นเฉพาะเมื่อ "วันที่เปลี่ยน" และ "ไม่ใช่รายการแรก" ---
-            if (lastDateForDivider !== "" && lastDateForDivider !== currentDateOnly) {
-                csvContent += "------------------------------------------------------------\n";
+            // เปลี่ยนจาก "ขีดเส้น" เป็น "เว้นบรรทัดว่าง" เมื่อขึ้นวันใหม่ (ถ้าไม่ใช่รายการแรก)
+            if (lastDateSeen !== "" && lastDateSeen !== currentDateOnly) {
+                csvContent += "\n"; // เว้น 1 บรรทัดให้ดูสะอาดตา
             }
 
             csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
             
-            // อัปเดตวันที่ล่าสุดไว้เทียบกับแถวถัดไป
-            lastDateForDivider = currentDateOnly;
+            lastDateSeen = currentDateOnly;
         });
 
         // --- 3. ดาวน์โหลดไฟล์ ---
