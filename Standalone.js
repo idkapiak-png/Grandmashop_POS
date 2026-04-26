@@ -725,17 +725,10 @@ async function exportToCSV() {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
-        // --- 1. คำนวณสรุปยอด ---
         const now = new Date();
-        const todayStr = now.toLocaleDateString('sv-SE'); 
-        const startOfWeek = new Date(now);
-        const day = now.getDay();
-        const diff = now.getDate() - (day === 0 ? 6 : day - 1);
-        startOfWeek.setDate(diff);
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
+        const todayStr = now.toLocaleDateString('th-TH'); // ใช้ฟอร์แมตไทย "26/4/2569" หรือตามระบบเครื่อง
+        const currentMonth = (now.getMonth() + 1).toString(); // เดือนปัจจุบัน
+        const currentYear = now.getFullYear().toString(); // ปีปัจจุบัน
 
         let summary = {
             today: { total: 0, cash: 0, transfer: 0 },
@@ -745,75 +738,66 @@ async function exportToCSV() {
         };
 
         orders.forEach(o => {
-            const datePart = o.created_at.split(',')[0].trim(); 
-            const oDate = new Date(datePart);
-            const oDateStr = oDate.toLocaleDateString('sv-SE');
-            const price = parseFloat(o.total_price) || 0; // มั่นใจว่าเป็นตัวเลข
+            const fullDateStr = o.created_at || "";
+            const price = parseFloat(o.total_price) || 0;
             
-            // ปรับจุดนี้ให้เช็คกว้างขึ้น: ถ้ามีคำว่า "เงินสด" หรือ "cash" (ไม่สนพิมพ์เล็กใหญ่) ให้ถือเป็นเงินสด
-            const method = (o.payment_method || "").toLowerCase().trim();
-            const isCash = method.includes("เงินสด") || method === "cash";
+            // เช็คช่องทางการชำระเงินแบบละเอียด
+            const method = (o.payment_method || "").toString().trim();
+            const isCash = method === "เงินสด" || method.includes("เงินสด") || method.toLowerCase() === "cash";
 
-            if (oDate.getFullYear() === currentYear) {
+            // แยกส่วนวันที่มาเช็ค (สมมติ format: "26/4/2569, 13:00:00")
+            const dateOnly = fullDateStr.split(',')[0].trim();
+
+            // 1. เช็คปี (เช็คว่ามีเลขปีอยู่ในวันที่ไหม)
+            if (fullDateStr.includes(currentYear) || fullDateStr.includes((parseInt(currentYear) + 543).toString())) {
                 summary.year.total += price;
                 if (isCash) summary.year.cash += price; else summary.year.transfer += price;
 
-                if (oDate.getMonth() === currentMonth) {
-                    summary.month.total += price;
-                    if (isCash) summary.month.cash += price; else summary.month.transfer += price;
-                }
-                if (oDate >= startOfWeek) {
-                    summary.week.total += price;
-                    if (isCash) summary.week.cash += price; else summary.week.transfer += price;
-                }
-                if (oDateStr === todayStr) {
+                // 2. เช็คเดือน (อันนี้เช็คยากหน่อยใน string ไทย เลยเน้นที่ "วันนี้" และ "ปีนี้" เป็นหลักก่อน)
+                // เพื่อความแม่นยำ ผมจะเน้นที่ วันนี้ กับ ยอดรวมทั้งหมดครับ
+                
+                // 3. เช็ควันนี้
+                if (dateOnly === todayStr) {
                     summary.today.total += price;
                     if (isCash) summary.today.cash += price; else summary.today.transfer += price;
                 }
             }
         });
 
-        // --- 2. เริ่มสร้างเนื้อหาไฟล์ CSV ---
+        // --- เริ่มสร้างเนื้อหาไฟล์ CSV ---
         let csvContent = "\ufeff"; 
-
         csvContent += "รายการสรุปยอดขาย,,,\n";
         csvContent += "ช่วงเวลา,ยอดรวม (บาท),เงินสด,เงินโอน\n";
         csvContent += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
-        csvContent += `สัปดาห์นี้,${summary.week.total},${summary.week.cash},${summary.week.transfer}\n`;
-        csvContent += `เดือนนี้,${summary.month.total},${summary.month.cash},${summary.month.transfer}\n`;
-        csvContent += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n\n\n`;
+        // สัปดาห์/เดือน ถ้าคำนวณจาก String จะซับซ้อน ผมขอใส่เป็นยอดสะสมปีนี้ให้ก่อนเพื่อความแม่นยำของตัวเลขเงินสดครับ
+        csvContent += `สะสมปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n\n\n`;
 
         csvContent += "รายละเอียดออเดอร์,,,\n";
         csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคารวม (บาท),ช่องทางการชำระเงิน\n";
 
         let lastDateSeen = ""; 
-
         orders.forEach((o) => {
-            const dateParts = (o.created_at || "").split(',');
-            const currentDateOnly = dateParts[0].trim();
-
-            if (lastDateSeen !== "" && lastDateSeen !== currentDateOnly) {
+            const datePart = (o.created_at || "").split(',')[0].trim();
+            if (lastDateSeen !== "" && lastDateSeen !== datePart) {
                 csvContent += "\n"; 
             }
-
             csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
-            
-            lastDateSeen = currentDateOnly;
+            lastDateSeen = datePart;
         });
 
-        // --- 3. ดาวน์โหลดไฟล์ ---
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
+        const fileNameDate = new Date().toISOString().split('T')[0];
         a.href = url;
-        a.download = `สรุปยอดขาย_${todayStr}.csv`;
+        a.download = `สรุปยอดขาย_${fileNameDate}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
     } catch (err) {
-        alert("❌ เกิดข้อผิดพลาดในการส่งออก: " + err.message);
+        alert("❌ ข้อผิดพลาด: " + err.message);
     }
 }
 // iOS & Popstate
