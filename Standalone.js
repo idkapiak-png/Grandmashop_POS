@@ -725,13 +725,13 @@ async function exportToCSV() {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
-        // --- 1. เตรียมข้อมูลพื้นฐานสำหรับการเปรียบเทียบ ---
+        // --- 1. เตรียมตัวแปรสำหรับสรุปยอด ---
         const now = new Date();
-        const todayStr = now.toLocaleDateString('th-TH'); // เช่น "26/4/2569"
+        const todayStr = now.toLocaleDateString('th-TH'); // วันที่ปัจจุบัน "26/4/2569"
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
 
-        // คำนวณวันแรกของสัปดาห์ (วันจันทร์)
+        // หาวันแรกของสัปดาห์ (วันจันทร์)
         const startOfWeek = new Date(now);
         const day = now.getDay();
         const diff = now.getDate() - (day === 0 ? 6 : day - 1);
@@ -745,55 +745,46 @@ async function exportToCSV() {
             year: { total: 0, cash: 0, transfer: 0 }
         };
 
-        // --- 2. ประมวลผลคำนวณยอดขาย ---
+        // --- 2. วนลูปเพื่อคำนวณยอดสรุปก่อน ---
         orders.forEach(o => {
             const price = parseFloat(o.total_price) || 0;
             const method = (o.payment_method || "").toString().trim();
-            // เช็ค "เงินสด" แบบดักทุกทาง (ตัวสะกด/ช่องว่าง)
             const isCash = method === "เงินสด" || method.includes("เงินสด");
 
-            // แยกวันที่ออกมาเพื่อเช็คช่วงเวลา
+            // ดึงวันที่มาแปลงเป็น Date Object
             const [datePart] = (o.created_at || "").split(',');
             const dateOnly = datePart.trim(); 
+            const p = dateOnly.split('/');
             
-            const parts = dateOnly.split('/');
-            if (parts.length === 3) {
-                let d = parseInt(parts[0]), m = parseInt(parts[1]) - 1, y = parseInt(parts[2]);
-                const checkYear = y > 2500 ? y - 543 : y; // แปลง พ.ศ. เป็น ค.ศ. เพื่อคำนวณ
-                const oDate = new Date(checkYear, m, d);
+            if (p.length === 3) {
+                let d = parseInt(p[0]), m = parseInt(p[1]) - 1, y = parseInt(p[2]);
+                const yCC = y > 2500 ? y - 543 : y; // แปลง พ.ศ. เป็น ค.ศ.
+                const oDate = new Date(yCC, m, d);
 
-                // --- ตรวจสอบ 4 เงื่อนไขแยกอิสระ (เป้าหมายหลักที่นายต้องการ) ---
-                
-                // ประตูที่ 1: วันนี้
+                // ตรวจสอบเงื่อนไข 4 ช่วงเวลา
                 if (dateOnly === todayStr) {
                     summary.today.total += price;
-                    if (isCash) summary.today.cash += price; else summary.today.transfer += price;
+                    isCash ? summary.today.cash += price : summary.today.transfer += price;
                 }
-
-                // ประตูที่ 2: สัปดาห์นี้
+                if (yCC === currentYear) {
+                    summary.year.total += price;
+                    isCash ? summary.year.cash += price : summary.year.transfer += price;
+                    if (m === currentMonth) {
+                        summary.month.total += price;
+                        isCash ? summary.month.cash += price : summary.month.transfer += price;
+                    }
+                }
                 if (oDate >= startOfWeek && oDate <= now) {
                     summary.week.total += price;
-                    if (isCash) summary.week.cash += price; else summary.week.transfer += price;
-                }
-
-                // ประตูที่ 3: เดือนนี้
-                if (m === currentMonth && checkYear === currentYear) {
-                    summary.month.total += price;
-                    if (isCash) summary.month.cash += price; else summary.month.transfer += price;
-                }
-
-                // ประตูที่ 4: ปีนี้
-                if (checkYear === currentYear) {
-                    summary.year.total += price;
-                    if (isCash) summary.year.cash += price; else summary.year.transfer += price;
+                    isCash ? summary.week.cash += price : summary.week.transfer += price;
                 }
             }
         });
 
-        // --- 3. สร้างเนื้อหาไฟล์ CSV (ดีไซน์ตามที่สั่ง) ---
-        let csvContent = "\ufeff"; // BOM เพื่อให้ Excel อ่านภาษาไทยออก
+        // --- 3. เขียนเนื้อหาไฟล์ CSV ---
+        let csvContent = "\ufeff"; 
 
-        // หัวข้อสรุปภาพรวม
+        // ส่วนที่ 1: รายการสรุปยอด (Dashboard)
         csvContent += "รายการสรุปยอด ประจำวันนี้,,,\n";
         csvContent += "ช่วงเวลา,ยอดรวม (บาท),เงินสด,เงินโอน\n";
         csvContent += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
@@ -801,30 +792,30 @@ async function exportToCSV() {
         csvContent += `เดือนนี้,${summary.month.total},${summary.month.cash},${summary.month.transfer}\n`;
         csvContent += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n\n\n`;
 
-        // หัวข้อรายละเอียดออเดอร์
+        // ส่วนที่ 2: รายละเอียดออเดอร์
         csvContent += "รายละเอียดออเดอร์,,,\n";
         csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคารวม (บาท),ช่องทางการชำระเงิน\n";
 
-        let lastDateSeen = ""; 
-        orders.forEach((o) => {
+        let lastDateSeen = "";
+        orders.forEach(o => {
             const datePart = (o.created_at || "").split(',')[0].trim();
-            // เว้นบรรทัดว่างเมื่อจบวัน (เปลี่ยนวันใหม่)
+            
+            // เว้นบรรทัดเมื่อขึ้นวันใหม่
             if (lastDateSeen !== "" && lastDateSeen !== datePart) {
                 csvContent += "\n"; 
             }
+
             csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
             lastDateSeen = datePart;
         });
 
-        // --- 4. กระบวนการดาวน์โหลด ---
+        // --- 4. ดาวน์โหลดไฟล์ ---
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = `Report_Sales_${todayStr.replace(/\//g, '-')}.csv`;
-        document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
     } catch (err) {
