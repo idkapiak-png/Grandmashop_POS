@@ -35,7 +35,7 @@ header {
     padding: 20px 0 60px 0;
     background: linear-gradient(135deg, #a4fcff, #cfe0eb); /* ใส่สีไล่เฉดให้ดูทันสมัย */
     border-radius: 0 0 25px 25px; /* มนเฉพาะขอบล่างให้ดูนุ่มนวล */
-    color: #000000;
+    color: #000000; 
     margin-bottom: 20px;
     position: relative;
 }

@@ -579,9 +579,9 @@ async function searchSmartMenu(query) {
     matches.forEach(menu => {
         const btn = document.createElement('button');
         btn.innerText = `➕ ${menu.name} (${menu.price}.-)`;
-        btn.style.cssText = "margin:5px; padding:10px; background:#e0f7fa; border-radius:5px; border:1px solid #00acc1;";
+        btn.style.cssText = "margin:5px; padding:10px; background:#ff9f43; border-radius:12px; border:1px solid #ff9f43;";
         btn.onclick = () => {
-            addItemToOrder(menu.name, menu.price); 
+            orderMenu(menu.name, menu.price); 
             resultArea.innerHTML = '';
             document.getElementById('smart-search-input').value = '';
         };
@@ -728,8 +728,29 @@ async function exportToCSV() {
         let csvContent = "\ufeff"; // รองรับภาษาไทยใน Excel
         csvContent += "ID,วันที่-เวลา,รายการ,จำนวน,ตัวเลือก,ราคารวม,ชำระเงิน\n";
 
-        orders.forEach(o => {
+        let lastDate = ""; // ไว้เช็คการเปลี่ยนวัน
+        let dayTotal = 0;  // ไว้รวมยอดรายวัน
+
+        orders.forEach((o, index) => {
+            // ดึงเฉพาะวันที่ออกมาจาก created_at (เช่น "2026-04-26")
+            const currentDate = o.created_at.split(',')[0] || o.created_at.split(' ')[0];
+
+            // --- ส่วนที่เพิ่มเข้ามา: ถ้าเปลี่ยนวัน ให้แทรกบรรทัดสรุปของวันก่อนหน้า ---
+            if (lastDate !== "" && lastDate !== currentDate) {
+                csvContent += `,,,,,"--- สรุปยอดวันที่ ${lastDate}: ${dayTotal} ---",\n\n`;
+                dayTotal = 0; // รีเซ็ตยอดรวมเพื่อเริ่มวันใหม่
+            }
+
+            // เขียนข้อมูลแถวปกติ (เหมือนเดิมทุกประการ)
             csvContent += `${o.id},${o.created_at},${o.menu_name},${o.qty},"${o.options}",${o.total_price},${o.payment_method}\n`;
+            
+            dayTotal += o.total_price;
+            lastDate = currentDate;
+
+            // --- ส่วนที่เพิ่มเข้ามา: ถ้าเป็นแถวสุดท้ายของไฟล์ ให้ปิดท้ายด้วยสรุปยอดวันนั้น ---
+            if (index === orders.length - 1) {
+                csvContent += `,,,,,"--- สรุปยอดวันที่ ${currentDate}: ${dayTotal} ---",\n`;
+            }
         });
 
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
