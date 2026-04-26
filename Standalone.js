@@ -91,11 +91,18 @@ function saveAndExit() {
         localStorage.setItem('counterLabel', counterLabel);
         if(document.getElementById('display-label')) 
             document.getElementById('display-label').innerText = "📊 วันนี้ใช้ " + counterLabel + " ไปแล้ว";
+        // 🔥 เพิ่มบรรทัดนี้: อัปเดตหัวตาราง Dashboard ทันที 26-04-2026
+        if(document.getElementById('dashboard-unit-header'))
+            document.getElementById('dashboard-unit-header').innerText = counterLabel;
     }
+
     if(counterUnit.trim() !== "") {
         localStorage.setItem('counterUnit', counterUnit);
         if(document.getElementById('display-unit')) 
             document.getElementById('display-unit').innerText = counterUnit;
+        // 🔥 เพิ่มบรรทัดนี้: อัปเดตหน่วยนับใน Dashboard ทันที
+        if(document.getElementById('dashboard-unit-name'))
+            document.getElementById('dashboard-unit-name').innerText = counterUnit;
     }
 
     // 5. ปิดหน้าตั้งค่า
@@ -595,7 +602,17 @@ function closeMenuManager() { document.getElementById('menu-manager-section').st
 async function loadDashboardData() {
     const tableBody = document.getElementById('dashboard-table-body');
     if (!tableBody) return;
+    // 🔥 เพิ่ม Logic ดึงชื่อจาก localStorage มาเปลี่ยนหัวตารางก่อนโหลดข้อมูล 26-04-2026
+    const savedLabel = localStorage.getItem('counterLabel') || "สิ่งที่นับ";
+    const savedUnit = localStorage.getItem('counterUnit') || "หน่วยนับ";
+    
+    if(document.getElementById('dashboard-unit-header'))
+        document.getElementById('dashboard-unit-header').innerText = savedLabel;
+    if(document.getElementById('dashboard-unit-name'))
+        document.getElementById('dashboard-unit-name').innerText = savedUnit;
+
     const data = await db.dailysummary.orderBy('summary_date').reverse().limit(7).toArray();
+
     tableBody.innerHTML = data.length ? '' : '<tr><td colspan="3">ยังไม่มีประวัติ</td></tr>';
     data.forEach(row => {
         const tr = document.createElement('tr');
@@ -629,6 +646,10 @@ window.onload = function() {
 
     if (document.getElementById('display-label')) document.getElementById('display-label').innerText = "📊 วันนี้ใช้ " + savedLabel + " ไปแล้ว";
     if (document.getElementById('display-unit')) document.getElementById('display-unit').innerText = savedUnit;
+    // 🔥 เพิ่ม: อัปเดตหัวตาราง Dashboard ให้เป็นปัจจุบัน 26-04-2026
+    if(document.getElementById('dashboard-unit-header')) document.getElementById('dashboard-unit-header').innerText = savedLabel;
+    if(document.getElementById('dashboard-unit-name')) document.getElementById('dashboard-unit-name').innerText = savedUnit;
+
     if (document.getElementById('counter-label-input')) document.getElementById('counter-label-input').value = savedLabel;
     if (document.getElementById('counter-unit-input')) document.getElementById('counter-unit-input').value = savedUnit;
 
