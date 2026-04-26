@@ -957,6 +957,93 @@ async function loadRecentOrders() {
     });
 }
 
+// ฟังก์ชันเสริมสำหรับกดดูใบเสร็จย้อนหลัง 26-04-2026
+function reprintReceipt(order) {
+    const receiptData = {
+        items: [{name: order.menu_name, price: order.total_price/order.qty, qty: order.qty, options: order.options}],
+        total_price: order.total_price,
+        payment_method: order.payment_method,
+        created_at: order.created_at
+    };
+    showSmartReceipt(receiptData);
+}
+
+// ==========================================
+// กล่องที่ 7: ระบบแสดงใบเสร็จและ QR Code (เพิ่มใหม่) 26-04-2026
+// ==========================================
+async function showSmartReceipt(orderData) {
+    const modal = document.getElementById('receipt-modal');
+    if (!modal) return;
+
+    const shopName = localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง";
+    
+    // 1. ล้างพื้นที่ QR Code เก่า
+    const qrArea = document.getElementById('qrcode');
+    if (qrArea) qrArea.innerHTML = '';
+
+    // 2. ใส่ข้อมูลหัวใบเสร็จ
+    document.getElementById('r-shop-name').innerText = shopName;
+    document.getElementById('r-date').innerText = "วันที่: " + (orderData.created_at || new Date().toLocaleString());
+    document.getElementById('r-total').innerText = "รวมทั้งสิ้น: " + orderData.total_price.toLocaleString() + ".-";
+    document.getElementById('r-payment').innerText = "ชำระโดย: " + (orderData.payment_method === 'Cash' ? 'เงินสด' : 'โอนเงิน (QR)');
+
+    // 3. วาดรายการสินค้า (รองรับทั้งตะกร้าหน้าขาย และ ประวัติย้อนหลัง)
+    let itemHTML = "";
+    if (orderData.items && Array.isArray(orderData.items)) {
+        orderData.items.forEach(item => {
+            itemHTML += `
+                <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                    <span>${item.name} x ${item.qty}</span>
+                    <span>${(item.price * item.qty).toLocaleString()}.-</span>
+                </div>
+                ${item.options ? `<div style="font-size:0.75rem; color:#666; margin-bottom:5px;">(+ ${item.options})</div>` : ''}
+            `;
+        });
+    } else {
+        itemHTML = `
+            <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                <span>${orderData.menu_name} x ${orderData.qty}</span>
+                <span>${orderData.total_price.toLocaleString()}.-</span>
+            </div>
+            ${orderData.options ? `<div style="font-size:0.75rem; color:#666;">(+ ${orderData.options})</div>` : ''}
+        `;
+    }
+    document.getElementById('r-items').innerHTML = itemHTML;
+
+    // 4. สร้าง QR Code (แบบ Safe Mode กันพัง)
+    try {
+        if (typeof QRCode !== "undefined" && qrArea) {
+            const qrText = `ร้าน: ${shopName}\nยอดรวม: ${orderData.total_price}.-\nขอบคุณที่อุดหนุนครับ`;
+            new QRCode(qrArea, {
+                text: qrText,
+                width: 120,
+                height: 120,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+    } catch (e) {
+        console.error("QR Code Error:", e);
+    }
+
+    // 5. เปิด Modal โชว์ใบเสร็จ
+    modal.style.display = 'flex';
+}
+
+// ฟังก์ชันปิดใบเสร็จ (นายเขียนไว้แล้ว เอามาวางคู่กัน)
+function closeReceipt() {
+    document.getElementById('receipt-modal').style.display = 'none';
+    const qrArea = document.getElementById('qrcode');
+    if (qrArea) qrArea.innerHTML = ''; 
+}
+
+// ฟังก์ชันดึงข้อมูลจากปุ่มประวัติมาโชว์ใบเสร็จ
+async function getOrderAndShowReceipt(id) {
+    const order = await db.orders.get(id);
+    if (order) {
+        showSmartReceipt(order);
+    }
+}
+
 // iOS & Popstate
 window.addEventListener('load', () => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
