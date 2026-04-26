@@ -725,13 +725,13 @@ async function exportToCSV() {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
-        // --- 1. เตรียมตัวแปรสำหรับสรุปยอด ---
         const now = new Date();
-        const todayStr = now.toLocaleDateString('th-TH'); // วันที่ปัจจุบัน "26/4/2569"
+        // สร้าง String วันที่รูปแบบสากล (YYYY-MM-DD) เพื่อให้ตรงกับในรูป
+        const todayStr = now.toISOString().split('T')[0]; 
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
 
-        // หาวันแรกของสัปดาห์ (วันจันทร์)
+        // หาวันแรกของสัปดาห์
         const startOfWeek = new Date(now);
         const day = now.getDay();
         const diff = now.getDate() - (day === 0 ? 6 : day - 1);
@@ -745,35 +745,35 @@ async function exportToCSV() {
             year: { total: 0, cash: 0, transfer: 0 }
         };
 
-        // --- 2. วนลูปเพื่อคำนวณยอดสรุปก่อน ---
         orders.forEach(o => {
             const price = parseFloat(o.total_price) || 0;
-            const method = (o.payment_method || "").toString().trim();
-            const isCash = method === "เงินสด" || method.includes("เงินสด");
-
-            // ดึงวันที่มาแปลงเป็น Date Object
-            const [datePart] = (o.created_at || "").split(',');
-            const dateOnly = datePart.trim(); 
-            const p = dateOnly.split('/');
+            const method = (o.payment_method || "").toString().trim().toLowerCase();
             
-            if (p.length === 3) {
-                let d = parseInt(p[0]), m = parseInt(p[1]) - 1, y = parseInt(p[2]);
-                const yCC = y > 2500 ? y - 543 : y; // แปลง พ.ศ. เป็น ค.ศ.
-                const oDate = new Date(yCC, m, d);
+            // เช็คช่องทางชำระเงิน (อิงตามรูป: Cash คือเงินสด, QR คือโอน)
+            const isCash = method === "cash" || method.includes("เงินสด");
 
-                // ตรวจสอบเงื่อนไข 4 ช่วงเวลา
-                if (dateOnly === todayStr) {
+            // ดึงวันที่จาก "2026-04-23 22:1..." ในรูป
+            const datePart = (o.created_at || "").split(' ')[0]; // ได้ "2026-04-23"
+            const oDate = new Date(datePart); // สร้าง Date Object จาก YYYY-MM-DD ได้เลย ชัวร์ที่สุด
+
+            if (!isNaN(oDate.getTime())) {
+                // 1. วันนี้
+                if (datePart === todayStr) {
                     summary.today.total += price;
                     isCash ? summary.today.cash += price : summary.today.transfer += price;
                 }
-                if (yCC === currentYear) {
+                // 2. ปีนี้
+                if (oDate.getFullYear() === currentYear) {
                     summary.year.total += price;
                     isCash ? summary.year.cash += price : summary.year.transfer += price;
-                    if (m === currentMonth) {
+
+                    // 3. เดือนนี้
+                    if (oDate.getMonth() === currentMonth) {
                         summary.month.total += price;
                         isCash ? summary.month.cash += price : summary.month.transfer += price;
                     }
                 }
+                // 4. สัปดาห์นี้
                 if (oDate >= startOfWeek && oDate <= now) {
                     summary.week.total += price;
                     isCash ? summary.week.cash += price : summary.week.transfer += price;
@@ -781,10 +781,8 @@ async function exportToCSV() {
             }
         });
 
-        // --- 3. เขียนเนื้อหาไฟล์ CSV ---
+        // --- เขียนเนื้อหา CSV (โครงสร้างเดิมที่นายชอบ) ---
         let csvContent = "\ufeff"; 
-
-        // ส่วนที่ 1: รายการสรุปยอด (Dashboard)
         csvContent += "รายการสรุปยอด ประจำวันนี้,,,\n";
         csvContent += "ช่วงเวลา,ยอดรวม (บาท),เงินสด,เงินโอน\n";
         csvContent += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
@@ -792,34 +790,29 @@ async function exportToCSV() {
         csvContent += `เดือนนี้,${summary.month.total},${summary.month.cash},${summary.month.transfer}\n`;
         csvContent += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n\n\n`;
 
-        // ส่วนที่ 2: รายละเอียดออเดอร์
         csvContent += "รายละเอียดออเดอร์,,,\n";
         csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคารวม (บาท),ช่องทางการชำระเงิน\n";
 
         let lastDateSeen = "";
         orders.forEach(o => {
-            const datePart = (o.created_at || "").split(',')[0].trim();
-            
-            // เว้นบรรทัดเมื่อขึ้นวันใหม่
+            const datePart = (o.created_at || "").split(' ')[0];
             if (lastDateSeen !== "" && lastDateSeen !== datePart) {
                 csvContent += "\n"; 
             }
-
             csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
             lastDateSeen = datePart;
         });
 
-        // --- 4. ดาวน์โหลดไฟล์ ---
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Report_Sales_${todayStr.replace(/\//g, '-')}.csv`;
+        a.download = `Report_Sales_${todayStr}.csv`;
         a.click();
         URL.revokeObjectURL(url);
 
     } catch (err) {
-        alert("❌ ส่งออก CSV ไม่สำเร็จ: " + err.message);
+        alert("❌ ข้อผิดพลาด: " + err.message);
     }
 }
 // iOS & Popstate
