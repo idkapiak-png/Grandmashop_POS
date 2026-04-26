@@ -748,10 +748,11 @@ async function exportToCSV() {
             const datePart = o.created_at.split(',')[0].trim(); 
             const oDate = new Date(datePart);
             const oDateStr = oDate.toLocaleDateString('sv-SE');
-            const price = o.total_price || 0;
+            const price = parseFloat(o.total_price) || 0; // มั่นใจว่าเป็นตัวเลข
             
-            // แก้ไขจุดนี้: ใช้ .trim() เพื่อป้องกันช่องว่าง และเช็กคำว่า "เงินสด" ให้แม่นยำขึ้น
-            const isCash = o.payment_method && o.payment_method.trim() === 'เงินสด';
+            // ปรับจุดนี้ให้เช็คกว้างขึ้น: ถ้ามีคำว่า "เงินสด" หรือ "cash" (ไม่สนพิมพ์เล็กใหญ่) ให้ถือเป็นเงินสด
+            const method = (o.payment_method || "").toLowerCase().trim();
+            const isCash = method.includes("เงินสด") || method === "cash";
 
             if (oDate.getFullYear() === currentYear) {
                 summary.year.total += price;
@@ -788,11 +789,11 @@ async function exportToCSV() {
         let lastDateSeen = ""; 
 
         orders.forEach((o) => {
-            const currentDateOnly = o.created_at.split(',')[0].trim();
+            const dateParts = (o.created_at || "").split(',');
+            const currentDateOnly = dateParts[0].trim();
 
-            // เปลี่ยนจาก "ขีดเส้น" เป็น "เว้นบรรทัดว่าง" เมื่อขึ้นวันใหม่ (ถ้าไม่ใช่รายการแรก)
             if (lastDateSeen !== "" && lastDateSeen !== currentDateOnly) {
-                csvContent += "\n"; // เว้น 1 บรรทัดให้ดูสะอาดตา
+                csvContent += "\n"; 
             }
 
             csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
