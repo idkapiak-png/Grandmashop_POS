@@ -727,9 +727,10 @@ async function exportToCSV() {
 
         // --- 1. คำนวณสรุปยอด (วัน/สัปดาห์/เดือน/ปี) ---
         const now = new Date();
-        const todayStr = now.toLocaleDateString('sv-SE'); // "YYYY-MM-DD"
+        // สร้างวันที่แบบ YYYY-MM-DD สำหรับเทียบค่า
+        const todayStr = now.toLocaleDateString('sv-SE'); 
         
-        // หาวันเริ่มสัปดาห์ (วันจันทร์)
+        // หาวันแรกของสัปดาห์ (เริ่มวันจันทร์)
         const startOfWeek = new Date(now);
         const day = now.getDay();
         const diff = now.getDate() - (day === 0 ? 6 : day - 1);
@@ -752,22 +753,18 @@ async function exportToCSV() {
             const price = o.total_price || 0;
             const isCash = o.payment_method === 'เงินสด';
 
-            // รายปี
             if (oDate.getFullYear() === currentYear) {
                 summary.year.total += price;
                 isCash ? summary.year.cash += price : summary.year.transfer += price;
 
-                // รายเดือน
                 if (oDate.getMonth() === currentMonth) {
                     summary.month.total += price;
                     isCash ? summary.month.cash += price : summary.month.transfer += price;
                 }
-                // รายสัปดาห์
                 if (oDate >= startOfWeek) {
                     summary.week.total += price;
                     isCash ? summary.week.cash += price : summary.week.transfer += price;
                 }
-                // วันนี้
                 if (oDateStr === todayStr) {
                     summary.today.total += price;
                     isCash ? summary.today.cash += price : summary.today.transfer += price;
@@ -775,43 +772,40 @@ async function exportToCSV() {
             }
         });
 
-        // --- 2. เริ่มเขียนเนื้อหาไฟล์ CSV ---
-        let csv = "\ufeff"; // BOM สำหรับอ่านภาษาไทยใน Excel
+        // --- 2. เริ่มสร้างเนื้อหาไฟล์ CSV ---
+        let csvContent = "\ufeff"; // BOM สำหรับภาษาไทย
 
         // ส่วนที่ 1: รายการสรุปยอด
-        csv += "รายการสรุปยอด ประจำวันนี้,,,\n";
-        csv += "ช่วงเวลา,ยอดรวม (บาท),เงินสด,เงินโอน\n";
-        csv += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
+        csvContent += "รายการสรุปยอดขาย,,,\n";
+        csvContent += "ช่วงเวลา,ยอดรวม (บาท),เงินสด,เงินโอน\n";
+        csvContent += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
         csvContent += `สัปดาห์นี้,${summary.week.total},${summary.week.cash},${summary.week.transfer}\n`;
-        csv += `เดือนนี้,${summary.month.total},${summary.month.cash},${summary.month.transfer}\n`;
-        csv += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n`;
-        csv += "\n\n"; // เว้นวรรค
+        csvContent += `เดือนนี้,${summary.month.total},${summary.month.cash},${summary.month.transfer}\n`;
+        csvContent += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n`;
+        csvContent += "\n\n"; 
 
         // ส่วนที่ 2: รายละเอียดออเดอร์
-        csv += "รายละเอียดออเดอร์,,,\n";
-        csv += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคารวม (บาท),ช่องทางการชำระเงิน\n";
+        csvContent += "รายละเอียดออเดอร์,,,\n";
+        csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคารวม (บาท),ช่องทางการชำระเงิน\n";
 
         let lastDate = "";
         orders.forEach((o, index) => {
             const currentDate = o.created_at.split(',')[0].trim();
 
-            // เช็คการจบวัน (ถ้าเปลี่ยนวันให้ขีดเส้นและเว้นบรรทัด)
             if (lastDate !== "" && lastDate !== currentDate) {
-                csv += "------------------------------------------------------------\n\n";
+                csvContent += "------------------------------------------------------------\n\n";
             }
 
-            // บรรทัดข้อมูลออเดอร์
-            csv += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
-            
+            csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
             lastDate = currentDate;
         });
 
-        // --- 3. กระบวนการดาวน์โหลดไฟล์ ---
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        // --- 3. ดาวน์โหลดไฟล์ ---
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `สรุปยอดขาย_${todayStr}.csv`;
+        a.download = `สรุปยอดขาย_กะเพรานับยอด_${todayStr}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
