@@ -397,7 +397,16 @@ async function confirmOrder(paymentType) {
     
     const thailandTime = new Date().toLocaleString('sv-SE');
     
-    // วนลูปบันทึกทีละรายการในตะกร้าลง Dexie
+    // 1. เตรียมข้อมูลสำหรับใบเสร็จ (สรุปจากตะกร้าก่อนจะล้างทิ้ง)
+    // เราจะสร้าง Object พิเศษเพื่อส่งให้ฟังก์ชัน showSmartReceipt
+    const receiptData = {
+        items: [...cart], // คัดลอกรายการในตะกร้าไว้
+        total_price: cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+        payment_method: paymentType,
+        created_at: thailandTime
+    };
+
+    // 2. วนลูปบันทึกทีละรายการลง Dexie (เหมือนเดิม)
     for (const item of cart) {
         await db.orders.add({
             menu_name: item.name,
@@ -409,10 +418,18 @@ async function confirmOrder(paymentType) {
         });
     }
 
+    // 3. แสดงใบเสร็จ "โคตรฉลาด" ขึ้นมาให้ลูกค้าดู/ถ่ายรูป 26-04-2026
+    // (เรียกฟังก์ชันที่เราสร้างไว้ก่อนหน้านี้)
+    showSmartReceipt(receiptData);
+
+    // 4. แจ้งเตือนและล้างข้อมูลหน้าบ้าน (เหมือนเดิม)
     alert("บันทึกสำเร็จทั้งหมด " + cart.length + " รายการ");
-    cart = []; // ล้างตะกร้า
+    cart = []; 
     updateOrderPreview();
     fetchTodaySales();
+
+    // 🔥 เพิ่มบรรทัดนี้: เพื่อให้ตารางประวัติล่าสุดอัปเดตทันทีโดยไม่ต้องรอโหลดหน้าใหม่ 
+    loadRecentOrders();
 }
 
 async function fetchTodaySales() {
@@ -657,6 +674,7 @@ window.onload = function() {
     fetchTodaySales();
     renderOrderButtons(); 
     renderExtraOptions(); 
+    loadRecentOrders(); // เพิ่มเข้าไป 26-04-2026
 };
 
 // ==========================================
@@ -836,6 +854,109 @@ async function exportToCSV() {
         alert("❌ ข้อผิดพลาด: " + err.message);
     }
 }
+
+// ฟังก์ชันปิดหน้าใบเสร็จ 26-04-2026
+function closeReceipt() {
+    document.getElementById('receipt-modal').style.display = 'none';
+    document.getElementById('qrcode').innerHTML = ''; // ล้าง QR เก่า
+}
+
+// ฟังก์ชัน "วาด" ใบเสร็จ (ใช้ทั้งตอนขายเสร็จ และตอนดึงย้อนหลัง)
+async function showSmartReceipt(orderData) {
+    const modal = document.getElementById('receipt-modal');
+    const shopName = localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง";
+    
+    // ล้าง QR Code เก่าก่อนสร้างใหม่ (กันมันซ้อนกัน)
+    document.getElementById('qrcode').innerHTML = '';
+
+    // 1. ใส่ข้อมูลพื้นฐาน
+    document.getElementById('r-shop-name').innerText = shopName;
+    document.getElementById('r-date').innerText = "วันที่: " + orderData.created_at;
+    document.getElementById('r-total').innerText = "รวมทั้งสิ้น: " + orderData.total_price.toLocaleString() + ".-";
+    document.getElementById('r-payment').innerText = "ชำระโดย: " + (orderData.payment_method === 'Cash' ? 'เงินสด' : 'โอนเงิน (QR)');
+
+    // 2. ส่วนที่ปรับปรุง: ใส่รายการสินค้า (รองรับทั้ง Array และ Object เดี่ยว)
+    let itemHTML = "";
+    
+    if (orderData.items && Array.isArray(orderData.items)) {
+        // กรณีที่ 1: มาจากหน้าขาย (มีหลายรายการในตะกร้า)
+        orderData.items.forEach(item => {
+            itemHTML += `
+                <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                    <span>${item.name} x ${item.qty}</span>
+                    <span>${(item.price * item.qty).toLocaleString()}.-</span>
+                </div>
+                ${item.options ? `<div style="font-size:0.7rem; color:#666; margin-bottom:5px;">(+ ${item.options})</div>` : ''}
+            `;
+        });
+    } else {
+        // กรณีที่ 2: มาจากการดึงย้อนหลัง (มีรายการเดียวจาก Dexie)
+        itemHTML = `
+            <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                <span>${orderData.menu_name} x ${orderData.qty}</span>
+                <span>${orderData.total_price.toLocaleString()}.-</span>
+            </div>
+            ${orderData.options ? `<div style="font-size:0.7rem; color:#666;">(+ ${orderData.options})</div>` : ''}
+        `;
+    }
+    document.getElementById('r-items').innerHTML = itemHTML;
+
+    // 3. สร้าง QR Code แบบ Offline
+    const qrText = `${shopName}\nยอดรวม: ${orderData.total_price}.-\nขอบคุณที่อุดหนุน!`;
+    
+    if(typeof QRCode !== "undefined") {
+        new QRCode(document.getElementById("qrcode"), {
+            text: qrText,
+            width: 120,
+            height: 120,
+            correctLevel : QRCode.CorrectLevel.H
+        });
+    } else {
+        document.getElementById('qrcode').innerHTML = "<small>Scan for Receipt</small>";
+    }
+
+    modal.style.display = 'flex';
+}
+
+// ฟังก์ชันดึงข้อมูลย้อนหลัง (เรียกจากหน้า Dashboard หรือหน้าประวัติ)
+async function getOrderAndShowReceipt(orderId) {
+    const order = await db.orders.get(orderId);
+    if(order) {
+        showSmartReceipt(order);
+    } else {
+        alert("ไม่พบข้อมูลออเดอร์นี้");
+    }
+}
+
+//ฟังก์ชันนี้จะดึงออเดอร์จาก db.orders (Dexie) มาโชว์แบบเรียงตามเวลาล่าสุด 26-04-2026
+async function loadRecentOrders() {
+    const tableBody = document.getElementById('recent-orders-body');
+    if (!tableBody) return;
+
+    // ดึง 10-20 รายการล่าสุดของวันนี้
+    const orders = await db.orders.orderBy('id').reverse().limit(20).toArray();
+
+    tableBody.innerHTML = orders.length ? '' : '<tr><td colspan="4" style="text-align:center; padding:20px;">ยังไม่มีรายการของวันนี้</td></tr>';
+
+    orders.forEach(order => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = "1px solid #eee";
+        
+        // แยกเอาเฉพาะเวลามาโชว์ (จาก 2026-04-26 12:30:45 -> 12:30)
+        const timeOnly = order.created_at.includes(' ') ? order.created_at.split(' ')[1].substring(0, 5) : "00:00";
+
+        tr.innerHTML = `
+            <td style="padding:10px;">${timeOnly}</td>
+            <td style="padding:10px;">${order.menu_name} ${order.qty > 1 ? 'x' + order.qty : ''}</td>
+            <td style="padding:10px; text-align:right;"><b>${order.total_price.toLocaleString()}.-</b></td>
+            <td style="padding:10px; text-align:center;">
+                <button onclick="getOrderAndShowReceipt(${order.id})" style="border:none; background:none; cursor:pointer; font-size:1.2rem;">🧾</button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+    });
+}
+
 // iOS & Popstate
 window.addEventListener('load', () => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
