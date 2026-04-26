@@ -725,42 +725,100 @@ async function exportToCSV() {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
-        let csvContent = "\ufeff"; // รองรับภาษาไทยใน Excel
-        csvContent += "ID,วันที่-เวลา,รายการ,จำนวน,ตัวเลือก,ราคารวม,ชำระเงิน\n";
+        // --- 1. คำนวณสรุปยอด (วัน/สัปดาห์/เดือน/ปี) ---
+        const now = new Date();
+        const todayStr = now.toLocaleDateString('sv-SE'); // "YYYY-MM-DD"
+        
+        // หาวันเริ่มสัปดาห์ (วันจันทร์)
+        const startOfWeek = new Date(now);
+        const day = now.getDay();
+        const diff = now.getDate() - (day === 0 ? 6 : day - 1);
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
 
-        let lastDate = ""; // ไว้เช็คการเปลี่ยนวัน
-        let dayTotal = 0;  // ไว้รวมยอดรายวัน
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
 
-        orders.forEach((o, index) => {
-            // ดึงเฉพาะวันที่ออกมาจาก created_at (เช่น "2026-04-26")
-            const currentDate = o.created_at.split(',')[0] || o.created_at.split(' ')[0];
+        let summary = {
+            today: { total: 0, cash: 0, transfer: 0 },
+            week: { total: 0, cash: 0, transfer: 0 },
+            month: { total: 0, cash: 0, transfer: 0 },
+            year: { total: 0, cash: 0, transfer: 0 }
+        };
 
-            // --- ส่วนที่เพิ่มเข้ามา: ถ้าเปลี่ยนวัน ให้แทรกบรรทัดสรุปของวันก่อนหน้า ---
-            if (lastDate !== "" && lastDate !== currentDate) {
-                csvContent += `,,,,,"--- สรุปยอดวันที่ ${lastDate}: ${dayTotal} ---",\n\n`;
-                dayTotal = 0; // รีเซ็ตยอดรวมเพื่อเริ่มวันใหม่
-            }
+        orders.forEach(o => {
+            const oDate = new Date(o.created_at.split(',')[0]); 
+            const oDateStr = oDate.toLocaleDateString('sv-SE');
+            const price = o.total_price || 0;
+            const isCash = o.payment_method === 'เงินสด';
 
-            // เขียนข้อมูลแถวปกติ (เหมือนเดิมทุกประการ)
-            csvContent += `${o.id},${o.created_at},${o.menu_name},${o.qty},"${o.options}",${o.total_price},${o.payment_method}\n`;
-            
-            dayTotal += o.total_price;
-            lastDate = currentDate;
+            // รายปี
+            if (oDate.getFullYear() === currentYear) {
+                summary.year.total += price;
+                isCash ? summary.year.cash += price : summary.year.transfer += price;
 
-            // --- ส่วนที่เพิ่มเข้ามา: ถ้าเป็นแถวสุดท้ายของไฟล์ ให้ปิดท้ายด้วยสรุปยอดวันนั้น ---
-            if (index === orders.length - 1) {
-                csvContent += `,,,,,"--- สรุปยอดวันที่ ${currentDate}: ${dayTotal} ---",\n`;
+                // รายเดือน
+                if (oDate.getMonth() === currentMonth) {
+                    summary.month.total += price;
+                    isCash ? summary.month.cash += price : summary.month.transfer += price;
+                }
+                // รายสัปดาห์
+                if (oDate >= startOfWeek) {
+                    summary.week.total += price;
+                    isCash ? summary.week.cash += price : summary.week.transfer += price;
+                }
+                // วันนี้
+                if (oDateStr === todayStr) {
+                    summary.today.total += price;
+                    isCash ? summary.today.cash += price : summary.today.transfer += price;
+                }
             }
         });
 
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        // --- 2. เริ่มเขียนเนื้อหาไฟล์ CSV ---
+        let csv = "\ufeff"; // BOM สำหรับอ่านภาษาไทยใน Excel
+
+        // ส่วนที่ 1: รายการสรุปยอด
+        csv += "รายการสรุปยอด ประจำวันนี้,,,\n";
+        csv += "ช่วงเวลา,ยอดรวม (บาท),เงินสด,เงินโอน\n";
+        csv += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
+        csvContent += `สัปดาห์นี้,${summary.week.total},${summary.week.cash},${summary.week.transfer}\n`;
+        csv += `เดือนนี้,${summary.month.total},${summary.month.cash},${summary.month.transfer}\n`;
+        csv += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n`;
+        csv += "\n\n"; // เว้นวรรค
+
+        // ส่วนที่ 2: รายละเอียดออเดอร์
+        csv += "รายละเอียดออเดอร์,,,\n";
+        csv += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคารวม (บาท),ช่องทางการชำระเงิน\n";
+
+        let lastDate = "";
+        orders.forEach((o, index) => {
+            const currentDate = o.created_at.split(',')[0].trim();
+
+            // เช็คการจบวัน (ถ้าเปลี่ยนวันให้ขีดเส้นและเว้นบรรทัด)
+            if (lastDate !== "" && lastDate !== currentDate) {
+                csv += "------------------------------------------------------------\n\n";
+            }
+
+            // บรรทัดข้อมูลออเดอร์
+            csv += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
+            
+            lastDate = currentDate;
+        });
+
+        // --- 3. กระบวนการดาวน์โหลดไฟล์ ---
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Report_Sales_${new Date().toLocaleDateString('th-TH')}.csv`;
+        a.download = `สรุปยอดขาย_${todayStr}.csv`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
     } catch (err) {
-        alert("❌ ส่งออก CSV ไม่สำเร็จ: " + err.message);
+        alert("❌ เกิดข้อผิดพลาดในการส่งออก: " + err.message);
     }
 }
 
