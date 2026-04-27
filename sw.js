@@ -1,4 +1,4 @@
-const CACHE_NAME = 'Grandmashop-pos-v66'; // เปลี่ยนเลข v เมื่อมีการอัปเดตไฟล์
+const CACHE_NAME = 'Grandmashop-pos-v67'; // เปลี่ยนเลข v เมื่อมีการอัปเดตไฟล์
 const ASSETS_TO_CACHE = [
   './',
   './Standalone.html',
