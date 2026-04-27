@@ -990,6 +990,105 @@ function closeReceipt() {
     if (qrArea) qrArea.innerHTML = ''; 
 }
 
+// ==========================================
+// กล่องที่ 7: ระบบใบเสร็จฉลาด (Smart Receipt & QR) - เติม 26-04-2026
+// ==========================================
+
+function showSmartReceipt(data) {
+    const modal = document.getElementById('receipt-modal');
+    const shopName = localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง";
+    const unitName = localStorage.getItem('counterUnit') || "ชิ้น";
+    
+    // 1. ใส่หัวใบเสร็จ
+    document.getElementById('r-shop-name').innerText = shopName;
+    document.getElementById('r-date').innerText = "วันที่: " + new Date(data.created_at).toLocaleString('th-TH');
+    
+    // 2. รายการสินค้า
+    const itemsContainer = document.getElementById('r-items');
+    itemsContainer.innerHTML = data.items.map(item => `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span>${item.name} ${item.options ? '<br><small>('+item.options+')</small>' : ''}</span>
+            <span>x${item.qty} ${item.price * item.qty}.-</span>
+        </div>
+    `).join('');
+    
+    // 3. สรุปยอดและวิธีจ่าย
+    document.getElementById('r-total').innerText = `รวมทั้งสิ้น: ${data.total_price.toLocaleString()}.-`;
+    document.getElementById('r-payment').innerText = "วิธีชำระ: " + (data.payment_method === 'Cash' ? '💵 เงินสด' : '📱 เงินโอน');
+    
+    // 4. สร้าง QR Code (PromptPay 0.00 บาท หรือ ข้อความขอบคุณ)
+    const qrContainer = document.getElementById('qrcode');
+    qrContainer.innerHTML = ""; // ล้างอันเก่า
+    
+    // ตรงนี้ถ้ามีเบอร์พร้อมเพย์ ให้แก้เป็นเบอร์นายได้เลยครับ
+    // หรือตอนนี้จะให้โชว์ข้อความ "Thank You" เป็น QR ไปก่อน
+    new QRCode(qrContainer, {
+        text: "Thank you for supporting " + shopName,
+        width: 128,
+        height: 128,
+        colorDark: "#2c3e50",
+        colorLight: "#ffffff"
+    });
+    
+    // 5. เปิด Modal
+    modal.style.display = 'flex';
+}
+
+function closeReceipt() {
+    document.getElementById('receipt-modal').style.display = 'none';
+}
+
+// ระบบโหลดรายการล่าสุดมาโชว์ใน Dashboard
+async function loadRecentOrders() {
+    const recentBody = document.getElementById('recent-orders-body');
+    if (!recentBody) return;
+    
+    const todayStr = new Date().toLocaleDateString('sv-SE');
+    const orders = await db.orders
+        .where('created_at')
+        .startsWith(todayStr)
+        .reverse()
+        .limit(10)
+        .toArray();
+        
+    recentBody.innerHTML = orders.length ? '' : '<tr><td colspan="4" style="padding:10px; text-align:center;">ยังไม่มีรายการวันนี้</td></tr>';
+    
+    orders.forEach(o => {
+        const time = o.created_at.split(' ')[1].substring(0, 5); // เอาแค่ HH:mm
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = "1px solid #eee";
+        tr.innerHTML = `
+            <td style="padding:10px;">${time}</td>
+            <td style="padding:10px;">${o.menu_name} ${o.options ? '<br><small>('+o.options+')</small>' : ''}</td>
+            <td style="padding:10px; text-align:right;">${o.total_price}.-</td>
+            <td style="padding:10px; text-align:center;">
+                <button onclick="reprintReceipt(${o.id})" style="background:none; border:none; cursor:pointer;">🧾</button>
+            </td>
+        `;
+        recentBody.appendChild(tr);
+    });
+}
+
+// ฟังก์ชันดูใบเสร็จย้อนหลัง
+async function reprintReceipt(id) {
+    const order = await db.orders.get(id);
+    if (order) {
+        // แปลงข้อมูลให้เข้ากับรูปแบบ showSmartReceipt
+        const data = {
+            items: [{ 
+                name: order.menu_name, 
+                price: order.total_price / order.qty, 
+                qty: order.qty, 
+                options: order.options 
+            }],
+            total_price: order.total_price,
+            payment_method: order.payment_method,
+            created_at: order.created_at
+        };
+        showSmartReceipt(data);
+    }
+}
+
 // ฟังก์ชันดึงข้อมูลจากปุ่มประวัติมาโชว์ใบเสร็จ
 async function getOrderAndShowReceipt(id) {
     const order = await db.orders.get(id);

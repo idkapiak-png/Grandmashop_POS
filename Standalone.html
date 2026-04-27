@@ -13,6 +13,9 @@
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <script src="./dexie.js"></script>
+        <!--QR Cord 26-04-2026-->
+    <script src="qrcode.min.js"></script>
+    <script src="Standalone.js"></script>
     <link rel="stylesheet" href="Standalone.css">
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
@@ -283,10 +286,10 @@
                         <hr style="border-top: 1px dashed #bbb;">
                         <h3 id="r-total" style="margin:10px 0;">รวมทั้งสิ้น: 0.-</h3>
                         <p id="r-payment" style="font-size:0.8rem;"></p>
-                        
-                        <div id="qrcode-area" style="margin-top:15px; display:flex; justify-content:center;">
-                            <div id="qrcode"></div>
-                        </div>
+
+
+                        <!--27-04-2026-->
+                        <div id="qrcode" style="width: 128px; height: 128px; background: #eee; margin: 15px auto 0 auto;"></div>
                         
                         <p style="margin-top:15px; font-size:0.7rem; color:#888;">*** ขอบคุณที่อุดหนุนค่ะ/ครับ ***</p>
                     </div>
@@ -304,11 +307,6 @@
         });
     }
     </script>
-
-     <!--QR Cord 26-04-2026-->
-    <script src="qrcode.min.js"></script>
-
-    <script src="Standalone.js"></script>
 
 </body>
 </html>
