@@ -861,61 +861,76 @@ function closeReceipt() {
     document.getElementById('qrcode').innerHTML = ''; // ล้าง QR เก่า
 }
 
-// ฟังก์ชัน "วาด" ใบเสร็จ (ใช้ทั้งตอนขายเสร็จ และตอนดึงย้อนหลัง)
+// ฟังก์ชัน "วาด" ใบเสร็จ (ใช้ทั้งตอนขายเสร็จ และตอนดึงย้อนหลัง) 27-04-2026
+// --- วางแทนฟังก์ชันเดิมที่มีซ้ำกันทั้งหมด ---
 async function showSmartReceipt(orderData) {
     const modal = document.getElementById('receipt-modal');
+    if (!modal) return;
+
     const shopName = localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง";
     
-    // ล้าง QR Code เก่าก่อนสร้างใหม่ (กันมันซ้อนกัน)
-    document.getElementById('qrcode').innerHTML = '';
+    // 1. ล้างพื้นที่ QR Code เก่า
+    const qrArea = document.getElementById('qrcode');
+    if (qrArea) qrArea.innerHTML = '';
 
-    // 1. ใส่ข้อมูลพื้นฐาน
+    // 2. ใส่ข้อมูลหัวใบเสร็จ
     document.getElementById('r-shop-name').innerText = shopName;
-    document.getElementById('r-date').innerText = "วันที่: " + orderData.created_at;
+    document.getElementById('r-date').innerText = "วันที่: " + (orderData.created_at || new Date().toLocaleString());
     document.getElementById('r-total').innerText = "รวมทั้งสิ้น: " + orderData.total_price.toLocaleString() + ".-";
     document.getElementById('r-payment').innerText = "ชำระโดย: " + (orderData.payment_method === 'Cash' ? 'เงินสด' : 'โอนเงิน (QR)');
 
-    // 2. ส่วนที่ปรับปรุง: ใส่รายการสินค้า (รองรับทั้ง Array และ Object เดี่ยว)
+    // 3. วาดรายการสินค้า (รองรับทั้งตะกร้าหน้าขาย และ ประวัติย้อนหลัง)
     let itemHTML = "";
-    
     if (orderData.items && Array.isArray(orderData.items)) {
-        // กรณีที่ 1: มาจากหน้าขาย (มีหลายรายการในตะกร้า)
         orderData.items.forEach(item => {
             itemHTML += `
                 <div style="display:flex; justify-content:space-between; margin-top:5px;">
                     <span>${item.name} x ${item.qty}</span>
                     <span>${(item.price * item.qty).toLocaleString()}.-</span>
                 </div>
-                ${item.options ? `<div style="font-size:0.7rem; color:#666; margin-bottom:5px;">(+ ${item.options})</div>` : ''}
+                ${item.options ? `<div style="font-size:0.75rem; color:#666; margin-bottom:5px;">(+ ${item.options})</div>` : ''}
             `;
         });
     } else {
-        // กรณีที่ 2: มาจากการดึงย้อนหลัง (มีรายการเดียวจาก Dexie)
         itemHTML = `
             <div style="display:flex; justify-content:space-between; margin-top:5px;">
                 <span>${orderData.menu_name} x ${orderData.qty}</span>
                 <span>${orderData.total_price.toLocaleString()}.-</span>
             </div>
-            ${orderData.options ? `<div style="font-size:0.7rem; color:#666;">(+ ${orderData.options})</div>` : ''}
+            ${orderData.options ? `<div style="font-size:0.75rem; color:#666;">(+ ${orderData.options})</div>` : ''}
         `;
     }
     document.getElementById('r-items').innerHTML = itemHTML;
 
-    // 3. สร้าง QR Code แบบ Offline
-    const qrText = `${shopName}\nยอดรวม: ${orderData.total_price}.-\nขอบคุณที่อุดหนุน!`;
-    
-    if(typeof QRCode !== "undefined") {
-        new QRCode(document.getElementById("qrcode"), {
-            text: qrText,
-            width: 120,
-            height: 120,
-            correctLevel : QRCode.CorrectLevel.H
-        });
-    } else {
-        document.getElementById('qrcode').innerHTML = "<small>Scan for Receipt</small>";
-    }
-
+    // 4. สั่งเปิด Modal ขึ้นมาก่อน (เพื่อให้กล่อง qrcode ปรากฏตัวบนหน้าจอ)
     modal.style.display = 'flex';
+
+    // 5. สร้าง QR Code หลังจาก Modal แสดงผลแล้ว (หน่วงเวลาเพื่อให้แน่ใจว่ากล่องโผล่มาแล้ว)
+    setTimeout(() => {
+        try {
+            console.log("กำลังตรวจสอบ Library QRCode...");
+            if (typeof QRCode !== "undefined" && qrArea) {
+                qrArea.innerHTML = ''; // ล้างอีกรอบเผื่อความชัวร์
+                
+                const qrText = `ร้าน: ${shopName}\nยอดรวม: ${orderData.total_price}.-\nขอบคุณที่อุดหนุนครับ`;
+                
+                new QRCode(qrArea, {
+                    text: qrText,
+                    width: 120,
+                    height: 120,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                console.log("✅ สร้าง QR Code สำเร็จ!");
+            } else {
+                console.error("❌ ไม่พบ Library QRCode หรือพื้นที่วาง QR (เช็คไฟล์ qrcode.min.js ใน HTML)");
+                if(qrArea) qrArea.innerHTML = "<small style='color:red;'>โหลด QR ไม่สำเร็จ</small>";
+            }
+        } catch (e) {
+            console.error("QR Code Error:", e);
+        }
+    }, 300); // รอ 0.3 วินาที
 }
 
 // ฟังก์ชันดึงข้อมูลย้อนหลัง (เรียกจากหน้า Dashboard หรือหน้าประวัติ)
@@ -966,77 +981,6 @@ function reprintReceipt(order) {
         created_at: order.created_at
     };
     showSmartReceipt(receiptData);
-}
-
-// ==========================================
-// กล่องที่ 7: ระบบแสดงใบเสร็จและ QR Code (เพิ่มใหม่) 26-04-2026
-// ==========================================
-async function showSmartReceipt(orderData) {
-    const modal = document.getElementById('receipt-modal');
-    if (!modal) return;
-
-    const shopName = localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง";
-    
-    // 1. ล้างพื้นที่ QR Code เก่า
-    const qrArea = document.getElementById('qrcode');
-    if (qrArea) qrArea.innerHTML = '';
-
-    // 2. ใส่ข้อมูลหัวใบเสร็จ
-    document.getElementById('r-shop-name').innerText = shopName;
-    document.getElementById('r-date').innerText = "วันที่: " + (orderData.created_at || new Date().toLocaleString());
-    document.getElementById('r-total').innerText = "รวมทั้งสิ้น: " + orderData.total_price.toLocaleString() + ".-";
-    document.getElementById('r-payment').innerText = "ชำระโดย: " + (orderData.payment_method === 'Cash' ? 'เงินสด' : 'โอนเงิน (QR)');
-
-    // 3. วาดรายการสินค้า
-    let itemHTML = "";
-    if (orderData.items && Array.isArray(orderData.items)) {
-        orderData.items.forEach(item => {
-            itemHTML += `
-                <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                    <span>${item.name} x ${item.qty}</span>
-                    <span>${(item.price * item.qty).toLocaleString()}.-</span>
-                </div>
-                ${item.options ? `<div style="font-size:0.75rem; color:#666; margin-bottom:5px;">(+ ${item.options})</div>` : ''}
-            `;
-        });
-    } else {
-        itemHTML = `
-            <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                <span>${orderData.menu_name} x ${orderData.qty}</span>
-                <span>${orderData.total_price.toLocaleString()}.-</span>
-            </div>
-            ${orderData.options ? `<div style="font-size:0.75rem; color:#666;">(+ ${orderData.options})</div>` : ''}
-        `;
-    }
-    document.getElementById('r-items').innerHTML = itemHTML;
-
-    // 4. สั่งเปิด Modal ขึ้นมาก่อน (เพื่อให้กล่อง qrcode ปรากฏตัวบนหน้าจอ)
-    modal.style.display = 'flex';
-
-    // 5. สร้าง QR Code หลังจาก Modal แสดงผลแล้ว 0.2 วินาที
-    setTimeout(() => {
-        try {
-            if (typeof QRCode !== "undefined" && qrArea) {
-                // ล้างอีกรอบเผื่อความชัวร์
-                qrArea.innerHTML = ''; 
-                
-                const qrText = `ร้าน: ${shopName}\nยอดรวม: ${orderData.total_price}.-\nขอบคุณที่อุดหนุนครับ`;
-                new QRCode(qrArea, {
-                    text: qrText,
-                    width: 120,
-                    height: 120,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-                console.log("สร้าง QR Code สำเร็จ!");
-            } else {
-                console.error("ไม่พบ Library QRCode หรือพื้นที่วาง QR");
-            }
-        } catch (e) {
-            console.error("QR Code Error:", e);
-        }
-    }, 200); // รอ 0.2 วินาที
 }
 
 // ฟังก์ชันปิดใบเสร็จ (นายเขียนไว้แล้ว เอามาวางคู่กัน)
