@@ -3,8 +3,12 @@
 // ==========================================
 const db = new Dexie("StandaloneDatabase");
 
-db.version(3).stores({
-    orders: '++id, menu_name, total_price, created_at, options, payment_method',
+// ขยับจาก version(3) เป็น version(4) เพื่อให้ฐานข้อมูลอัปเดตโครงสร้างใหม่ 27-04-2026
+db.version(4).stores({
+    // เพิ่ม order_id เข้าไป เพื่อใช้เป็น "เชือก" ผูกรายการอาหารที่สั่งพร้อมกัน
+    orders: '++id, order_id, menu_name, total_price, created_at, options, payment_method',
+    
+    // ส่วนอื่นๆ ยังคงเดิมตามโครงสร้างของนายครับ
     dailysummary: 'summary_date, total_sales, egg_count',
     menus: '++id, name, price',
     extra_options: '++id, name, price' 
@@ -396,10 +400,13 @@ async function confirmOrder(paymentType) {
     if (cart.length === 0) return alert("เลือกเมนูก่อนครับ!");
     
     const thailandTime = new Date().toLocaleString('sv-SE');
+    // 🔥 สร้างรหัสกลุ่มออเดอร์จากเวลาปัจจุบัน (เช่น 1714194000000) 27-04-2026
+    const orderId = Date.now();
     
     // 1. เตรียมข้อมูลสำหรับใบเสร็จ (สรุปจากตะกร้าก่อนจะล้างทิ้ง)
     // เราจะสร้าง Object พิเศษเพื่อส่งให้ฟังก์ชัน showSmartReceipt
     const receiptData = {
+        order_id: orderId, // เพิ่มเข้าไปใน data ของใบเสร็จด้วย 27-04-2026
         items: [...cart], // คัดลอกรายการในตะกร้าไว้
         total_price: cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
         payment_method: paymentType,
@@ -409,6 +416,7 @@ async function confirmOrder(paymentType) {
     // 2. วนลูปบันทึกทีละรายการลง Dexie (เหมือนเดิม)
     for (const item of cart) {
         await db.orders.add({
+            order_id: orderId, // 🔥 บันทึกรหัสกลุ่มเดียวกันลงไปทุกบรรทัด 27-04-2026
             menu_name: item.name,
             qty: item.qty,
             options: item.options,
@@ -948,28 +956,68 @@ async function loadRecentOrders() {
     const tableBody = document.getElementById('recent-orders-body');
     if (!tableBody) return;
 
-    // ดึง 10-20 รายการล่าสุดของวันนี้
-    const orders = await db.orders.orderBy('id').reverse().limit(20).toArray();
+    const todayStr = new Date().toLocaleDateString('sv-SE');
+    
+    // 1. ดึงข้อมูลของวันนี้ทั้งหมดมาพักไว้ก่อน
+    const allOrders = await db.orders
+        .where('created_at')
+        .startsWith(todayStr)
+        .toArray();
 
-    tableBody.innerHTML = orders.length ? '' : '<tr><td colspan="4" style="text-align:center; padding:20px;">ยังไม่มีรายการของวันนี้</td></tr>';
+    // 2. 🔥 หัวใจสำคัญ: รวมร่างรายการที่ order_id เดียวกันให้เป็น "บิลเดียว"
+    const groupedOrders = {};
+    allOrders.forEach(order => {
+        const gid = order.order_id || order.id; // กันเหนียว: ถ้าไม่มี order_id ให้ใช้ id แทน
+        if (!groupedOrders[gid]) {
+            groupedOrders[gid] = {
+                order_id: gid,
+                time: order.created_at.includes(' ') ? order.created_at.split(' ')[1].substring(0, 5) : "00:00",
+                itemList: [],
+                totalPrice: 0
+            };
+        }
+        // รวมชื่อเมนู เช่น "กะเพรา x1, โค้ก x2"
+        groupedOrders[gid].itemList.push(`${order.menu_name}${order.qty > 1 ? ' x' + order.qty : ''}`);
+        groupedOrders[gid].totalPrice += order.total_price;
+    });
 
-    orders.forEach(order => {
+    // 3. แปลงเป็น Array แล้วเรียงจากใหม่ไปเก่า (แสดงแค่ 10 บิลล่าสุด)
+    const displayOrders = Object.values(groupedOrders).reverse().slice(0, 10);
+
+    tableBody.innerHTML = displayOrders.length ? '' : '<tr><td colspan="4" style="text-align:center; padding:20px;">ยังไม่มีรายการของวันนี้</td></tr>';
+
+    displayOrders.forEach(group => {
         const tr = document.createElement('tr');
         tr.style.borderBottom = "1px solid #eee";
-        
-        // แยกเอาเฉพาะเวลามาโชว์ (จาก 2026-04-26 12:30:45 -> 12:30)
-        const timeOnly = order.created_at.includes(' ') ? order.created_at.split(' ')[1].substring(0, 5) : "00:00";
-
         tr.innerHTML = `
-            <td style="padding:10px;">${timeOnly}</td>
-            <td style="padding:10px;">${order.menu_name} ${order.qty > 1 ? 'x' + order.qty : ''}</td>
-            <td style="padding:10px; text-align:right;"><b>${order.total_price.toLocaleString()}.-</b></td>
+            <td style="padding:10px;">${group.time}</td>
+            <td style="padding:10px; font-size:0.9rem;">${group.itemList.join(', ')}</td>
+            <td style="padding:10px; text-align:right;"><b>${group.totalPrice.toLocaleString()}.-</b></td>
             <td style="padding:10px; text-align:center;">
-                <button onclick="getOrderAndShowReceipt(${order.id})" style="border:none; background:none; cursor:pointer; font-size:1.2rem;">🧾</button>
+                <button onclick="reprintByGroupId(${group.order_id})" style="border:none; background:none; cursor:pointer; font-size:1.2rem;">🧾</button>
             </td>
         `;
         tableBody.appendChild(tr);
     });
+}
+
+//ดึง "ทั้งชุด" มาโชว์ในใบเสร็จ 27-04-2026
+async function reprintByGroupId(orderId) {
+    const orders = await db.orders.where('order_id').equals(orderId).toArray();
+    if (orders.length > 0) {
+        const data = {
+            items: orders.map(o => ({ 
+                name: o.menu_name, 
+                price: o.total_price / o.qty, 
+                qty: o.qty, 
+                options: o.options 
+            })),
+            total_price: orders.reduce((sum, o) => sum + o.total_price, 0),
+            payment_method: orders[0].payment_method,
+            created_at: orders[0].created_at
+        };
+        showSmartReceipt(data);
+    }
 }
 
 // ฟังก์ชันเสริมสำหรับกดดูใบเสร็จย้อนหลัง 26-04-2026
@@ -1036,37 +1084,6 @@ function showSmartReceipt(data) {
 
 function closeReceipt() {
     document.getElementById('receipt-modal').style.display = 'none';
-}
-
-// ระบบโหลดรายการล่าสุดมาโชว์ใน Dashboard
-async function loadRecentOrders() {
-    const recentBody = document.getElementById('recent-orders-body');
-    if (!recentBody) return;
-    
-    const todayStr = new Date().toLocaleDateString('sv-SE');
-    const orders = await db.orders
-        .where('created_at')
-        .startsWith(todayStr)
-        .reverse()
-        .limit(10)
-        .toArray();
-        
-    recentBody.innerHTML = orders.length ? '' : '<tr><td colspan="4" style="padding:10px; text-align:center;">ยังไม่มีรายการวันนี้</td></tr>';
-    
-    orders.forEach(o => {
-        const time = o.created_at.split(' ')[1].substring(0, 5); // เอาแค่ HH:mm
-        const tr = document.createElement('tr');
-        tr.style.borderBottom = "1px solid #eee";
-        tr.innerHTML = `
-            <td style="padding:10px;">${time}</td>
-            <td style="padding:10px;">${o.menu_name} ${o.options ? '<br><small>('+o.options+')</small>' : ''}</td>
-            <td style="padding:10px; text-align:right;">${o.total_price}.-</td>
-            <td style="padding:10px; text-align:center;">
-                <button onclick="reprintReceipt(${o.id})" style="background:none; border:none; cursor:pointer;">🧾</button>
-            </td>
-        `;
-        recentBody.appendChild(tr);
-    });
 }
 
 // ฟังก์ชันดูใบเสร็จย้อนหลัง
