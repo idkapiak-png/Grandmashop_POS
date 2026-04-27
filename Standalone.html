@@ -14,8 +14,8 @@
 
     <script src="./dexie.js"></script>
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=1.1"></script>
-    <script src="Standalone.js?v=1.1"></script>
+    <script src="qrcode.min.js?v=1.3"></script>
+    <script src="Standalone.js?v=1.3"></script>
     <link rel="stylesheet" href="Standalone.css">
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
@@ -130,6 +130,11 @@
 
     <div id="back-page" style="display: none; padding: 20px;"> 
     <h2>⚙️ ตั้งค่าระบบ</h2>
+
+    <!--ตั้งค่าเลขบัญชี QR Code 27-04-2026-->
+    <button onclick="openSettings()" style="width: 100%; padding: 15px; background: #FF9800; color: white; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 20px; font-size: 1rem;">
+        📱 ตั้งค่าเลข PromptPay รับเงินโอน
+    </button>
     
     <label for="name-input" style="display: block; margin-bottom: 5px; font-weight: bold;">ชื่อร้าน:</label>
     <input type="text" id="name-input" placeholder="ระบุชื่อร้าน" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc;">
@@ -242,6 +247,8 @@
         <input type="file" id="importFile" accept=".json" onchange="restoreDatabase(event)" style="margin-top: 5px;">
     </div>
 
+    
+
     <button onclick="saveAndExit()" style="margin-top: 20px; background: #2c3e50; color: white; width: 100%; padding: 15px; border-radius: 10px; border: none; font-size: 1.1rem; cursor: pointer;">💾 บันทึกและกลับหน้าหลัก</button>
 
 </div>
@@ -297,6 +304,17 @@
                     <button onclick="window.print()" style="width:100%; margin-top:15px; padding:10px; background:#3498db; color:white; border:none; border-radius:5px;">แชร์หรือพิมพ์ใบเสร็จ</button>
                 </div>
         </div>
+    <!--สร้างเลขบัญชีโอนเงิน เป็น QR Code 27-04-2026-->
+        <div id="settingsModal" class="modal" style="display:none; position:fixed; z-index:999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+            <div style="background:white; margin:10% auto; padding:20px; width:80%; border-radius:10px;">
+                <h3>⚙️ ตั้งค่าร้านค้า</h3>
+                <label>เลข PromptPay (เบอร์โทร/เลขบัตร):</label>
+                <input type="text" id="set_promptpay" style="width:100%; padding:10px; margin:10px 0;">
+                <button onclick="saveSettings()" style="width:100%; background:green; color:white; padding:10px; border:none; border-radius:5px;">บันทึกการตั้งค่า</button>
+                <button onclick="document.getElementById('settingsModal').style.display='none'" style="width:100%; background:gray; color:white; padding:10px; border:none; border-radius:5px; margin-top:5px;">ปิด</button>
+            </div>
+        </div>
+
 
     <script>
         if ('serviceWorker' in navigator) {
@@ -307,6 +325,9 @@
         });
     }
     </script>
+
+        <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ 27-04-2026-->
+    <script src="https://cdn.jsdelivr.net/npm/promptpay-qr@0.5.0/dist/promptpay-qr.min.js"></script>
 
 </body>
 </html>

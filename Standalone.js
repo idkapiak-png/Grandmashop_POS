@@ -1,14 +1,17 @@
 // ==========================================
-// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie)
+// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) 27-04-2026
 // ==========================================
 const db = new Dexie("StandaloneDatabase");
 
-// ขยับจาก version(3) เป็น version(4) เพื่อให้ฐานข้อมูลอัปเดตโครงสร้างใหม่ 27-04-2026
-db.version(4).stores({
-    // เพิ่ม order_id เข้าไป เพื่อใช้เป็น "เชือก" ผูกรายการอาหารที่สั่งพร้อมกัน
+// อัปเดตเป็น version(5) เพื่อรองรับตาราง settings สำหรับเก็บเลข PromptPay 
+db.version(5).stores({
+    // ตารางใหม่: ใช้เก็บ 'store_name', 'promptpay' และค่าตั้งค่าอื่นๆ
+    settings: 'key', 
+
+    // ตารางเดิม (v4): เพิ่ม order_id ไว้แล้วสำหรับรวมกลุ่มบิล
     orders: '++id, order_id, menu_name, total_price, created_at, options, payment_method',
     
-    // ส่วนอื่นๆ ยังคงเดิมตามโครงสร้างของนายครับ
+    // ตารางอื่นๆ ยังอยู่ครบเหมือนเดิม
     dailysummary: 'summary_date, total_sales, egg_count',
     menus: '++id, name, price',
     extra_options: '++id, name, price' 
@@ -1039,12 +1042,17 @@ function closeReceipt() {
 }
 
 // ==========================================
-// กล่องที่ 7: ระบบใบเสร็จฉลาด (Smart Receipt & QR) - เติม 26-04-2026
+// กล่องที่ 7: ระบบใบเสร็จฉลาด (Smart Receipt & QR) - เติม 27-04-2026
 // ==========================================
 
-function showSmartReceipt(data) {
+async function showSmartReceipt(data) {
     const modal = document.getElementById('receipt-modal');
-    const shopName = localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง";
+    
+    // ดึงค่าคงที่ต่างๆ (ดึงจาก Settings ใน Dexie หรือถ้าไม่มีให้ใช้ localStorage เดิม)
+    const storeData = await db.settings.get('store_name');
+    const ppData = await db.settings.get('promptpay');
+    
+    const shopName = storeData ? storeData.value : (localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง");
     const unitName = localStorage.getItem('counterUnit') || "ชิ้น";
     
     // 1. ใส่หัวใบเสร็จ
@@ -1054,8 +1062,8 @@ function showSmartReceipt(data) {
     // 2. รายการสินค้า
     const itemsContainer = document.getElementById('r-items');
     itemsContainer.innerHTML = data.items.map(item => `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <span>${item.name} ${item.options ? '<br><small>('+item.options+')</small>' : ''}</span>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
+            <span>${item.name} ${item.options ? '<br><small style="color:gray;">('+item.options+')</small>' : ''}</span>
             <span>x${item.qty} ${item.price * item.qty}.-</span>
         </div>
     `).join('');
@@ -1064,19 +1072,37 @@ function showSmartReceipt(data) {
     document.getElementById('r-total').innerText = `รวมทั้งสิ้น: ${data.total_price.toLocaleString()}.-`;
     document.getElementById('r-payment').innerText = "วิธีชำระ: " + (data.payment_method === 'Cash' ? '💵 เงินสด' : '📱 เงินโอน');
     
-    // 4. สร้าง QR Code (PromptPay 0.00 บาท หรือ ข้อความขอบคุณ)
+    // 4. จัดการส่วน QR Code (แยก 2 ระบบ)
     const qrContainer = document.getElementById('qrcode');
     qrContainer.innerHTML = ""; // ล้างอันเก่า
     
-    // ตรงนี้ถ้ามีเบอร์พร้อมเพย์ ให้แก้เป็นเบอร์นายได้เลยครับ
-    // หรือตอนนี้จะให้โชว์ข้อความ "Thank You" เป็น QR ไปก่อน
-    new QRCode(qrContainer, {
-        text: "Thank you for supporting " + shopName,
-        width: 128,
-        height: 128,
-        colorDark: "#2c3e50",
-        colorLight: "#ffffff"
-    });
+    // ถ้าเป็นเงินโอน ให้สร้าง QR PromptPay แบบระบุยอดเงิน
+    if (data.payment_method === 'QR') {
+        const promptpayNumber = ppData ? ppData.value : null;
+
+        if (promptpayNumber) {
+            // 🔥 ใช้ Library generatePayload เพื่อสร้างรหัส PromptPay พร้อมยอดเงิน
+            // ต้องมั่นใจว่าได้ใส่ <script src="...promptpay-qr..."></script> ใน HTML แล้ว
+            const payload = generatePayload(promptpayNumber, { amount: data.total_price });
+            
+            new QRCode(qrContainer, {
+                text: payload,
+                width: 160,
+                height: 160,
+                colorDark: "#1a237e", // สีน้ำเงินเข้มแบบธนาคาร
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        } else {
+            qrContainer.innerHTML = "<p style='color:red; font-size:0.8rem;'>ยังไม่ได้ตั้งค่าเลข PromptPay<br>กรุณาตั้งค่าที่ปุ่มเฟือง</p>";
+        }
+    } else {
+        // ถ้าเป็นเงินสด ไม่ต้องมี QR Code ให้ใส่รูปเช็คถูก หรือคำขอบคุณแทน
+        qrContainer.innerHTML = `
+            <div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div>
+            <p style="font-size: 0.9rem; color: #7f8c8d;">ขอบคุณที่ชำระเงินสดครับ</p>
+        `;
+    }
     
     // 5. เปิด Modal
     modal.style.display = 'flex';
@@ -1111,6 +1137,69 @@ async function getOrderAndShowReceipt(id) {
     const order = await db.orders.get(id);
     if (order) {
         showSmartReceipt(order);
+    }
+}
+// คำสั่ง ตั้งค่า เงินโอนเข้าบัญชี ผ่าน QR 27-04-2026
+async function saveSettings() {
+    // ดึงค่าจาก Input ในหน้า Settings
+    const pp = document.getElementById('set_promptpay').value;
+    const shopName = document.getElementById('name-input').value; // ดึงชื่อร้านจากหน้าตั้งค่าหลัก
+
+    try {
+        // 1. บันทึกลง Dexie (ตาราง settings) สำหรับระบบ QR และข้อมูลถาวร
+        if (pp) {
+            await db.settings.put({ key: 'promptpay', value: pp });
+        }
+        
+        if (shopName) {
+            await db.settings.put({ key: 'store_name', value: shopName });
+            // 2. บันทึกลง localStorage (เพื่อความลื่นไหลของโค้ดส่วนเดิมของนาย)
+            localStorage.setItem('shopName', shopName);
+        }
+
+        alert("💾 บันทึกข้อมูลร้านและ PromptPay เรียบร้อยแล้วจ้า!");
+        
+        // ปิด Modal
+        document.getElementById('settingsModal').style.display = 'none';
+        
+        // อัปเดตชื่อร้านบนหน้าจอทันทีโดยไม่ต้อง Refresh
+        if (shopName) {
+            document.getElementById('name-main').innerText = shopName;
+        }
+        
+    } catch (error) {
+        console.error("บันทึกพลาด:", error);
+        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูลครับ");
+    }
+}
+
+// เรียกตัวเลขมาโชว์ตอนเปิดหน้าตั้งค่า
+async function openSettings() {
+    // 1. ดึงข้อมูลจาก Dexie (ตาราง settings)
+    const ppData = await db.settings.get('promptpay');
+    const storeData = await db.settings.get('store_name');
+
+    // 2. นำเลข PromptPay มาใส่ในช่อง input (ถ้ามี)
+    const ppInput = document.getElementById('set_promptpay');
+    if (ppData) {
+        ppInput.value = ppData.value;
+    } else {
+        ppInput.value = ""; // ล้างค่าว่างถ้ายังไม่เคยตั้ง
+    }
+
+    // 3. นำชื่อร้านมาใส่ในช่อง input (ดึงจาก Dexie ก่อน ถ้าไม่มีให้เช็ก localStorage)
+    const nameInput = document.getElementById('name-input');
+    if (storeData) {
+        nameInput.value = storeData.value;
+    } else {
+        // กรณีเพิ่งอัปเกรดระบบ ให้ดึงจากของเดิมที่นายเคยเก็บไว้ใน localStorage
+        nameInput.value = localStorage.getItem('shopName') || "";
+    }
+
+    // 4. โชว์ Modal ตั้งค่าขึ้นมา
+    const settingsModal = document.getElementById('settingsModal');
+    if (settingsModal) {
+        settingsModal.style.display = 'block';
     }
 }
 
