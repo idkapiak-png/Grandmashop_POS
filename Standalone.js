@@ -1064,54 +1064,69 @@ async function getOrderAndShowReceipt(orderId) {
     }
 }
 
-//ฟังก์ชันนี้จะดึงออเดอร์จาก db.orders (Dexie) มาโชว์แบบเรียงตามเวลาล่าสุด 26-04-2026
+//ฟังก์ชันนี้จะดึงออเดอร์จาก db.orders (Dexie) มาโชว์แบบเรียงตามเวลาล่าสุด 28-04-2026
 async function loadRecentOrders() {
     const tableBody = document.getElementById('recent-orders-body');
     if (!tableBody) return;
 
-    const todayStr = new Date().toLocaleDateString('sv-SE');
-    
-    // 1. ดึงข้อมูลของวันนี้ทั้งหมดมาพักไว้ก่อน
-    const allOrders = await db.orders
-        .where('created_at')
-        .startsWith(todayStr)
-        .toArray();
+    try {
+        const todayStr = new Date().toLocaleDateString('sv-SE');
+        
+        // 1. ดึงข้อมูลของวันนี้ทั้งหมด
+        const allOrders = await db.orders
+            .where('created_at')
+            .startsWith(todayStr)
+            .toArray();
 
-    // 2. 🔥 หัวใจสำคัญ: รวมร่างรายการที่ order_id เดียวกันให้เป็น "บิลเดียว"
-    const groupedOrders = {};
-    allOrders.forEach(order => {
-        const gid = order.order_id || order.id; // กันเหนียว: ถ้าไม่มี order_id ให้ใช้ id แทน
-        if (!groupedOrders[gid]) {
-            groupedOrders[gid] = {
-                order_id: gid,
-                time: order.created_at.includes(' ') ? order.created_at.split(' ')[1].substring(0, 5) : "00:00",
-                itemList: [],
-                totalPrice: 0
-            };
-        }
-        // รวมชื่อเมนู เช่น "กะเพรา x1, โค้ก x2"
-        groupedOrders[gid].itemList.push(`${order.menu_name}${order.qty > 1 ? ' x' + order.qty : ''}`);
-        groupedOrders[gid].totalPrice += order.total_price;
-    });
+        // 2. รวมร่างรายการที่ order_id เดียวกัน และ "หักส่วนลด"
+        const groupedOrders = {};
+        allOrders.forEach(order => {
+            const gid = order.order_id || order.id; 
+            if (!groupedOrders[gid]) {
+                groupedOrders[gid] = {
+                    order_id: gid,
+                    time: order.created_at.includes(' ') ? order.created_at.split(' ')[1].substring(0, 5) : "00:00",
+                    itemList: [],
+                    totalRaw: 0,
+                    totalDiscount: 0 // เตรียมไว้ลบส่วนลด
+                };
+            }
+            groupedOrders[gid].itemList.push(`${order.menu_name}${order.qty > 1 ? ' x' + order.qty : ''}`);
+            groupedOrders[gid].totalRaw += Number(order.total_price || 0);
+            
+            // 🔥 หัวใจ: รวมส่วนลดที่ฝังอยู่ในแต่ละรายการ (ปกติจะอยู่ที่รายการแรก)
+            groupedOrders[gid].totalDiscount += Number(order.discount || 0);
+        });
 
-    // 3. แปลงเป็น Array แล้วเรียงจากใหม่ไปเก่า (แสดงแค่ 10 บิลล่าสุด)
-    const displayOrders = Object.values(groupedOrders).reverse().slice(0, 10);
+        // 3. เรียงจากใหม่ไปเก่า (10 บิลล่าสุด)
+        const displayOrders = Object.values(groupedOrders).reverse().slice(0, 10);
 
-    tableBody.innerHTML = displayOrders.length ? '' : '<tr><td colspan="4" style="text-align:center; padding:20px;">ยังไม่มีรายการของวันนี้</td></tr>';
+        tableBody.innerHTML = displayOrders.length ? '' : '<tr><td colspan="4" style="text-align:center; padding:20px;">ยังไม่มีรายการของวันนี้</td></tr>';
 
-    displayOrders.forEach(group => {
-        const tr = document.createElement('tr');
-        tr.style.borderBottom = "1px solid #eee";
-        tr.innerHTML = `
-            <td style="padding:10px;">${group.time}</td>
-            <td style="padding:10px; font-size:0.9rem;">${group.itemList.join(', ')}</td>
-            <td style="padding:10px; text-align:right;"><b>${group.totalPrice.toLocaleString()}.-</b></td>
-            <td style="padding:10px; text-align:center;">
-                <button onclick="reprintByGroupId(${group.order_id})" style="border:none; background:none; cursor:pointer; font-size:1.2rem;">🧾</button>
-            </td>
-        `;
-        tableBody.appendChild(tr);
-    });
+        displayOrders.forEach(group => {
+            // คำนวณยอดสุทธิ: ยอดเต็ม - ส่วนลด
+            const finalTotal = group.totalRaw - group.totalDiscount;
+
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = "1px solid #eee";
+            tr.innerHTML = `
+                <td style="padding:10px;">${group.time}</td>
+                <td style="padding:10px; font-size:0.9rem;">
+                    ${group.itemList.join(', ')}
+                    ${group.totalDiscount > 0 ? `<br><small style="color:#e67e22;">(ส่วนลด ${group.totalDiscount}.-)</small>` : ''}
+                </td>
+                <td style="padding:10px; text-align:right;">
+                    <b>${finalTotal.toLocaleString()}.-</b>
+                </td>
+                <td style="padding:10px; text-align:center;">
+                    <button onclick="reprintByGroupId(${group.order_id})" style="border:none; background:none; cursor:pointer; font-size:1.2rem;">🧾</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error("โหลดประวัติพลาด:", err);
+    }
 }
 
 //ดึง "ทั้งชุด" มาโชว์ในใบเสร็จ 27-04-2026
