@@ -8,8 +8,9 @@ db.version(5).stores({
     // ตารางใหม่: ใช้เก็บ 'store_name', 'promptpay' และค่าตั้งค่าอื่นๆ
     settings: 'key', 
 
-    // ตารางเดิม (v4): เพิ่ม order_id ไว้แล้วสำหรับรวมกลุ่มบิล
-    orders: '++id, order_id, menu_name, total_price, created_at, options, payment_method',
+    // ตารางเดิม (v4): เพิ่ม order_id ไว้แล้วสำหรับรวมกลุ่มบิล 28-04-2026
+    // เพิ่ม discount เข้าไปในสารบัญ (Index) ของ orders
+    orders: '++id, order_id, menu_name, total_price, discount, created_at, options, payment_method',
     
     // ตารางอื่นๆ ยังอยู่ครบเหมือนเดิม
     dailysummary: 'summary_date, total_sales, egg_count',
@@ -58,14 +59,18 @@ function showSetting() {
     renderOptionsSettings(); 
 }
 
-function saveAndExit() {
-    // 1. ดึงค่าพื้นฐาน
+async function saveAndExit() {
+    // --- 1. ดึงค่าพื้นฐานจากหน้าตั้งค่า (รวมส่วนลดใหม่) ---
     const shopName = document.getElementById('name-input').value;
     const shopMenu = document.getElementById('menu-input').value;
     const counterLabel = document.getElementById('counter-label-input').value;
     const counterUnit = document.getElementById('counter-unit-input').value;
+    
+    // 🔥 เพิ่ม: ดึงค่าส่วนลดจากหน้าหลัก (Back-page)
+    const discountInput = document.getElementById('set_discount');
+    const discountValue = discountInput ? parseFloat(discountInput.value) || 0 : 0;
 
-    // 2. บันทึกรายการเมนูขายหน้าแรก (Quick Menus) ลง localStorage
+    // --- 2. บันทึกรายการเมนูขายหน้าแรก (Quick Menus) ---
     const menuList = [];
     const container = document.getElementById('menu-settings-list');
     if (container) {
@@ -83,7 +88,7 @@ function saveAndExit() {
         localStorage.setItem('quickMenus', JSON.stringify(menuList));
     }
 
-    // 3. บันทึกชื่อร้าน
+    // --- 3. บันทึกชื่อร้านและหัวข้อเมนู ---
     if(shopName.trim() !== "") {
         document.getElementById('name-main').innerText = shopName;
         localStorage.setItem('shopName', shopName);
@@ -93,12 +98,12 @@ function saveAndExit() {
         localStorage.setItem('shopMenu', shopMenu);
     }
 
-    // 4. บันทึกค่าการนับ
+    // --- 4. บันทึกค่าการนับ (ไข่ดาว/แก้ว) และอัปเดต Dashboard ---
     if(counterLabel.trim() !== "") {
         localStorage.setItem('counterLabel', counterLabel);
         if(document.getElementById('display-label')) 
             document.getElementById('display-label').innerText = "📊 วันนี้ใช้ " + counterLabel + " ไปแล้ว";
-        // 🔥 เพิ่มบรรทัดนี้: อัปเดตหัวตาราง Dashboard ทันที 26-04-2026
+        
         if(document.getElementById('dashboard-unit-header'))
             document.getElementById('dashboard-unit-header').innerText = counterLabel;
     }
@@ -107,21 +112,29 @@ function saveAndExit() {
         localStorage.setItem('counterUnit', counterUnit);
         if(document.getElementById('display-unit')) 
             document.getElementById('display-unit').innerText = counterUnit;
-        // 🔥 เพิ่มบรรทัดนี้: อัปเดตหน่วยนับใน Dashboard ทันที
+        
         if(document.getElementById('dashboard-unit-name'))
             document.getElementById('dashboard-unit-name').innerText = counterUnit;
     }
 
-    // 5. ปิดหน้าตั้งค่า
+    // --- 5. 🔥 ส่วนที่เพิ่มใหม่: บันทึกส่วนลดลงเครื่อง ---
+    // บันทึกค่าส่วนลดลง localStorage เพื่อให้ระบบคำนวณเงินดึงไปใช้ได้ทันที
+    localStorage.setItem('default_discount', discountValue);
+    console.log("🎯 บันทึกส่วนลดพื้นฐานสำเร็จ:", discountValue, "บาท");
+
+    // --- 6. ปิดหน้าตั้งค่า ---
     if (window.location.hash === '#settings') {
         history.back(); 
     }
     document.getElementById('front-page').style.display = 'block';
     document.getElementById('back-page').style.display = 'none';
     
-    // 6. อัปเดต UI หน้าแรก
-    renderOrderButtons(); 
-    renderExtraOptions();
+    // --- 7. อัปเดตหน้าจอขายให้เป็นปัจจุบัน ---
+    renderOrderButtons();  // วาดปุ่มเมนูใหม่ (เผื่อมีการแก้ราคา)
+    renderExtraOptions();  // วาดปุ่มตัวเลือกเสริมใหม่
+    
+    // แจ้งเตือนสั้นๆ ให้ยายมั่นใจ
+    // alert("💾 บันทึกข้อมูลและส่วนลดเรียบร้อยแล้ว!"); 
 }
 
 function loadDailyCost() {
@@ -398,51 +411,67 @@ function deleteSpecificItem(index) {
     updateOrderPreview();  // วาดหน้าจอใหม่
 }
 
-// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 25-04-2026
+// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 28-04-2026
 async function confirmOrder(paymentType) {
     if (cart.length === 0) return alert("เลือกเมนูก่อนครับ!");
     
     const thailandTime = new Date().toLocaleString('sv-SE');
-    // 🔥 สร้างรหัสกลุ่มออเดอร์จากเวลาปัจจุบัน (เช่น 1714194000000) 27-04-2026
-    const orderId = Date.now();
-    
-    // 1. เตรียมข้อมูลสำหรับใบเสร็จ (สรุปจากตะกร้าก่อนจะล้างทิ้ง)
-    // เราจะสร้าง Object พิเศษเพื่อส่งให้ฟังก์ชัน showSmartReceipt
+    const orderId = Date.now(); // ใช้เป็นรหัสอ้างอิงกลุ่มออเดอร์เดียวกัน
+
+    // --- [จุดสำคัญ] ดึงส่วนลด ณ วินาทีที่ขาย ---
+    // เปลี่ยนจากดึงราคาเต็ม มาคำนวณ "ยอดสุทธิที่ต้องจ่ายจริง" ไว้ล่วงหน้า
+    const currentDiscount = parseFloat(localStorage.getItem('default_discount')) || 0;
+    const rawTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const netTotal = rawTotal - currentDiscount; // นี่คือยอดที่ลูกค้าจ่ายจริง
+
+    // 1. เตรียมข้อมูลสำหรับใบเสร็จ (Snapshot ข้อมูล ณ ตอนนี้)
     const receiptData = {
-        order_id: orderId, // เพิ่มเข้าไปใน data ของใบเสร็จด้วย 27-04-2026
-        items: [...cart], // คัดลอกรายการในตะกร้าไว้
-        total_price: cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+        order_id: orderId,
+        items: [...cart], 
+        total_price: rawTotal,      // ราคาเต็มก่อนลด
+        discount: currentDiscount,   // ส่วนลดที่ใช้ (จะแสดงในใบเสร็จ)
+        net_total: netTotal,        // 🔥 เพิ่ม: ยอดสุทธิหลังหักส่วนลด (สำหรับ QR Code)
         payment_method: paymentType,
         created_at: thailandTime
     };
 
-    // 2. วนลูปบันทึกทีละรายการลง Dexie (เหมือนเดิม)
-    for (const item of cart) {
+    // 2. บันทึกลง Dexie (ฐานข้อมูล)
+    // ปรับวิธีบันทึก: เราจะบันทึก 'net_price' ของแต่ละรายการให้สะท้อนความเป็นจริง
+    for (let i = 0; i < cart.length; i++) {
+        // คำนวณยอดของรายการนั้นๆ (ราคารายการ * จำนวน)
+        let itemTotal = cart[i].price * cart[i].qty;
+        
         await db.orders.add({
-            order_id: orderId, // 🔥 บันทึกรหัสกลุ่มเดียวกันลงไปทุกบรรทัด 27-04-2026
-            menu_name: item.name,
-            qty: item.qty,
-            options: item.options,
-            total_price: item.price * item.qty,
+            order_id: orderId,
+            menu_name: cart[i].name,
+            qty: cart[i].qty,
+            options: cart[i].options,
+            // 🔥 บันทึกยอดเต็มของรายการนี้
+            total_price: itemTotal, 
+            // 🔥 ฝังส่วนลดลงไปเฉพาะรายการแรก (เพื่อใช้คำนวณยอดรวมวันนี้ไม่ให้ซ้ำซ้อน)
+            discount: (i === 0) ? currentDiscount : 0, 
+            // 🔥 เพิ่ม: บันทึกยอดสุทธิของออเดอร์นั้นไว้ที่รายการแรกด้วย เพื่อให้เรียกดูย้อนหลังง่าย
+            final_net_price: (i === 0) ? netTotal : itemTotal, 
             payment_method: paymentType,
             created_at: thailandTime
         });
     }
 
-    // 3. แสดงใบเสร็จ "โคตรฉลาด" ขึ้นมาให้ลูกค้าดู/ถ่ายรูป 26-04-2026
-    // (เรียกฟังก์ชันที่เราสร้างไว้ก่อนหน้านี้)
+    // 3. แสดงใบเสร็จ "โคตรฉลาด"
+    // ส่ง receiptData ที่คำนวณเสร็จแล้วไปโชว์ (QR Code จะใช้ค่า net_total)
     showSmartReceipt(receiptData);
 
-    // 4. แจ้งเตือนและล้างข้อมูลหน้าบ้าน (เหมือนเดิม)
-    alert("บันทึกสำเร็จทั้งหมด " + cart.length + " รายการ");
+    // 4. ล้างข้อมูลและอัปเดตหน้าจอ
+    alert("บันทึกสำเร็จ! ยอดชำระ: " + netTotal + " บาท");
     cart = []; 
     updateOrderPreview();
-    fetchTodaySales();
-
-    // 🔥 เพิ่มบรรทัดนี้: เพื่อให้ตารางประวัติล่าสุดอัปเดตทันทีโดยไม่ต้องรอโหลดหน้าใหม่ 
-    loadRecentOrders();
+    
+    // 5. อัปเดตส่วนแสดงผล (รวมถึงไอดี recent-orders-list ที่เราคุยกัน)
+    if (typeof fetchTodaySales === "function") fetchTodaySales();
+    if (typeof loadRecentOrders === "function") loadRecentOrders();
 }
 
+//28-04-2026
 async function fetchTodaySales() {
     try {
         const todayStr = new Date().toLocaleDateString('sv-SE');
@@ -452,20 +481,44 @@ async function fetchTodaySales() {
 
         allOrders.forEach(o => {
             if (o.created_at && o.created_at.startsWith(todayStr)) {
-                const price = Number(o.total_price || 0);
-                total += price;
-                if (o.payment_method === 'Cash') cashTotal += price;
-                else if (o.payment_method === 'QR') qrTotal += price;
-                if (o.options && o.options.includes(targetSearch)) countItems += Number(o.qty || 0);
+                // 1. ดึงยอดเต็มของรายการนั้น
+                const rawPrice = Number(o.total_price || 0);
+
+                // 2. 🔥 [เพิ่มใหม่] ดึงส่วนลดที่ "ฝัง" ไว้ในออเดอร์นี้ออกมา
+                // ถ้าเป็นออเดอร์เก่าที่ไม่มีค่านี้ ให้ถือว่าเป็น 0
+                const orderDiscount = Number(o.discount || 0);
+
+                // 3. 🔥 [ปรับปรุง] คำนวณยอดเงินที่ได้รับจริง (ยอดเต็ม - ส่วนลด)
+                const actualIncome = rawPrice - orderDiscount;
+
+                // 4. 🔥 [ปรับปรุง] ใช้ยอดที่ได้รับจริง (actualIncome) ไปบวกยอดรวมแทน price เดิม
+                total += actualIncome; 
+                
+                if (o.payment_method === 'Cash') {
+                    cashTotal += actualIncome;
+                } else if (o.payment_method === 'QR') {
+                    qrTotal += actualIncome;
+                }
+
+                // การนับจำนวน (เช่น ไข่ดาว) ยังใช้ค่า qty เหมือนเดิม ไม่เกี่ยวกับราคา
+                if (o.options && o.options.includes(targetSearch)) {
+                    countItems += Number(o.qty || 0);
+                }
             }
         });
 
+        // อัปเดตตัวเลขขึ้นหน้าจอ Dashboard
         document.getElementById('total-sales-display').innerText = total.toLocaleString();
         document.getElementById('cash-display').innerText = cashTotal.toLocaleString();
         document.getElementById('qr-display').innerText = qrTotal.toLocaleString();
         document.getElementById('egg-count').innerText = countItems.toLocaleString();
+        
+        // ส่งยอดรวมที่ "หักส่วนลดแล้ว" ไปคำนวณกำไร/ขาดทุน
         updateProfitStatus(total);
-    } catch (err) { console.error(err); }
+
+    } catch (err) { 
+        console.error("เกิดข้อผิดพลาดในการดึงยอดขายรายวัน:", err); 
+    }
 }
 
 function resetOrder() {
@@ -689,6 +742,130 @@ window.onload = function() {
 };
 
 // ==========================================
+// [เพิ่มเติม] ระบบแสดงประวัติการขายล่าสุด (ฝังส่วนลด) 28-04-2026
+// ==========================================
+async function loadRecentOrders() {
+    // 1. ตรวจสอบ ID ส่วนแสดงผล (ป้องกัน Error ถ้าหา Element ไม่เจอ)
+    const historyContainer = document.getElementById('recent-orders-list'); 
+    if (!historyContainer) return;
+
+    try {
+        // 2. ดึงข้อมูลจากฐานข้อมูล (ดึง 20 แถวเพื่อให้ครอบคลุมกรณี 1 ออเดอร์มีหลายรายการ)
+        const rawOrders = await db.orders.orderBy('id').reverse().limit(20).toArray();
+        
+        // ถ้าไม่มีข้อมูล ให้โชว์ข้อความบอกผู้ใช้
+        if (rawOrders.length === 0) {
+            historyContainer.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">ยังไม่มีประวัติการขายวันนี้</p>';
+            return;
+        }
+
+        // 3. [ขั้นตอนการจัดกลุ่ม] รวมรายการที่ขายพร้อมกัน (order_id เดียวกัน) ให้อยู่ในกล่องเดียว
+        const grouped = {};
+        rawOrders.forEach(o => {
+            if (!grouped[o.order_id]) {
+                grouped[o.order_id] = {
+                    time: new Date(o.created_at).toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'}),
+                    method: o.payment_method === 'Cash' ? 'เงินสด' : 'โอน',
+                    items: [],      // เก็บรายชื่อเมนู
+                    totalRaw: 0,   // เก็บราคารวมก่อนหักส่วนลด
+                    discount: 0,   // เก็บค่าส่วนลดที่บันทึกไว้
+                    fullData: o    // เก็บข้อมูลไว้อ้างอิงตอนสั่งพิมพ์ใหม่
+                };
+            }
+            // สะสมชื่อเมนู และ ยอดรวมราคาเต็ม
+            grouped[o.order_id].items.push(`${o.menu_name} x${o.qty}`);
+            grouped[o.order_id].totalRaw += Number(o.total_price || 0);
+            
+            // 🔥 [จุดสำคัญ] ดึงค่าส่วนลดที่ Snapshot ไว้ใน Database มาใช้
+            const d = Number(o.discount || 0);
+            if (d > 0) {
+                grouped[o.order_id].discount = d;
+            }
+        });
+
+        // 4. แปลงจาก Object เป็น Array และตัดเอาเฉพาะ 10 ออเดอร์ล่าสุดมาโชว์
+        const displayData = Object.values(grouped).slice(0, 10);
+
+        // 5. [ส่วนการสร้างหน้าจอ] ปรับแต่ง HTML และใส่สีแยกประเภท
+        historyContainer.innerHTML = `
+            <h3 style="margin: 15px 0 10px 0; color: #2c3e50; font-size: 1.1rem;">รายการออเดอร์ล่าสุด</h3>
+            ${displayData.map(order => {
+                // คำนวณยอดที่ยายได้รับจริง (ราคาเต็ม - ส่วนลด)
+                const discountValue = Number(order.discount || 0);
+                const actualPaid = order.totalRaw - discountValue; 
+                
+                // ตรวจสอบเงื่อนไข: ออเดอร์นี้มีการลดราคามั้ย? (เพื่อใช้เลือกสี)
+                const hasDiscount = discountValue > 0; 
+
+                return `
+                    <div style="background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; 
+                                /* ถ้าลดให้ขอบสีส้ม ถ้าปกติให้ขอบสีเทา */
+                                border: 2px solid ${hasDiscount ? '#e67e22' : '#eee'}; 
+                                display: flex; justify-content: space-between; align-items: center; 
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+                        
+                        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 8px; 
+                                    background: ${hasDiscount ? '#e67e22' : '#27ae60'}; z-index: 1;"></div>
+
+                        <div style="flex: 1; margin-left: 15px;">
+                            <div style="font-weight: bold; color: #2c3e50; font-size: 1rem;">
+                                ${order.items.join(', ')}
+                            </div>
+                            <small style="color: #888;">
+                                🕒 ${order.time} | 💳 ${order.method} 
+                                /* ถ้าลดราคา ให้ขึ้นป้ายกำกับบอกชัดๆ */
+                                ${hasDiscount ? `<span style="color: #e67e22; font-weight: bold; margin-left: 5px;">[🔥 ลดราคา]</span>` : ''}
+                            </small>
+                        </div>
+                        
+                        <div style="text-align: right; min-width: 95px;">
+                            <div style="font-size: 1.2rem; font-weight: bold; color: #27ae60;">
+                                ${actualPaid.toLocaleString()}.-
+                            </div>
+                            
+                            /* ส่วนที่แสดงเฉพาะเมื่อมีการลดราคา (ราคาเดิมขีดฆ่า) */
+                            ${hasDiscount ? `
+                                <div style="font-size: 0.8rem; color: #e67e22; line-height: 1.2; font-weight: bold;">
+                                    <span style="text-decoration: line-through; color: #bbb; font-weight: normal;">${order.totalRaw}</span> 
+                                    <br>
+                                    ลดไป ${discountValue}.-
+                                </div>
+                            ` : `
+                                <div style="font-size: 0.75rem; color: #ccc;">ราคาปกติ</div>
+                            `}
+                        </div>
+                        
+                        <button onclick='reprintByGroupId(${order.fullData.order_id})' 
+                                style="margin-left: 15px; background: #f8f9fa; border: 1px solid #ddd; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 1.2rem; z-index: 2;">
+                            🧾
+                        </button>
+                    </div>
+                `;
+            }).join('')}
+        `;
+
+    } catch (err) {
+        console.error("โหลดประวัติพลาด:", err);
+        historyContainer.innerHTML = '<p style="color:red; text-align:center;">เกิดข้อผิดพลาดในการดึงข้อมูล</p>';
+    }
+}
+
+// ฟังก์ชันเสริมสำหรับกดดูบิลเก่าจากหน้าประวัติ
+function reprintReceipt(orderData) {
+    // ส่งข้อมูลให้ showSmartReceipt ทำงาน
+    // หมายเหตุ: orderData ในประวัติจะเป็นรายบรรทัด แต่ showSmartReceipt รับแบบกลุ่ม 
+    // ถ้าอยากให้โชว์สวยๆ ต้องปรับข้อมูลนิดหน่อยครับ
+    showSmartReceipt({
+        order_id: orderData.order_id,
+        items: [{ name: orderData.menu_name, price: orderData.total_price / orderData.qty, qty: orderData.qty, options: orderData.options }],
+        total_price: orderData.total_price,
+        discount: orderData.discount,
+        payment_method: orderData.payment_method,
+        created_at: orderData.created_at
+    });
+}
+
+// ==========================================
 // กล่องที่ 6: ระบบจัดการฐานข้อมูล (Backup, Restore, Export)  ปรับแก้ 25-04-2026
 // ==========================================
 
@@ -769,19 +946,17 @@ async function restoreDatabase(event) {
     reader.readAsText(file);
 }
 
-// 3. ฟังก์ชันส่งออกยอดขายเป็น CSV (สำหรับเปิดใน Excel)
+// 3. ฟังก์ชันส่งออกยอดขายเป็น CSV (สำหรับเปิดใน Excel) 28-04-2026
 async function exportToCSV() {
     try {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
         const now = new Date();
-        // สร้าง String วันที่รูปแบบสากล (YYYY-MM-DD) เพื่อให้ตรงกับในรูป
         const todayStr = now.toISOString().split('T')[0]; 
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
 
-        // หาวันแรกของสัปดาห์
         const startOfWeek = new Date(now);
         const day = now.getDay();
         const diff = now.getDate() - (day === 0 ? 6 : day - 1);
@@ -796,52 +971,49 @@ async function exportToCSV() {
         };
 
         orders.forEach(o => {
-            const price = parseFloat(o.total_price) || 0;
-            const method = (o.payment_method || "").toString().trim().toLowerCase();
-            
-            // เช็คช่องทางชำระเงิน (อิงตามรูป: Cash คือเงินสด, QR คือโอน)
-            const isCash = method === "cash" || method.includes("เงินสด");
+            // --- [จุดตายที่ 1: หักส่วนลดออกจากยอดสรุป] ---
+            const rawPrice = parseFloat(o.total_price) || 0;
+            const discount = parseFloat(o.discount) || 0;
+            const actualPrice = rawPrice - discount; // 🔥 นี่คือยอดเงินที่ได้รับจริง
 
-            // ดึงวันที่จาก "2026-04-23 22:1..." ในรูป
-            const datePart = (o.created_at || "").split(' ')[0]; // ได้ "2026-04-23"
-            const oDate = new Date(datePart); // สร้าง Date Object จาก YYYY-MM-DD ได้เลย ชัวร์ที่สุด
+            const method = (o.payment_method || "").toString().trim().toLowerCase();
+            const isCash = method === "cash" || method.includes("เงินสด");
+            const datePart = (o.created_at || "").split(' ')[0];
+            const oDate = new Date(datePart);
 
             if (!isNaN(oDate.getTime())) {
-                // 1. วันนี้
+                // ใช้ actualPrice ในการสะสมยอดทั้งหมด
                 if (datePart === todayStr) {
-                    summary.today.total += price;
-                    isCash ? summary.today.cash += price : summary.today.transfer += price;
+                    summary.today.total += actualPrice;
+                    isCash ? summary.today.cash += actualPrice : summary.today.transfer += actualPrice;
                 }
-                // 2. ปีนี้
                 if (oDate.getFullYear() === currentYear) {
-                    summary.year.total += price;
-                    isCash ? summary.year.cash += price : summary.year.transfer += price;
+                    summary.year.total += actualPrice;
+                    isCash ? summary.year.cash += actualPrice : summary.year.transfer += actualPrice;
 
-                    // 3. เดือนนี้
                     if (oDate.getMonth() === currentMonth) {
-                        summary.month.total += price;
-                        isCash ? summary.month.cash += price : summary.month.transfer += price;
+                        summary.month.total += actualPrice;
+                        isCash ? summary.month.cash += actualPrice : summary.month.transfer += actualPrice;
                     }
                 }
-                // 4. สัปดาห์นี้
                 if (oDate >= startOfWeek && oDate <= now) {
-                    summary.week.total += price;
-                    isCash ? summary.week.cash += price : summary.week.transfer += price;
+                    summary.week.total += actualPrice;
+                    isCash ? summary.week.cash += actualPrice : summary.week.transfer += actualPrice;
                 }
             }
         });
 
-        // --- เขียนเนื้อหา CSV (โครงสร้างเดิมที่นายชอบ) ---
         let csvContent = "\ufeff"; 
-        csvContent += "รายการสรุปยอด ประจำวันนี้,,,\n";
-        csvContent += "ช่วงเวลา,ยอดรวม (บาท),เงินสด,เงินโอน\n";
+        csvContent += "รายการสรุปยอด (คำนวณจากยอดรับสุทธิ),,,\n"; // บอกให้คนอ่านรู้ว่าหักส่วนลดแล้ว
+        csvContent += "ช่วงเวลา,ยอดสุทธิ (บาท),เงินสด,เงินโอน\n";
         csvContent += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
         csvContent += `สัปดาห์นี้,${summary.week.total},${summary.week.cash},${summary.week.transfer}\n`;
         csvContent += `เดือนนี้,${summary.month.total},${summary.month.cash},${summary.month.transfer}\n`;
         csvContent += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n\n\n`;
 
-        csvContent += "รายละเอียดออเดอร์,,,\n";
-        csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคารวม (บาท),ช่องทางการชำระเงิน\n";
+        csvContent += "รายละเอียดออเดอร์,,,,,,\n";
+        // --- [จุดตายที่ 2: เพิ่มคอลัมน์ส่วนลดในตารางรายละเอียด] ---
+        csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคาเต็ม,ส่วนลด,ยอดรับจริง,วิธีชำระเงิน\n";
 
         let lastDateSeen = "";
         orders.forEach(o => {
@@ -849,7 +1021,13 @@ async function exportToCSV() {
             if (lastDateSeen !== "" && lastDateSeen !== datePart) {
                 csvContent += "\n"; 
             }
-            csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${o.total_price},${o.payment_method}\n`;
+
+            const rawPrice = parseFloat(o.total_price) || 0;
+            const discount = parseFloat(o.discount) || 0;
+            const netPaid = rawPrice - discount;
+
+            // เพิ่มข้อมูลส่วนลด และยอดสุทธิ ลงในบรรทัด CSV
+            csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${rawPrice},${discount},${netPaid},${o.payment_method}\n`;
             lastDateSeen = datePart;
         });
 
@@ -857,12 +1035,12 @@ async function exportToCSV() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Report_Sales_${todayStr}.csv`;
+        a.download = `Report_Sales_Snapshot_${todayStr}.csv`;
         a.click();
         URL.revokeObjectURL(url);
 
     } catch (err) {
-        alert("❌ ข้อผิดพลาด: " + err.message);
+        alert("❌ ข้อผิดพลาดในการส่งออก: " + err.message);
     }
 }
 
@@ -874,75 +1052,7 @@ function closeReceipt() {
 
 // ฟังก์ชัน "วาด" ใบเสร็จ (ใช้ทั้งตอนขายเสร็จ และตอนดึงย้อนหลัง) 27-04-2026
 // --- วางแทนฟังก์ชันเดิมที่มีซ้ำกันทั้งหมด ---
-async function showSmartReceipt(orderData) {
-    const modal = document.getElementById('receipt-modal');
-    if (!modal) return;
 
-    const shopName = localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง";
-    
-    // 1. ล้างพื้นที่ QR Code เก่า
-    const qrArea = document.getElementById('qrcode');
-    if (qrArea) qrArea.innerHTML = '';
-
-    // 2. ใส่ข้อมูลหัวใบเสร็จ
-    document.getElementById('r-shop-name').innerText = shopName;
-    document.getElementById('r-date').innerText = "วันที่: " + (orderData.created_at || new Date().toLocaleString());
-    document.getElementById('r-total').innerText = "รวมทั้งสิ้น: " + orderData.total_price.toLocaleString() + ".-";
-    document.getElementById('r-payment').innerText = "ชำระโดย: " + (orderData.payment_method === 'Cash' ? 'เงินสด' : 'โอนเงิน (QR)');
-
-    // 3. วาดรายการสินค้า (รองรับทั้งตะกร้าหน้าขาย และ ประวัติย้อนหลัง)
-    let itemHTML = "";
-    if (orderData.items && Array.isArray(orderData.items)) {
-        orderData.items.forEach(item => {
-            itemHTML += `
-                <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                    <span>${item.name} x ${item.qty}</span>
-                    <span>${(item.price * item.qty).toLocaleString()}.-</span>
-                </div>
-                ${item.options ? `<div style="font-size:0.75rem; color:#666; margin-bottom:5px;">(+ ${item.options})</div>` : ''}
-            `;
-        });
-    } else {
-        itemHTML = `
-            <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                <span>${orderData.menu_name} x ${orderData.qty}</span>
-                <span>${orderData.total_price.toLocaleString()}.-</span>
-            </div>
-            ${orderData.options ? `<div style="font-size:0.75rem; color:#666;">(+ ${orderData.options})</div>` : ''}
-        `;
-    }
-    document.getElementById('r-items').innerHTML = itemHTML;
-
-    // 4. สั่งเปิด Modal ขึ้นมาก่อน (เพื่อให้กล่อง qrcode ปรากฏตัวบนหน้าจอ)
-    modal.style.display = 'flex';
-
-    // 5. สร้าง QR Code หลังจาก Modal แสดงผลแล้ว (หน่วงเวลาเพื่อให้แน่ใจว่ากล่องโผล่มาแล้ว)
-    setTimeout(() => {
-        try {
-            console.log("กำลังตรวจสอบ Library QRCode...");
-            if (typeof QRCode !== "undefined" && qrArea) {
-                qrArea.innerHTML = ''; // ล้างอีกรอบเผื่อความชัวร์
-                
-                const qrText = `ร้าน: ${shopName}\nยอดรวม: ${orderData.total_price}.-\nขอบคุณที่อุดหนุนครับ`;
-                
-                new QRCode(qrArea, {
-                    text: qrText,
-                    width: 120,
-                    height: 120,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-                console.log("✅ สร้าง QR Code สำเร็จ!");
-            } else {
-                console.error("❌ ไม่พบ Library QRCode หรือพื้นที่วาง QR (เช็คไฟล์ qrcode.min.js ใน HTML)");
-                if(qrArea) qrArea.innerHTML = "<small style='color:red;'>โหลด QR ไม่สำเร็จ</small>";
-            }
-        } catch (e) {
-            console.error("QR Code Error:", e);
-        }
-    }, 300); // รอ 0.3 วินาที
-}
 
 // ฟังก์ชันดึงข้อมูลย้อนหลัง (เรียกจากหน้า Dashboard หรือหน้าประวัติ)
 async function getOrderAndShowReceipt(orderId) {
@@ -1006,19 +1116,34 @@ async function loadRecentOrders() {
 
 //ดึง "ทั้งชุด" มาโชว์ในใบเสร็จ 27-04-2026
 async function reprintByGroupId(orderId) {
+    // 1. ดึงทุกรายการที่มี order_id เดียวกันออกมา
     const orders = await db.orders.where('order_id').equals(orderId).toArray();
+    
     if (orders.length > 0) {
+        // --- [จุดสำคัญ: ดึงส่วนลดที่ฝังไว้] ---
+        // เราหาดูว่าในกลุ่มนี้ มีบรรทัดไหนที่มี discount (ปกติจะอยู่ที่รายการแรก)
+        const discountEntry = orders.find(o => o.discount > 0);
+        const savedDiscount = discountEntry ? Number(discountEntry.discount) : 0;
+
         const data = {
+            order_id: orderId, // ใส่ ID ไว้ด้วยเพื่อความชัดเจน
             items: orders.map(o => ({ 
                 name: o.menu_name, 
                 price: o.total_price / o.qty, 
                 qty: o.qty, 
                 options: o.options 
             })),
-            total_price: orders.reduce((sum, o) => sum + o.total_price, 0),
+            // 2. คำนวณยอดรวมราคาเต็ม
+            total_price: orders.reduce((sum, o) => sum + Number(o.total_price), 0),
+            
+            // 3. 🔥 ส่งส่วนลดที่หาเจอลงไปใน data ด้วย เพื่อให้ showSmartReceipt เอาไปหักลบ
+            discount: savedDiscount, 
+            
             payment_method: orders[0].payment_method,
             created_at: orders[0].created_at
         };
+
+        // 4. ส่งข้อมูลที่ "หักลบเลขถูกต้องแล้ว" ไปโชว์ใบเสร็จ
         showSmartReceipt(data);
     }
 }
@@ -1047,45 +1172,57 @@ function closeReceipt() {
 
 async function showSmartReceipt(data) {
     const modal = document.getElementById('receipt-modal');
-    
-    // ดึงค่าคงที่ต่างๆ (ดึงจาก Settings ใน Dexie หรือถ้าไม่มีให้ใช้ localStorage เดิม)
+    if (!modal) return;
+
+    // ✅ --- จุดที่ต้องแก้ไขใหม่ (ดึงจาก data ของออเดอร์นั้นๆ) ---
+    const discountAmount = parseFloat(data.discount) || 0; // ดึงส่วนลดที่ฝังอยู่ในบิล
+    const rawTotal = parseFloat(data.total_price) || 0;
+    let finalTotal = rawTotal - discountAmount;
+    if (finalTotal < 0) finalTotal = 0;
+
+    // ดึงค่าคงที่จาก Dexie (ระบบใหม่)
     const storeData = await db.settings.get('store_name');
     const ppData = await db.settings.get('promptpay');
     
     const shopName = storeData ? storeData.value : (localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง");
-    const unitName = localStorage.getItem('counterUnit') || "ชิ้น";
     
     // 1. ใส่หัวใบเสร็จ
     document.getElementById('r-shop-name').innerText = shopName;
     document.getElementById('r-date').innerText = "วันที่: " + new Date(data.created_at).toLocaleString('th-TH');
     
-    // 2. รายการสินค้า
+    // 2. รายการสินค้า (วาดแบบมีรายการย่อย)
     const itemsContainer = document.getElementById('r-items');
     itemsContainer.innerHTML = data.items.map(item => `
         <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
             <span>${item.name} ${item.options ? '<br><small style="color:gray;">('+item.options+')</small>' : ''}</span>
-            <span>x${item.qty} ${item.price * item.qty}.-</span>
+            <span>x${item.qty} ${ (item.price * item.qty).toLocaleString() }.-</span>
         </div>
     `).join('');
     
-    // 3. สรุปยอดและวิธีจ่าย
-    document.getElementById('r-total').innerText = `รวมทั้งสิ้น: ${data.total_price.toLocaleString()}.-`;
-    document.getElementById('r-payment').innerText = "วิธีชำระ: " + (data.payment_method === 'Cash' ? '💵 เงินสด' : '📱 เงินโอน');
+    // 3. [สำคัญ] สรุปยอดที่หักส่วนลดแล้ว
+    document.getElementById('r-total').innerText = `รวมทั้งสิ้น: ${finalTotal.toLocaleString()}.-`;
     
-    // 4. จัดการส่วน QR Code (ระบบ Hybrid: Online มั่นใจ 100% / Offline ทำงานต่อได้)
+    // แสดงบรรทัดส่วนลดสีส้ม
+    let paymentHTML = "วิธีชำระ: " + (data.payment_method === 'Cash' ? '💵 เงินสด' : '📱 เงินโอน');
+    if (discountAmount > 0) {
+        paymentHTML = `<div style="color:#e67e22; font-weight:bold; margin-bottom:4px;">🔥 ส่วนลดท้ายบิล: -${discountAmount.toLocaleString()}.-</div>` + paymentHTML;
+    }
+    document.getElementById('r-payment').innerHTML = paymentHTML;
+    
+    // 4. จัดการส่วน QR Code (ระบบ Hybrid: Online / Offline)
     const qrContainer = document.getElementById('qrcode');
-    qrContainer.innerHTML = ""; // ล้างอันเก่า
+    qrContainer.innerHTML = ""; 
     
     if (data.payment_method === 'QR') {
         const promptpayNumber = ppData ? ppData.value : null;
 
         if (promptpayNumber) {
             const cleanNumber = promptpayNumber.replace(/[^0-9]/g, "").trim();
-            const qrAmount = parseFloat(data.total_price) || 0;
+            // ยอดเงินใน QR ต้องเป็นยอดที่ลดแล้ว!
+            const qrAmount = finalTotal; 
 
-            // ตรวจสอบสถานะอินเทอร์เน็ต
             if (navigator.onLine) {
-                // --- [MODE: ONLINE] ใช้ API จาก promptpay.io มั่นใจสแกนติด 100% ---
+                // --- [MODE: ONLINE] สแกนติด 100% ผ่าน API ---
                 qrContainer.innerHTML = `
                     <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block;">
                         <img src="https://promptpay.io/${cleanNumber}/${qrAmount}.png" 
@@ -1097,16 +1234,12 @@ async function showSmartReceipt(data) {
                         </p>
                     </div>
                 `;
-                console.log("QR Mode: Online API");
             } else {
-                // --- [MODE: OFFLINE] ใช้ Library เดิมในเครื่องสร้าง QR ---
+                // --- [MODE: OFFLINE] ใช้ Library ในเครื่อง ---
                 const generateQR = window.promptpayQr ? window.promptpayQr.generatePayload : null;
-
                 if (typeof generateQR === 'function') {
                     try {
                         const payload = generateQR(cleanNumber, qrAmount);
-                        
-                        // สร้างพื้นที่ขาวรองรับ QR
                         const qrBox = document.createElement('div');
                         qrBox.style.cssText = "background: white; padding: 10px; border-radius: 10px; display: inline-block;";
                         qrContainer.appendChild(qrBox);
@@ -1115,33 +1248,23 @@ async function showSmartReceipt(data) {
                             text: payload,
                             width: 180,
                             height: 180,
-                            colorDark: "#000000",
-                            colorLight: "#ffffff",
                             correctLevel: QRCode.CorrectLevel.M
                         });
 
-                        // เพิ่มข้อความกำกับข้างล่าง (กรณีออฟไลน์แล้วสแกนยาก ให้ดูเลขแทน)
                         const info = document.createElement('p');
                         info.style.cssText = "margin-top:8px; font-size:0.85rem; color:#666;";
                         info.innerHTML = `⚠️ ออฟไลน์: ${cleanNumber}<br>ยอด: ${qrAmount.toLocaleString()} บาท`;
                         qrContainer.appendChild(info);
-
                     } catch (err) {
-                        qrContainer.innerHTML = `<p style="color:red;">สร้าง QR ออฟไลน์พลาด: ${cleanNumber}</p>`;
+                        qrContainer.innerHTML = `<p style="color:red;">สร้าง QR ออฟไลน์พลาด</p>`;
                     }
-                } else {
-                    qrContainer.innerHTML = `<p style="color:orange;">ระบบออฟไลน์และไม่พบ Library</p>`;
                 }
-                console.log("QR Mode: Offline Library");
             }
         } else {
-            qrContainer.innerHTML = "<p style='color:red; font-size:0.8rem;'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
+            qrContainer.innerHTML = "<p style='color:red;'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
         }
     } else {
-        qrContainer.innerHTML = `
-            <div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div>
-            <p style="font-size: 0.9rem; color: #7f8c8d;">ขอบคุณที่ชำระเงินสดครับ</p>
-        `;
+        qrContainer.innerHTML = `<div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div><p style="font-size: 0.9rem;">ขอบคุณที่ชำระเงินสดครับ</p>`;
     }
     
     // 5. เปิด Modal
@@ -1179,33 +1302,28 @@ async function getOrderAndShowReceipt(id) {
         showSmartReceipt(order);
     }
 }
-// คำสั่ง ตั้งค่า เงินโอนเข้าบัญชี ผ่าน QR 27-04-2026
+// คำสั่ง ตั้งค่า เงินโอนเข้าบัญชี ผ่าน QR 28-04-2026
 async function saveSettings() {
-    // ดึงค่าจาก Input ในหน้า Settings
+    // 1. ดึงค่าจาก Input เฉพาะที่มีอยู่ใน Modal พร้อมเพย์
     const pp = document.getElementById('set_promptpay').value;
-    const shopName = document.getElementById('name-input').value; // ดึงชื่อร้านจากหน้าตั้งค่าหลัก
 
     try {
-        // 1. บันทึกลง Dexie (ตาราง settings) สำหรับระบบ QR และข้อมูลถาวร
-        if (pp) {
+        // --- ส่วนที่ 1: บันทึกข้อมูลลง Dexie (เพื่อความถาวร) ---
+        
+        // บันทึกเลข PromptPay
+        if (pp.trim() !== "") {
             await db.settings.put({ key: 'promptpay', value: pp });
+            // เก็บลง localStorage เผื่อกรณีดึงไปใช้สร้าง QR ทันที
+            localStorage.setItem('promptpay_number', pp);
+            console.log("📱 บันทึกเลข PromptPay สำเร็จ:", pp);
         }
         
-        if (shopName) {
-            await db.settings.put({ key: 'store_name', value: shopName });
-            // 2. บันทึกลง localStorage (เพื่อความลื่นไหลของโค้ดส่วนเดิมของนาย)
-            localStorage.setItem('shopName', shopName);
-        }
+        // --- ส่วนที่ 2: การตอบสนองบนหน้าจอ (UI Update) ---
 
-        alert("💾 บันทึกข้อมูลร้านและ PromptPay เรียบร้อยแล้วจ้า!");
+        alert("💾 บันทึกเลข PromptPay เรียบร้อยแล้วจ้า!");
         
-        // ปิด Modal
+        // ปิด Modal ตั้งค่า
         document.getElementById('settingsModal').style.display = 'none';
-        
-        // อัปเดตชื่อร้านบนหน้าจอทันทีโดยไม่ต้อง Refresh
-        if (shopName) {
-            document.getElementById('name-main').innerText = shopName;
-        }
         
     } catch (error) {
         console.error("บันทึกพลาด:", error);
