@@ -15,7 +15,7 @@
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=3.0"></script>
+    <script src="qrcode.min.js?v=3.1"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -26,7 +26,7 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=3.0"></script>
+    <script src="Standalone.js?v=3.1"></script>
 
 </head>
 
@@ -286,38 +286,46 @@
 </div>
 
     <!--ส่วนของหน้าตาใบเสร็จ (HTML) 26-04-2026-->
-        <div id="receipt-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; padding:20px;">
-                <div style="background:white; width:100%; max-width:350px; padding:20px; border-radius:10px; position:relative; font-family: 'Courier New', Courier, monospace;">
-                    <button onclick="closeReceipt()" style="position:absolute; top:10px; right:10px; border:none; background:none; font-size:20px; cursor:pointer;">×</button>
+    <div id="receipt-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:white; width:100%; max-width:350px; max-height:90vh; border-radius:15px; position:relative; font-family: 'Courier New', Courier, monospace; display:flex; flex-direction:column; overflow:hidden;">
+        
+            <div style="padding: 20px 20px 10px 20px; border-bottom: 1px dashed #ddd; position: relative;">
+                <button onclick="closeReceipt()" style="position:absolute; top:10px; right:10px; border:none; background:#eee; width:30px; height:30px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; justify-content:center; align-items:center;">×</button>
+                <h2 id="r-shop-name" style="margin:0; text-align:center; font-size: 1.5rem;">ชื่อร้าน</h2>
+                <p id="r-date" style="font-size:0.8rem; margin:5px 0 0 0; text-align:center; color:#666;"></p>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; padding: 0 20px; text-align:center;">
+                <div id="receipt-content" style="color:#333;">
+                    <div id="r-items" style="text-align:left; margin:15px 0; font-size:0.9rem;"></div>
                     
-                    <div id="receipt-content" style="text-align:center; color:#333;">
-                        <h2 id="r-shop-name" style="margin-bottom:5px;">ชื่อร้าน</h2>
-                        <p id="r-date" style="font-size:0.8rem; margin:0;"></p>
-                        <hr style="border-top: 1px dashed #bbb;">
-                        
-                        <div id="r-items" style="text-align:left; margin:15px 0; font-size:0.9rem;">
-                            </div>
-                        
-                        <hr style="border-top: 1px dashed #bbb;">
-                        <h3 id="r-total" style="margin:10px 0;">รวมทั้งสิ้น: 0.-</h3>
-                        <p id="r-payment" style="font-size:0.8rem;"></p>
+                    <hr style="border-top: 1px dashed #bbb;">
+                    <h3 id="r-total" style="margin:10px 0;">รวมทั้งสิ้น: 0.-</h3>
+                    <p id="r-payment" style="font-size:0.8rem; margin-bottom:10px;"></p>
 
-
-                        <!--28-04-2026-->
-                        <div id="qrcode" style="
+                    <!--28-04-2026-->
+                    <div id="qrcode" style="
                         background: white; 
-                        padding: 20px; 
+                        padding: 15px; 
                         display: inline-block; 
-                        margin: 15px 0; 
+                        margin: 10px 0; 
                         border-radius: 10px;
                         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                        border: 1px solid #eee;
                     "></div>
-                        
-                        <p style="margin-top:15px; font-size:0.7rem; color:#888;">*** ขอบคุณที่อุดหนุนค่ะ/ครับ ***</p>
-                    </div>
                     
-                    <button onclick="window.print()" style="width:100%; margin-top:15px; padding:10px; background:#3498db; color:white; border:none; border-radius:5px;">แชร์หรือพิมพ์ใบเสร็จ</button>
+                    <p style="margin:15px 0; font-size:0.7rem; color:#888;">*** ขอบคุณที่อุดหนุนค่ะ/ครับ ***</p>
                 </div>
+            </div>
+
+            <div style="padding: 15px 20px; border-top: 1px solid #eee; background: #fafafa;">
+                <button onclick="window.print()" style="width:100%; padding:12px; background:#3498db; color:white; border:none; border-radius:8px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    แชร์หรือพิมพ์ใบเสร็จ
+                </button>
+            </div>
+
+        </div>
+    </div>    
         </div>
     <!--สร้างเลขบัญชีโอนเงิน เป็น QR Code 27-04-2026-->
         <div id="settingsModal" class="modal" style="display:none; position:fixed; z-index:999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
