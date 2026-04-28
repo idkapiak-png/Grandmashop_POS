@@ -1,8 +1,9 @@
-const CACHE_NAME = 'Grandmashop-pos-v75'; // เปลี่ยนเลข v เมื่อมีการอัปเดตไฟล์
+const CACHE_NAME = 'Grandmashop-pos-v91'; // เปลี่ยนเลข v เมื่อมีการอัปเดตไฟล์
 const ASSETS_TO_CACHE = [
   './',
   './Standalone.html',
   './Standalone.js',
+  './promptpay-qr-local.js',
   './Grandmashop.json',
   'qrcode.min.js',
   './Standalone.css',

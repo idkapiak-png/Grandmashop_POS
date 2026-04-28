@@ -13,12 +13,20 @@
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <script src="./dexie.js"></script>
+
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=1.3"></script>
-    <script src="Standalone.js?v=1.3"></script>
+    <script src="qrcode.min.js?v=2.9"></script>
+
+            <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
+    <script src="promptpay-qr-local.js"></script>
+
+    
     <link rel="stylesheet" href="Standalone.css">
+
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
+
+    <script src="Standalone.js?v=2.9"></script>
 
 </head>
 
@@ -295,8 +303,15 @@
                         <p id="r-payment" style="font-size:0.8rem;"></p>
 
 
-                        <!--27-04-2026-->
-                        <div id="qrcode" style="width: 128px; height: 128px; background: #eee; margin: 15px auto 0 auto;"></div>
+                        <!--28-04-2026-->
+                        <div id="qrcode" style="
+                        background: white; 
+                        padding: 20px; 
+                        display: inline-block; 
+                        margin: 15px 0; 
+                        border-radius: 10px;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    "></div>
                         
                         <p style="margin-top:15px; font-size:0.7rem; color:#888;">*** ขอบคุณที่อุดหนุนค่ะ/ครับ ***</p>
                     </div>
@@ -325,9 +340,6 @@
         });
     }
     </script>
-
-        <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ 27-04-2026-->
-    <script src="https://cdn.jsdelivr.net/npm/promptpay-qr@0.5.0/dist/promptpay-qr.min.js"></script>
 
 </body>
 </html>

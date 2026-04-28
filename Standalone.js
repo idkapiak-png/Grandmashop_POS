@@ -1072,32 +1072,72 @@ async function showSmartReceipt(data) {
     document.getElementById('r-total').innerText = `รวมทั้งสิ้น: ${data.total_price.toLocaleString()}.-`;
     document.getElementById('r-payment').innerText = "วิธีชำระ: " + (data.payment_method === 'Cash' ? '💵 เงินสด' : '📱 เงินโอน');
     
-    // 4. จัดการส่วน QR Code (แยก 2 ระบบ)
+    // 4. จัดการส่วน QR Code (ระบบ Hybrid: Online มั่นใจ 100% / Offline ทำงานต่อได้)
     const qrContainer = document.getElementById('qrcode');
     qrContainer.innerHTML = ""; // ล้างอันเก่า
     
-    // ถ้าเป็นเงินโอน ให้สร้าง QR PromptPay แบบระบุยอดเงิน
     if (data.payment_method === 'QR') {
         const promptpayNumber = ppData ? ppData.value : null;
 
         if (promptpayNumber) {
-            // 🔥 ใช้ Library generatePayload เพื่อสร้างรหัส PromptPay พร้อมยอดเงิน
-            // ต้องมั่นใจว่าได้ใส่ <script src="...promptpay-qr..."></script> ใน HTML แล้ว
-            const payload = generatePayload(promptpayNumber, { amount: data.total_price });
-            
-            new QRCode(qrContainer, {
-                text: payload,
-                width: 160,
-                height: 160,
-                colorDark: "#1a237e", // สีน้ำเงินเข้มแบบธนาคาร
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.M
-            });
+            const cleanNumber = promptpayNumber.replace(/[^0-9]/g, "").trim();
+            const qrAmount = parseFloat(data.total_price) || 0;
+
+            // ตรวจสอบสถานะอินเทอร์เน็ต
+            if (navigator.onLine) {
+                // --- [MODE: ONLINE] ใช้ API จาก promptpay.io มั่นใจสแกนติด 100% ---
+                qrContainer.innerHTML = `
+                    <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block;">
+                        <img src="https://promptpay.io/${cleanNumber}/${qrAmount}.png" 
+                             style="width:200px; height:200px; display:block;"
+                             onerror="this.style.display='none';">
+                        <p style="margin-top:8px; font-size:0.85rem; color:#1a237e; font-weight:bold;">
+                            ${cleanNumber}<br>
+                            <span style="color:#27ae60;">ยอดเงิน: ${qrAmount.toLocaleString()} บาท</span>
+                        </p>
+                    </div>
+                `;
+                console.log("QR Mode: Online API");
+            } else {
+                // --- [MODE: OFFLINE] ใช้ Library เดิมในเครื่องสร้าง QR ---
+                const generateQR = window.promptpayQr ? window.promptpayQr.generatePayload : null;
+
+                if (typeof generateQR === 'function') {
+                    try {
+                        const payload = generateQR(cleanNumber, qrAmount);
+                        
+                        // สร้างพื้นที่ขาวรองรับ QR
+                        const qrBox = document.createElement('div');
+                        qrBox.style.cssText = "background: white; padding: 10px; border-radius: 10px; display: inline-block;";
+                        qrContainer.appendChild(qrBox);
+
+                        new QRCode(qrBox, {
+                            text: payload,
+                            width: 180,
+                            height: 180,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.M
+                        });
+
+                        // เพิ่มข้อความกำกับข้างล่าง (กรณีออฟไลน์แล้วสแกนยาก ให้ดูเลขแทน)
+                        const info = document.createElement('p');
+                        info.style.cssText = "margin-top:8px; font-size:0.85rem; color:#666;";
+                        info.innerHTML = `⚠️ ออฟไลน์: ${cleanNumber}<br>ยอด: ${qrAmount.toLocaleString()} บาท`;
+                        qrContainer.appendChild(info);
+
+                    } catch (err) {
+                        qrContainer.innerHTML = `<p style="color:red;">สร้าง QR ออฟไลน์พลาด: ${cleanNumber}</p>`;
+                    }
+                } else {
+                    qrContainer.innerHTML = `<p style="color:orange;">ระบบออฟไลน์และไม่พบ Library</p>`;
+                }
+                console.log("QR Mode: Offline Library");
+            }
         } else {
-            qrContainer.innerHTML = "<p style='color:red; font-size:0.8rem;'>ยังไม่ได้ตั้งค่าเลข PromptPay<br>กรุณาตั้งค่าที่ปุ่มเฟือง</p>";
+            qrContainer.innerHTML = "<p style='color:red; font-size:0.8rem;'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
         }
     } else {
-        // ถ้าเป็นเงินสด ไม่ต้องมี QR Code ให้ใส่รูปเช็คถูก หรือคำขอบคุณแทน
         qrContainer.innerHTML = `
             <div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div>
             <p style="font-size: 0.9rem; color: #7f8c8d;">ขอบคุณที่ชำระเงินสดครับ</p>
@@ -1202,6 +1242,8 @@ async function openSettings() {
         settingsModal.style.display = 'block';
     }
 }
+
+
 
 // iOS & Popstate
 window.addEventListener('load', () => {
