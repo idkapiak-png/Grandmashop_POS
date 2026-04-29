@@ -1,26 +1,40 @@
 // ==========================================
-// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) 27-04-2026
+// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) - อัปเกรดระบบโต๊ะ 29-04-2026
 // ==========================================
 const db = new Dexie("StandaloneDatabase");
 
-// อัปเดตเป็น version(5) เพื่อรองรับตาราง settings สำหรับเก็บเลข PromptPay 
-db.version(5).stores({
-    // ตารางใหม่: ใช้เก็บ 'store_name', 'promptpay' และค่าตั้งค่าอื่นๆ
+// อัปเดตเป็น version(6) เพื่อรองรับระบบโต๊ะ (Pending Tables)
+db.version(6).stores({
+    // 1. ตารางตั้งค่า: เก็บชื่อร้าน, PromptPay, จำนวนโต๊ะในร้าน
     settings: 'key', 
 
-    // ตารางเดิม (v4): เพิ่ม order_id ไว้แล้วสำหรับรวมกลุ่มบิล 28-04-2026
-    // เพิ่ม discount เข้าไปในสารบัญ (Index) ของ orders
+    // 2. ตารางการขายจริง: (บันทึกเมื่อเช็คบิลแล้วเท่านั้น)
     orders: '++id, order_id, menu_name, total_price, discount, created_at, options, payment_method',
     
-    // ตารางอื่นๆ ยังอยู่ครบเหมือนเดิม
+    // 3. 🔥 ตารางใหม่ (หัวใจของระบบโต๊ะ): เก็บออเดอร์ที่ "ยังไม่เช็คบิล"
+    // table_id: เลขโต๊ะ (เป็น Key หลัก)
+    // order_items: เก็บ Array ของเมนูที่หย่อนลงไป
+    // last_update: เวลาที่อัปเดตล่าสุด
+    active_tables: 'table_id, last_update', 
+
+    // 4. ตารางสรุปยอดรายวัน (คงเดิม)
     dailysummary: 'summary_date, total_sales, egg_count',
+    
+    // 5. คลังเมนูและตัวเลือกเสริม (คงเดิม)
     menus: '++id, name, price',
     extra_options: '++id, name, price' 
 });
 
-db.open().catch(err => console.error("เปิดฐานข้อมูลไม่ได้: " + err.stack));
+db.open().then(() => {
+    console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 6: รองรับระบบโต๊ะ)");
+}).catch(err => {
+    console.error("❌ เปิดฐานข้อมูลไม่ได้: " + err.stack);
+});
 
+// ตัวแปรพักข้อมูลชั่วคราวขณะกำลังเลือกเมนู
 let currentOrder = { name: "", price: 0, qty: 1 };
+// ตัวแปรสำหรับระบุว่าตอนนี้กำลังจัดการ "โต๊ะไหน" อยู่ (null คือขายหน้าร้านปกติ)
+let selectedTable = null;
 
 // ==========================================
 // กล่องที่ 2: ระบบจัดการหน้าตาเว็บและการตั้งค่า
@@ -364,34 +378,58 @@ function getSelectedOptions() {
     return { extraPrice, extraNames };
 }
 
-
-// ฟังก์ชันแสดงผล (มีปุ่มลบรายบรรทัด) 25-04-2026
+// ฟังก์ชันแสดงผล (มีปุ่มลบรายบรรทัด) 29-04-2026
 function updateOrderPreview() {
     const detailBox = document.getElementById('order-detail');
     const totalBox = document.getElementById('order-total-price');
-    const qtyBox = document.getElementById('order-qty'); // <-- 1. ดึงตำแหน่งที่จะโชว์ตัวเลขจาน
+    const qtyBox = document.getElementById('order-qty'); 
+    
+    // 🔍 ดึงปุ่มมาจัดการ (ID ต้องตรงกับใน HTML เป๊ะๆ)
+    const btnToTable = document.getElementById('btn-to-table');    
+    const btnPayNow = document.getElementById('btn-pay-now');      
+    const btnCash = document.getElementById('btn-pay-cash');       
+    const btnTransfer = document.getElementById('btn-pay-transfer'); 
 
+    // --- ส่วนที่ 1: จัดการปุ่มเขียวเดิม (ซ่อนทิ้งไปเลย ไม่ให้ขยับ Layout) ---
+    if(btnPayNow) btnPayNow.style.display = 'none'; 
+
+    // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า ---
     if (cart.length === 0) {
         if(detailBox) detailBox.innerHTML = "ยังไม่ได้เลือกเมนู";
         if(totalBox) totalBox.innerText = "รวมทั้งสิ้น : 0.-";
-        if(qtyBox) qtyBox.innerText = "1"; // <-- 2. ถ้าไม่มีของ ให้กลับไปเลข 1
-        return;
+        if(qtyBox) qtyBox.innerText = "1"; 
+        
+        // ✨ แก้ปัญหาช่องว่างใหญ่: ให้ปุ่มยังอยู่ (block) แต่จาง (opacity)
+        // วิธีนี้จะทำให้ปุ่มไม่หายไปจนหน้าจอเลื่อน (รูป 70 จะไม่เกิดขึ้น)
+        if(btnCash) {
+            btnCash.style.display = 'block'; 
+            btnCash.style.opacity = '0.3'; 
+            btnCash.style.pointerEvents = 'none'; 
+        }
+        if(btnTransfer) {
+            btnTransfer.style.display = 'block';
+            btnTransfer.style.opacity = '0.3'; 
+            btnTransfer.style.pointerEvents = 'none'; 
+        }
+        if(btnToTable) btnToTable.style.display = 'none'; 
+        
+        return; 
     }
 
+    // --- ส่วนที่ 3: กรณีมีของในตะกร้า (คำนวณราคาและวาด HTML) ---
     let grandTotal = 0;
-    // วนลูปสร้าง HTML รายบรรทัด พร้อมปุ่มลบ (X)
     let detailHTML = cart.map((item, index) => {
         const itemTotal = item.price * item.qty;
         grandTotal += itemTotal;
         return `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 4px;">
                 <span style="font-size: 1.1rem; flex: 1;">
-                    <b>${item.name}</b> ${item.options ? '<br><small>('+item.options+')</small>' : ''}
+                    <b>${item.name}</b> ${item.options ? '<br><small style="color:#666;">('+item.options+')</small>' : ''}
                 </span>
-                <span style="width: 100px; text-align: right;">
-                    x ${item.qty} = ${itemTotal}.-
+                <span style="width: 100px; text-align: right; font-weight: bold;">
+                    x ${item.qty} = ${itemTotal.toLocaleString()}.-
                 </span>
-                <button onclick="deleteSpecificItem(${index})" style="background: #ff4757; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; margin-left: 10px; cursor: pointer;">×</button>
+                <button onclick="deleteSpecificItem(${index})" style="background: #ff4757; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; margin-left: 10px; cursor: pointer; font-weight: bold;">×</button>
             </div>
         `;
     }).join('');
@@ -399,9 +437,25 @@ function updateOrderPreview() {
     if(detailBox) detailBox.innerHTML = detailHTML;
     if(totalBox) totalBox.innerText = `รวมทั้งสิ้น : ${grandTotal.toLocaleString()}.-`;
 
-    // --- 3. เพิ่มบรรทัดนี้ เพื่อให้ตัวเลขที่ปุ่ม + / - ขยับตามรายการล่าสุด ---
-    if(qtyBox && cart.length > 0) {
-        qtyBox.innerText = cart[cart.length - 1].qty;
+    if(qtyBox) qtyBox.innerText = cart[cart.length - 1].qty;
+
+    // --- ส่วนที่ 4: 🔥 คืนชีพปุ่มให้สว่างและกดได้ (เพื่อโชว์ QR Code) ---
+    if(btnCash) {
+        btnCash.style.display = 'block';
+        btnCash.style.opacity = '1';
+        btnCash.style.pointerEvents = 'auto';
+    }
+    if(btnTransfer) {
+        btnTransfer.style.display = 'block';
+        btnTransfer.style.opacity = '1';
+        btnTransfer.style.pointerEvents = 'auto';
+    }
+
+    // จัดการปุ่มฝากลงโต๊ะ (ตัวนี้ยอมให้ display none ได้เพราะอยู่คนละบรรทัด)
+    if (selectedTable) {
+        if(btnToTable) btnToTable.style.display = 'block'; 
+    } else {
+        if(btnToTable) btnToTable.style.display = 'none';
     }
 }
 
@@ -411,64 +465,87 @@ function deleteSpecificItem(index) {
     updateOrderPreview();  // วาดหน้าจอใหม่
 }
 
-// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 28-04-2026
+// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 29-04-2026
 async function confirmOrder(paymentType) {
     if (cart.length === 0) return alert("เลือกเมนูก่อนครับ!");
     
-    const thailandTime = new Date().toLocaleString('sv-SE');
-    const orderId = Date.now(); // ใช้เป็นรหัสอ้างอิงกลุ่มออเดอร์เดียวกัน
+    const thailandTime = new Date().toLocaleString('sv-SE'); 
+    const orderId = Date.now(); 
 
-    // --- [จุดสำคัญ] ดึงส่วนลด ณ วินาทีที่ขาย ---
-    // เปลี่ยนจากดึงราคาเต็ม มาคำนวณ "ยอดสุทธิที่ต้องจ่ายจริง" ไว้ล่วงหน้า
+    // --- 1. คำนวณส่วนลดและยอดสุทธิ ---
     const currentDiscount = parseFloat(localStorage.getItem('default_discount')) || 0;
     const rawTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const netTotal = rawTotal - currentDiscount; // นี่คือยอดที่ลูกค้าจ่ายจริง
+    const netTotal = rawTotal - currentDiscount; 
 
-    // 1. เตรียมข้อมูลสำหรับใบเสร็จ (Snapshot ข้อมูล ณ ตอนนี้)
+    // 🔥 จุดกู้ชีพ: บังคับค่า payment_method ให้ระบบใบเสร็จอ่านง่าย
+    // ถ้าเพื่อนส่ง 'transfer' มาจากปุ่ม เราจะกำกับให้เป็น 'QR' เพื่อให้ showSmartReceipt เช็กง่ายครับ
+    const finalPaymentMethod = (paymentType === 'transfer' || paymentType === 'QR') ? 'QR' : 'Cash';
+
+    // เตรียมข้อมูลสำหรับใบเสร็จ
     const receiptData = {
         order_id: orderId,
         items: [...cart], 
-        total_price: rawTotal,      // ราคาเต็มก่อนลด
-        discount: currentDiscount,   // ส่วนลดที่ใช้ (จะแสดงในใบเสร็จ)
-        net_total: netTotal,        // 🔥 เพิ่ม: ยอดสุทธิหลังหักส่วนลด (สำหรับ QR Code)
-        payment_method: paymentType,
+        total_price: rawTotal,
+        discount: currentDiscount,
+        net_total: netTotal,
+        payment_method: finalPaymentMethod, // ส่งค่า 'QR' หรือ 'Cash'
         created_at: thailandTime
     };
 
-    // 2. บันทึกลง Dexie (ฐานข้อมูล)
-    // ปรับวิธีบันทึก: เราจะบันทึก 'net_price' ของแต่ละรายการให้สะท้อนความเป็นจริง
-    for (let i = 0; i < cart.length; i++) {
-        // คำนวณยอดของรายการนั้นๆ (ราคารายการ * จำนวน)
-        let itemTotal = cart[i].price * cart[i].qty;
+    try {
+        // --- 2. บันทึกลง Dexie (ตาราง orders) ---
+        for (let i = 0; i < cart.length; i++) {
+            let itemTotal = cart[i].price * cart[i].qty;
+            await db.orders.add({
+                order_id: orderId,
+                menu_name: cart[i].name,
+                qty: cart[i].qty,
+                options: cart[i].options,
+                total_price: itemTotal, 
+                discount: (i === 0) ? currentDiscount : 0, 
+                final_net_price: (i === 0) ? netTotal : itemTotal, 
+                payment_method: finalPaymentMethod, // ใช้ค่าที่เราคัดกรองแล้ว
+                created_at: thailandTime
+            });
+        }
+
+        // --- 3. เคลียร์บิลค้างโต๊ะ ---
+        if (selectedTable) {
+            await db.active_tables.delete(selectedTable);
+            console.log(`🧹 เคลียร์บิลค้างโต๊ะ ${selectedTable} สำเร็จ`);
+            selectedTable = null; 
+
+            const display = document.getElementById('current-table-display');
+            if (display) {
+                display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
+                display.style.background = "#34495e";
+            }
+
+            const pendingBox = document.getElementById('pending-billing-box');
+            if (pendingBox) pendingBox.style.display = 'none';
+        }
+
+        // --- 4. 🚀 [จุดยุทธศาสตร์] ส่งข้อมูลไปเจน QR Code ---
+        if (typeof showSmartReceipt === "function") {
+            // ส่ง Object receiptData ที่เราเตรียมไว้ (มี payment_method เป็น 'QR' แล้ว)
+            showSmartReceipt(receiptData); 
+        } else {
+            console.error("❌ หาฟังก์ชัน showSmartReceipt ไม่เจอ!");
+            alert("บันทึกแล้ว แต่ระบบใบเสร็จมีปัญหา");
+        }
+
+        // --- 5. ล้างกระดาน ---
+        cart = []; 
+        await renderTableSelection(); 
+        updateOrderPreview(); 
         
-        await db.orders.add({
-            order_id: orderId,
-            menu_name: cart[i].name,
-            qty: cart[i].qty,
-            options: cart[i].options,
-            // 🔥 บันทึกยอดเต็มของรายการนี้
-            total_price: itemTotal, 
-            // 🔥 ฝังส่วนลดลงไปเฉพาะรายการแรก (เพื่อใช้คำนวณยอดรวมวันนี้ไม่ให้ซ้ำซ้อน)
-            discount: (i === 0) ? currentDiscount : 0, 
-            // 🔥 เพิ่ม: บันทึกยอดสุทธิของออเดอร์นั้นไว้ที่รายการแรกด้วย เพื่อให้เรียกดูย้อนหลังง่าย
-            final_net_price: (i === 0) ? netTotal : itemTotal, 
-            payment_method: paymentType,
-            created_at: thailandTime
-        });
+        if (typeof fetchTodaySales === "function") fetchTodaySales();
+        if (typeof loadRecentOrders === "function") loadRecentOrders();
+
+    } catch (err) {
+        console.error("❌ พังที่ระบบบันทึก:", err);
+        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล!");
     }
-
-    // 3. แสดงใบเสร็จ "โคตรฉลาด"
-    // ส่ง receiptData ที่คำนวณเสร็จแล้วไปโชว์ (QR Code จะใช้ค่า net_total)
-    showSmartReceipt(receiptData);
-
-    // 4. ล้างข้อมูลและอัปเดตหน้าจอ
-    alert("บันทึกสำเร็จ! ยอดชำระ: " + netTotal + " บาท");
-    cart = []; 
-    updateOrderPreview();
-    
-    // 5. อัปเดตส่วนแสดงผล (รวมถึงไอดี recent-orders-list ที่เราคุยกัน)
-    if (typeof fetchTodaySales === "function") fetchTodaySales();
-    if (typeof loadRecentOrders === "function") loadRecentOrders();
 }
 
 //28-04-2026
@@ -529,6 +606,418 @@ function resetOrder() {
     document.querySelectorAll('.extra-opt-check').forEach(c => c.checked = false);
     document.querySelectorAll('#Order-menu button').forEach(b => b.classList.remove('selected'));
 }
+
+//จัดการโต๊ะ 29-04-2026
+// 1. ฟังก์ชันบันทึกจำนวนโต๊ะลงเครื่อง (ทำที่หลังบ้าน)
+// จัดการตั้งค่าจำนวนโต๊ะ (อัปเดต 29-04-2026)
+async function saveTableSettings() {
+    const countInput = document.getElementById('table-count-input');
+    if (!countInput) return; // ป้องกัน Error ถ้าหา Input ไม่เจอ
+
+    const count = parseInt(countInput.value);
+    
+    if (count > 0) {
+        try {
+            // 1. 🔥 บันทึกลง Dexie (ตาราง settings) 
+            // ข้อมูลจะถูกเก็บในรูปแบบ { key: 'totalTables', value: 10 }
+            // การใช้ .put จะเป็นการบันทึกทับค่าเดิมทันที (Update หรือ Insert)
+            await db.settings.put({ key: 'totalTables', value: count });
+
+            // 2. บันทึกลง localStorage 
+            // เก็บไว้เป็นแผนสำรอง กรณีฐานข้อมูล Dexie มีปัญหาในบางเบราว์เซอร์
+            localStorage.setItem('totalTables', count);
+
+            // 3. วาดปุ่มโต๊ะใหม่ที่หน้าหลักทันที
+            // ฟังก์ชันนี้จะไปดึงค่า 'totalTables' ล่าสุดมาสร้างปุ่ม
+            if (typeof renderTableSelection === "function") {
+                await renderTableSelection(); 
+            }
+            
+            alert(`✅ บันทึกจำนวนโต๊ะ ${count} โต๊ะเรียบร้อยครับ!`);
+        } catch (err) {
+            // จุดนี้จะช่วยเราแก้ปัญหาได้มาก ถ้าเซฟไม่ได้ มันจะโชว์สาเหตุใน Console
+            console.error("❌ บันทึกจำนวนโต๊ะล้มเหลว:", err);
+            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล! (เช็คชื่อตารางใน Dexie อีกครั้ง)");
+        }
+    } else {
+        alert("กรุณาระบุจำนวนโต๊ะที่มากกว่า 0 ครับ");
+    }
+}
+
+// 2. ฟังก์ชันวาดปุ่มเลือกโต๊ะที่หน้าแรก (หน้าขาย) 29-04-2026
+async function renderTableSelection() {
+    const container = document.getElementById('table-selection-area'); 
+    if (!container) return;
+
+    // --- 1. [ส่วนดึงข้อมูล] ระบบเช็ก 3 ชั้น กันข้อมูลหาย ---
+    let total = 0;
+    try {
+        // ชั้นที่ 1: ดึงจาก Dexie (ตาราง settings) - ปลอดภัยที่สุด
+        const tableSetting = await db.settings.get('totalTables');
+        
+        if (tableSetting && tableSetting.value) {
+            total = parseInt(tableSetting.value);
+        } else {
+            // ชั้นที่ 2: ถ้าใน Dexie ไม่มี ให้ดึงจาก localStorage (แผนสำรอง)
+            total = parseInt(localStorage.getItem('totalTables')) || 0;
+            
+            // ชั้นที่ 3: ระบบซ่อมแซมตัวเอง (Self-Healing)
+            // ถ้าเจอใน localStorage ให้รีบบันทึกลง Dexie ไว้เลย ข้อมูลจะได้ไม่หายอีก
+            if (total > 0) {
+                await db.settings.put({ key: 'totalTables', value: total });
+                console.log("🛠️ ระบบทำการย้ายจำนวนโต๊ะจาก LocalStorage มายัง Dexie เรียบร้อย");
+            }
+        }
+    } catch (err) {
+        console.error("❌ เข้าถึงฐานข้อมูลไม่ได้:", err);
+        total = parseInt(localStorage.getItem('totalTables')) || 0;
+    }
+
+    container.innerHTML = ''; // ล้างปุ่มเก่า
+
+    // --- 2. กรณีไม่มีการตั้งค่า (แก้ปัญหาภาพว่างๆ ในรูป 66) ---
+    if (total === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: #888; padding: 30px; grid-column: 1/-1; background: #fdfdfd; border-radius: 15px; border: 2px dashed #dcdde1;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">🍽️</div>
+                <p style="margin: 0 0 15px 0; font-weight: bold;">ยังไม่ได้ตั้งค่าจำนวนโต๊ะครับ</p>
+                <button onclick="showPage('settings')" style="padding: 10px 20px; cursor: pointer; border-radius: 25px; border: none; background: #3498db; color: white; font-weight: bold; box-shadow: 0 4px #2980b9;">
+                    ⚙️ ตั้งค่าโต๊ะตอนนี้
+                </button>
+            </div>`;
+        return;
+    }
+
+    // --- 3. ดึงสถานะบิลค้าง (โต๊ะสีส้ม) ---
+    let activeTableIds = [];
+    try {
+        const activeTables = await db.active_tables.toArray();
+        activeTableIds = activeTables.map(t => t.table_id);
+    } catch (err) {
+        console.error("❌ ดึงสถานะโต๊ะไม่ได้:", err);
+    }
+
+    // --- 4. วนลูปวาดปุ่ม (ใช้สไตล์ใหม่ที่กดสนุกขึ้น) ---
+    for (let i = 1; i <= total; i++) {
+        const btn = document.createElement('button');
+        const isActive = activeTableIds.includes(i); 
+        
+        btn.innerText = "โต๊ะ " + i;
+        btn.className = isActive ? 'table-btn active' : 'table-btn';
+        
+        // 5. ตกแต่งปุ่ม (เน้นความชัด ยายมองเห็นแต่ไกล) 
+        btn.style.cssText = `
+            padding: 20px 10px; 
+            margin: 5px; 
+            border-radius: 15px; 
+            border: 2px solid ${isActive ? '#d35400' : '#bdc3c7'}; 
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: ${isActive ? '#e67e22' : '#ecf0f1'}; 
+            color: ${isActive ? 'white' : '#2c3e50'};
+            cursor: pointer;
+            box-shadow: ${isActive ? '0 5px 0 #a04000' : '0 5px 0 #bdc3c7'};
+            transition: all 0.1s;
+            position: relative;
+        `;
+
+        // เอฟเฟกต์การกดให้ดูมีมิติ
+        btn.onmousedown = () => {
+            btn.style.transform = "translateY(3px)";
+            btn.style.boxShadow = "none";
+        };
+        btn.onmouseup = () => {
+            btn.style.transform = "translateY(0px)";
+            btn.style.boxShadow = isActive ? '0 5px 0 #a04000' : '0 5px 0 #bdc3c7';
+        };
+
+        btn.onclick = () => selectTable(i);
+        container.appendChild(btn);
+    }
+}
+
+// 3. ฟังก์ชันเมื่อกดเลือกโต๊ะ 29-04-2026
+async function selectTable(tableId) {
+    // 1. อัปเดตตัวแปรสถานะว่าตอนนี้เรากำลังคุมโต๊ะเบอร์อะไร
+    selectedTable = tableId; 
+
+    // 2. เปลี่ยนข้อความที่หน้าจอให้ชัดเจนว่ายายกำลังทำงานที่โต๊ะไหน
+    const display = document.getElementById('current-table-display');
+    if (display) {
+        display.innerText = "กำลังจัดการ: โต๊ะ " + tableId;
+        display.style.background = "#e67e22"; // เปลี่ยนสีพื้นหลังให้เด่นขึ้นเวลาเลือกโต๊ะ
+    }
+
+    // 3. 🔥 จุดสำคัญ: สั่งเปิดปุ่ม "ฝากลงโต๊ะ" (ปุ่มสีฟ้า) ทันทีที่เลือกโต๊ะ
+    // เพื่อให้ยายรู้ว่า "ตอนนี้สั่งแล้วส่งเข้าโต๊ะได้นะ"
+    const btnToTable = document.getElementById('btn-to-table');
+    if (btnToTable) {
+        btnToTable.style.display = 'block'; 
+    }
+
+    // 4. ดึงข้อมูลจากฐานข้อมูล active_tables (ตารางพักออเดอร์)
+    const tableData = await db.active_tables.get(tableId);
+
+    if (tableData) {
+        // กรณีโต๊ะนี้ "มีคนนั่งอยู่แล้ว"
+        // เราจะยังไม่เอาของเก่ามาใส่ใน cart (ตะกร้าสั่ง) 
+        // แต่จะเรียกฟังก์ชันโชว์ใน "กล่องเก็บบิล" (Pending Box) แทน
+        // เพื่อให้ยายสามารถสั่งของใหม่เพิ่ม (Append) ได้โดยไม่สับสน
+        cart = []; 
+        if (typeof refreshBillingBox === 'function') {
+            refreshBillingBox(tableId); // เรียกใช้ฟังก์ชันวาดกล่องบิลค้างที่เราทำกันก่อนหน้านี้
+        }
+    } else {
+        // กรณีเป็น "โต๊ะว่าง"
+        cart = []; // ล้างตะกร้าให้สะอาด พร้อมรับออเดอร์ใหม่
+        // ซ่อนกล่องเก็บบิลไปก่อนเพราะยังไม่มีข้อมูล
+        const billingBox = document.getElementById('pending-billing-box');
+        if (billingBox) billingBox.style.display = 'none';
+    }
+
+    // 5. วาดหน้าจอสั่งอาหารใหม่ (เพื่อให้รายการในตะกร้าเป็นปัจจุบัน)
+    updateOrderPreview(); 
+    
+    // 6. อัปเดตสีปุ่มโต๊ะ (เพื่อให้เห็นว่าตอนนี้เราเลือกปุ่มไหนอยู่)
+    if (typeof renderTableSelection === 'function') {
+        renderTableSelection();
+    }
+}
+
+// ฟังก์ชันสำหรับ "หย่อนบิล" ลงโต๊ะ (ยังไม่บันทึกเป็นยอดขายจริง) 29-04-2026
+async function confirmToTable() {
+    // 1. เช็กก่อนว่าเลือกโต๊ะหรือยัง และมีของในตะกร้าไหม
+    if (!selectedTable) {
+        alert("กรุณาเลือกเลขโต๊ะก่อนหย่อนบิลครับเพื่อน!");
+        return;
+    }
+    if (cart.length === 0) {
+        alert("ตะกร้าว่างเปล่า หย่อนบิลไม่ได้นะ!");
+        return;
+    }
+
+    try {
+        // 2. ดึงข้อมูลปัจจุบันของโต๊ะนี้จากฐานข้อมูล (Offline-First)
+        const existingTable = await db.active_tables.get(selectedTable);
+        
+        let updatedItems = [];
+        if (existingTable) {
+            // ถ้ามีของเก่าอยู่แล้ว ให้เอาของใหม่ (cart) ไปต่อท้าย (Append)
+            updatedItems = [...existingTable.order_items, ...cart];
+        } else {
+            // ถ้าเป็นโต๊ะว่าง ก็เริ่มด้วยของในตะกร้าปัจจุบัน
+            updatedItems = [...cart];
+        }
+
+        // 3. บันทึกลงตาราง active_tables (พักบิลไว้)
+        await db.active_tables.put({
+            table_id: selectedTable,
+            order_items: updatedItems,
+            last_update: new Date().toISOString()
+        });
+
+        // 4. เคลียร์ตะกร้าหน้าจอ เพื่อรับออเดอร์ถัดไป
+        cart = [];
+        updateOrderPreview(); // อัปเดต UI หน้าจอขาย
+        renderTableSelection(); // อัปเดตสีปุ่มโต๊ะ (ให้กลายเป็นสีส้มว่ามีคนนั่ง)
+        
+        console.log(`✅ หย่อนบิลลงโต๊ะ ${selectedTable} สำเร็จ!`);
+        alert(`เพิ่มรายการลงโต๊ะ ${selectedTable} เรียบร้อยแล้วครับ`);
+
+    } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการหย่อนบิล:", err);
+        alert("อุ้ย! บันทึกลงโต๊ะไม่ได้ ตรวจสอบฐานข้อมูลทีครับ");
+    }
+}
+
+// ฟังก์ชัน: แสดงรายการอาหารที่ค้างอยู่ในโต๊ะ (Pending Billing Box)
+// ทำงานเมื่อ: จิ้มเลือกโต๊ะที่มีออเดอร์ค้างอยู่ 29-04-2026
+// ==========================================
+async function refreshBillingBox(tableId) {
+    const box = document.getElementById('pending-billing-box');
+    const listContainer = document.getElementById('billing-items-list');
+    const title = document.getElementById('billing-table-title');
+    const totalDisplay = document.getElementById('billing-total-amount');
+
+    // 1. ดึงข้อมูลล่าสุดจากฐานข้อมูล active_tables (ตารางพักออเดอร์)
+    const tableData = await db.active_tables.get(tableId);
+
+    // ตรวจสอบว่ามีข้อมูลไหม ถ้าไม่มีให้ซ่อนกล่องทันที
+    if (!tableData || tableData.order_items.length === 0) {
+        if (box) box.style.display = 'none'; 
+        return;
+    }
+
+    // 2. แสดงกล่องสรุปบิลและอัปเดตหัวข้อเลขโต๊ะ
+    if (box) box.style.display = 'block';
+    if (title) title.innerText = `📝 รายการค้างชำระ โต๊ะ ${tableId}`;
+
+    // 3. ล้างรายการเก่าที่เคยแสดงผลในกล่องออกก่อน (เพื่อเตรียมวาดใหม่)
+    listContainer.innerHTML = '';
+    let total = 0;
+
+    // 4. วนลูปวาดรายการอาหารแต่ละจาน
+    tableData.order_items.forEach((item, index) => {
+        const itemRow = document.createElement('div');
+        
+        // --- 🟢 จุดที่แก้ไข: ใส่เครื่องหมาย ' ' ครอบ space-between ให้ถูกต้อง ---
+        itemRow.style.display = 'flex';
+        itemRow.style.justifyContent = 'space-between'; 
+        itemRow.style.padding = '8px 0';
+        itemRow.style.borderBottom = '1px solid #eee';
+        // -----------------------------------------------------------
+        
+        // แสดงชื่อเมนู + ตัวเลือกเสริม + จำนวน และราคา
+        itemRow.innerHTML = `
+            <div style="text-align: left;">
+                <span style="font-weight: bold;">${item.name}</span>
+                ${item.options ? `<br><small style="color: #666;">- ${item.options}</small>` : ''}
+                <span style="color: #27ae60; margin-left: 10px;">x${item.qty || 1}</span>
+            </div>
+            <div style="font-weight: bold;">
+                ${(item.price * (item.qty || 1)).toLocaleString()}.-
+            </div>
+        `;
+        
+        listContainer.appendChild(itemRow);
+        
+        // สะสมยอดรวม (ราคาต่อหน่วย x จำนวน)
+        total += item.price * (item.qty || 1);
+    });
+
+    // 5. แสดงยอดรวมสุทธิที่ต้องจ่าย
+    if (totalDisplay) {
+        totalDisplay.innerText = `${total.toLocaleString()}.-`;
+    }
+}
+ 
+// ฟังก์ชันปิดกล่อง (เมื่อต้องการเคลียร์หน้าจอ) 29-04-2026
+function closeBillingBox() {
+    document.getElementById('pending-billing-box').style.display = 'none';
+    selectedTable = null;
+    renderTableSelection(); // รีเฟรชสีปุ่มโต๊ะ
+}
+
+
+// ==========================================
+// ฟังก์ชัน: เช็คบิล (ดึงรายการจากโต๊ะกลับมาจ่ายเงิน)
+// ทำงานเมื่อ: กดปุ่ม "💰 เช็คบิลเก็บเงิน" ในกล่องเก็บบิล 29-04-2026
+// ==========================================
+async function checkoutTable() {
+    if (!selectedTable) return;
+
+    // 1. ดึงข้อมูลออเดอร์ค้างจากโต๊ะนั้นมา
+    const tableData = await db.active_tables.get(selectedTable);
+    if (!tableData || tableData.order_items.length === 0) {
+        alert("โต๊ะนี้ไม่มีรายการอาหารครับ");
+        return;
+    }
+
+    // 2. ยืนยันการเช็คบิล
+    if (confirm(`เรียกเก็บเงิน โต๊ะ ${selectedTable} ใช่หรือไม่?`)) {
+        try {
+            // 🔥 หัวใจสำคัญ: ดึงรายการจากโต๊ะ กลับเข้าสู่ "ตะกร้าหลัก" (Cart)
+            // เพื่อให้ยายไปกดปุ่ม "เงินสด" หรือ "เงินโอน" ที่หน้าหลักต่อได้เลย
+            cart = [...tableData.order_items]; 
+
+            // 3. อัปเดตหน้าจอขายให้แสดงรายการที่ดึงมาจากโต๊ะ
+            if (typeof updateOrderPreview === 'function') {
+                updateOrderPreview(); 
+            }
+
+            // 4. 🔥 แก้บั๊ก box is not defined: ประกาศตัวแปรอ้างอิงให้ถูกต้อง
+            const billingBox = document.getElementById('pending-billing-box');
+            if (billingBox) {
+                billingBox.style.display = 'none'; // ซ่อนกล่องเก็บบิลหลังจากดึงข้อมูลไปแล้ว
+            }
+
+            // 5. ปรับสถานะปุ่มโต๊ะ (ยังไม่ลบจาก DB จนกว่าจะจ่ายเงินสำเร็จจริงๆ)
+            // หรือจะเลือกให้ลบทันทีที่ดึงมาจ่ายเงินก็ได้ (แนะนำให้ลบตอนบันทึกเงินสำเร็จ)
+            
+            alert(`ดึงรายการจาก โต๊ะ ${selectedTable} มาแล้วครับ ยายกดรับเงินสดหรือโอนได้เลย!`);
+
+        } catch (err) {
+            console.error("เกิดข้อผิดพลาดในการดึงข้อมูลโต๊ะ:", err);
+            alert("เช็คบิลไม่ได้ ลองดูที่ Console นะเพื่อน");
+        }
+    }
+}
+
+// ==========================================
+// ฟังก์ชันกลาง: สำหรับบันทึกยอดขายและเคลียร์ข้อมูล 29-04-2026
+// paymentMethod: 'cash' หรือ 'transfer'
+// ==========================================
+async function finalizeOrder(paymentMethod) {
+    if (cart.length === 0) {
+        alert("ไม่มีรายการในตะกร้าครับเพื่อน!");
+        return;
+    }
+
+    try {
+        const orderId = Date.now();
+        const createdAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+        // 1. บันทึกรายการลงตาราง orders (ยอดขายจริง)
+        for (const item of cart) {
+            await db.orders.add({
+                order_id: orderId,
+                menu_name: item.name,
+                total_price: item.price,
+                discount: item.discount || 0,
+                options: item.options || "",
+                created_at: createdAt,
+                payment_method: paymentMethod
+            });
+        }
+
+        // 2. 🔥 ล้างข้อมูลระบบโต๊ะ (ส่วนสำคัญที่ทำให้โต๊ะหายส้ม)
+        if (selectedTable) {
+            // ลบจากฐานข้อมูล Offline (Dexie)
+            await db.active_tables.delete(selectedTable);
+            console.log(`🧹 เคลียร์ข้อมูลโต๊ะ ${selectedTable} เรียบร้อย`);
+            
+            // รีเซ็ตตัวแปรคุมสถานะให้เป็นค่าว่าง
+            selectedTable = null; 
+        }
+
+        // 3. 🧹 กวาดล้าง UI (ป้องกันปุ่มเก่าโผล่ซ้อน)
+        cart = []; // ล้างข้อมูลในตะกร้าหน้าจอ
+
+        // รีเซ็ตตัวหนังสือบอกเลขโต๊ะให้กลับเป็น "หน้าร้าน"
+        const display = document.getElementById('current-table-display');
+        if (display) {
+            display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
+            display.style.background = "#34495e"; // กลับเป็นสีเข้มปกติ
+        }
+
+        // ซ่อนปุ่ม "ฝากลงโต๊ะ" ทันที เพราะเราจบงานแล้ว
+        const btnToTable = document.getElementById('btn-to-table');
+        if (btnToTable) {
+            btnToTable.style.display = 'none';
+        }
+
+        // 4. สั่งวาดหน้าจอใหม่ทั้งหมด
+        updateOrderPreview();    // ล้างรายการอาหารในตะกร้าที่โชว์อยู่
+        renderTableSelection(); // 🌟 สำคัญมาก: เพื่อให้ปุ่มโต๊ะกลับเป็นสีเทา (ว่าง)
+
+        // 5. แสดงผลลัพธ์การชำระเงิน
+        if (paymentMethod === 'transfer') {
+            if (typeof generateQRCode === 'function') generateQRCode();
+        } else {
+            alert("✅ บันทึกการขายเงินสดเรียบร้อย!");
+        }
+
+        if (typeof loadRecentOrders === 'function') loadRecentOrders();
+
+    } catch (err) {
+        console.error("❌ เกิดข้อผิดพลาดในการปิดยอด:", err);
+        alert("เกิดข้อผิดพลาดในการบันทึกยอดขาย!");
+    }
+}
+
+// วิธีเรียกใช้ในปุ่มเดิมของเพื่อน:
+// <button onclick="finalizeOrder('cash')">เงินสด</button>
+// <button onclick="finalizeOrder('transfer')">เงินโอน</button>
 
 // ==========================================
 // กล่องที่ 5: ระบบรายงานและจัดการเมนูทั้งหมด (คลัง)
@@ -1182,67 +1671,66 @@ function closeReceipt() {
 }
 
 // ==========================================
-// กล่องที่ 7: ระบบใบเสร็จฉลาด (Smart Receipt & QR) - เติม 27-04-2026
+// กล่องที่ 7: ระบบใบเสร็จฉลาด (Smart Receipt & QR) - เติม 29-04-2026
 // ==========================================
 
 async function showSmartReceipt(data) {
     const modal = document.getElementById('receipt-modal');
     if (!modal) return;
 
-    // ✅ --- จุดที่ต้องแก้ไขใหม่ (ดึงจาก data ของออเดอร์นั้นๆ) ---
-    const discountAmount = parseFloat(data.discount) || 0; // ดึงส่วนลดที่ฝังอยู่ในบิล
+    // --- 1. เตรียมข้อมูลราคา ---
+    const discountAmount = parseFloat(data.discount) || 0;
     const rawTotal = parseFloat(data.total_price) || 0;
     let finalTotal = rawTotal - discountAmount;
     if (finalTotal < 0) finalTotal = 0;
 
-    // ดึงค่าคงที่จาก Dexie (ระบบใหม่)
+    // ดึงค่าคงที่จาก Dexie
     const storeData = await db.settings.get('store_name');
     const ppData = await db.settings.get('promptpay');
-    
     const shopName = storeData ? storeData.value : (localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง");
     
-    // 1. ใส่หัวใบเสร็จ
+    // 2. ใส่หัวใบเสร็จและรายการ
     document.getElementById('r-shop-name').innerText = shopName;
     document.getElementById('r-date').innerText = "วันที่: " + new Date(data.created_at).toLocaleString('th-TH');
     
-    // 2. รายการสินค้า (วาดแบบมีรายการย่อย)
     const itemsContainer = document.getElementById('r-items');
     itemsContainer.innerHTML = data.items.map(item => `
         <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
             <span>${item.name} ${item.options ? '<br><small style="color:gray;">('+item.options+')</small>' : ''}</span>
-            <span>x${item.qty} ${ (item.price * item.qty).toLocaleString() }.-</span>
+            <span>x${item.qty} ${(item.price * item.qty).toLocaleString()}.-</span>
         </div>
     `).join('');
     
-    // 3. [สำคัญ] สรุปยอดที่หักส่วนลดแล้ว
     document.getElementById('r-total').innerText = `รวมทั้งสิ้น: ${finalTotal.toLocaleString()}.-`;
     
-    // แสดงบรรทัดส่วนลดสีส้ม
-    let paymentHTML = "วิธีชำระ: " + (data.payment_method === 'Cash' ? '💵 เงินสด' : '📱 เงินโอน');
+    // --- 3. [จุดแก้ไข] เช็กเงื่อนไขวิธีชำระเงิน (กันพลาดเรื่องตัวพิมพ์เล็ก-ใหญ่) ---
+    const method = String(data.payment_method).toLowerCase(); // แปลงเป็นตัวเล็กทั้งหมดเพื่อให้เช็กง่าย
+    let isQR = (method === 'qr' || method === 'transfer'); 
+
+    let paymentHTML = "วิธีชำระ: " + (isQR ? '📱 เงินโอน/QR' : '💵 เงินสด');
     if (discountAmount > 0) {
         paymentHTML = `<div style="color:#e67e22; font-weight:bold; margin-bottom:4px;">🔥 ส่วนลดท้ายบิล: -${discountAmount.toLocaleString()}.-</div>` + paymentHTML;
     }
     document.getElementById('r-payment').innerHTML = paymentHTML;
     
-    // 4. จัดการส่วน QR Code (ระบบ Hybrid: Online / Offline)
+    // --- 4. จัดการส่วน QR Code ---
     const qrContainer = document.getElementById('qrcode');
     qrContainer.innerHTML = ""; 
     
-    if (data.payment_method === 'QR') {
+    if (isQR) {
         const promptpayNumber = ppData ? ppData.value : null;
 
         if (promptpayNumber) {
             const cleanNumber = promptpayNumber.replace(/[^0-9]/g, "").trim();
-            // ยอดเงินใน QR ต้องเป็นยอดที่ลดแล้ว!
             const qrAmount = finalTotal; 
 
             if (navigator.onLine) {
-                // --- [MODE: ONLINE] สแกนติด 100% ผ่าน API ---
+                // --- [MODE: ONLINE] ---
                 qrContainer.innerHTML = `
-                    <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block;">
+                    <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block; border: 1px solid #eee;">
                         <img src="https://promptpay.io/${cleanNumber}/${qrAmount}.png" 
                              style="width:200px; height:200px; display:block;"
-                             onerror="this.style.display='none';">
+                             onerror="this.style.display='none'; alert('โหลด QR ไม่สำเร็จ เช็กอินเทอร์เน็ตครับ');">
                         <p style="margin-top:8px; font-size:0.85rem; color:#1a237e; font-weight:bold;">
                             ${cleanNumber}<br>
                             <span style="color:#27ae60;">ยอดเงิน: ${qrAmount.toLocaleString()} บาท</span>
@@ -1250,9 +1738,9 @@ async function showSmartReceipt(data) {
                     </div>
                 `;
             } else {
-                // --- [MODE: OFFLINE] ใช้ Library ในเครื่อง ---
+                // --- [MODE: OFFLINE] ---
                 const generateQR = window.promptpayQr ? window.promptpayQr.generatePayload : null;
-                if (typeof generateQR === 'function') {
+                if (typeof generateQR === 'function' && window.QRCode) {
                     try {
                         const payload = generateQR(cleanNumber, qrAmount);
                         const qrBox = document.createElement('div');
@@ -1265,20 +1753,18 @@ async function showSmartReceipt(data) {
                             height: 180,
                             correctLevel: QRCode.CorrectLevel.M
                         });
-
-                        const info = document.createElement('p');
-                        info.style.cssText = "margin-top:8px; font-size:0.85rem; color:#666;";
-                        info.innerHTML = `⚠️ ออฟไลน์: ${cleanNumber}<br>ยอด: ${qrAmount.toLocaleString()} บาท`;
-                        qrContainer.appendChild(info);
                     } catch (err) {
                         qrContainer.innerHTML = `<p style="color:red;">สร้าง QR ออฟไลน์พลาด</p>`;
                     }
+                } else {
+                    qrContainer.innerHTML = `<p style="color:orange;">กรุณาต่อเน็ตเพื่อโหลด QR</p>`;
                 }
             }
         } else {
             qrContainer.innerHTML = "<p style='color:red;'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
         }
     } else {
+        // กรณีเงินสด
         qrContainer.innerHTML = `<div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div><p style="font-size: 0.9rem;">ขอบคุณที่ชำระเงินสดครับ</p>`;
     }
     

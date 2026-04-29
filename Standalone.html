@@ -15,7 +15,7 @@
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=5.2"></script>
+    <script src="qrcode.min.js?v=7.0"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -26,7 +26,7 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=5.2"></script>
+    <script src="Standalone.js?v=7.0"></script>
 
 </head>
 
@@ -114,15 +114,51 @@
                 
             </div>
 
+            <!--กล่องเก็บบิล 29-04-2026-->
+            <div id="pending-billing-box" style="margin: 20px 0; padding: 15px; border-radius: 15px; background: #f9f9f9; border: 2px dashed #ddd; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 id="billing-table-title" style="margin: 0; color: #2c3e50;">📝 รายการโต๊ะ --</h3>
+                    <button onclick="closeBillingBox()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+                </div>
+    
+                <div id="billing-items-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;">
+                    </div>
 
-            <!--ปุ่มจ่ายเงิน 2 แบบ เงินสด & เงินโอน-->
-            <div style="display: flex; gap: 10px; padding: 0 15px;">
-                <button class="confirm-btn cash-btn" onclick="confirmOrder('Cash')" style="flex: 1; padding: 15px; font-size: 1.2rem; background: #2ecc71;">
-                    💵 เงินสด
+                <div style="border-top: 2px solid #eee; padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="font-size: 0.9rem; color: #7f8c8d;">ยอดรวมปัจจุบัน:</span><br>
+                        <strong id="billing-total-amount" style="font-size: 1.4rem; color: #2c3e50;">0.-</strong>
+                    </div>
+                    <button onclick="checkoutTable()" style="background: #e67e22; color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        💰 เช็คบิลเก็บเงิน
+                    </button>
+                </div>
+            </div>
+
+            <!--"พื้นที่วางปุ่มโต๊ะ 29-04-2026-->
+            <div id="table-selection-area" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 10px; background: #fff; border-radius: 10px; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);">
+                <p style="color: #999; font-size: 0.8rem;">กรุณาตั้งค่าจำนวนโต๊ะที่หน้าหลังบ้านก่อนครับ</p>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <span id="current-table-display" style="background: #34495e; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem;">
+                    📍 กำลังขาย: หน้าร้าน (Walk-in)
+                </span>
+            </div>
+
+            <div id="payment-group" style="margin-top: 10px;">
+                <button id="btn-to-table" onclick="saveOrderToTable()" style="width: 100%; background: #2980b9; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; display: none;">
+                    📥 ฝากลงโต๊ะ
                 </button>
-                <button class="confirm-btn qr-btn" onclick="confirmOrder('QR')" style="flex: 1; padding: 15px; font-size: 1.2rem; background: #3498db;">
-                    📱 เงินโอน
-                </button>
+
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-pay-cash" onclick="confirmOrder('cash')" style="flex: 1; background: #27ae60; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold;">
+                        💵 เงินสด
+                    </button>
+                    <button id="btn-pay-transfer" onclick="confirmOrder('transfer')" style="flex: 1; background: #034de2; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold;">
+                        📱 เงินโอน/QR
+                    </button>
+                </div>
             </div>
 
             <div style="margin-top: 30px; padding: 0 15px;">
@@ -164,6 +200,13 @@
             style="margin-top: 10px; background: #2ed573; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%;">
         ➕ เพิ่มแถวเมนูใหม่
     </button>
+
+    <!--กล่องเลือกโต๊ะ & ที่พักบิล 29-04-2026-->
+    <div class="setting-item" style="margin-top: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 10px;">
+        <label>🔢 จำนวนโต๊ะในร้าน:</label>
+        <input type="number" id="table-count-input" placeholder="เช่น 10" style="width: 60px; padding: 5px;">
+        <button onclick="saveTableSettings()" style="background: #27ae60; color: white; border: none; padding: 5px 10px; border-radius: 5px;">ตกลง</button>
+    </div>
     
     <!--เพิ่มเติม 23-04-2026 เพิ่มระบบหลังบ้านเมนู-->
     <button onclick="openMenuManager()" style="background: #546e7a; color: white; padding: 10px; border-radius: 8px; margin: 10px;">
