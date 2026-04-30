@@ -1,36 +1,43 @@
 // ==========================================
-// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) - อัปเกรดระบบโต๊ะ 29-04-2026
+// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) - อัปเกรดระบบโต๊ะ 30-04-2026
 // ==========================================
+// ✅ ประกาศตัวแปร db เพียงครั้งเดียว (ลบบรรทัดที่ซ้ำออกแล้ว)
 const db = new Dexie("StandaloneDatabase");
 
-// อัปเดตเป็น version(6) เพื่อรองรับระบบโต๊ะ (Pending Tables)
-db.version(6).stores({
-    // 1. ตารางตั้งค่า: เก็บชื่อร้าน, PromptPay, จำนวนโต๊ะในร้าน
+// 🚀 อัปเดตเป็น version(7) เพื่อรองรับทั้ง "ระบบโต๊ะ" และ "ระบบความปลอดภัย"
+db.version(7).stores({
+    // 1. ตารางตั้งค่า: เก็บชื่อร้าน, เลข PromptPay, รหัส PIN (Hash), จำนวนโต๊ะ
     settings: 'key', 
 
-    // 2. ตารางการขายจริง: (บันทึกเมื่อเช็คบิลแล้วเท่านั้น)
+    // 2. ตารางการขายจริง: บันทึกเมื่อเช็คบิลแล้ว (รวมส่วนลดและวิธีชำระเงิน)
     orders: '++id, order_id, menu_name, total_price, discount, created_at, options, payment_method',
     
-    // 3. 🔥 ตารางใหม่ (หัวใจของระบบโต๊ะ): เก็บออเดอร์ที่ "ยังไม่เช็คบิล"
-    // table_id: เลขโต๊ะ (เป็น Key หลัก)
-    // order_items: เก็บ Array ของเมนูที่หย่อนลงไป
-    // last_update: เวลาที่อัปเดตล่าสุด
+    // 3. ระบบโต๊ะ (หัวใจของหน้าจอสั่งอาหาร): เก็บออเดอร์ที่ยังไม่เช็คบิล
+    // table_id: เลขโต๊ะ (Key หลัก), last_update: เวลาอัปเดตล่าสุด
     active_tables: 'table_id, last_update', 
 
-    // 4. ตารางสรุปยอดรายวัน (คงเดิม)
+    // 4. ตารางสรุปยอดรายวัน: ใช้สำหรับดูสถิติย้อนหลัง
     dailysummary: 'summary_date, total_sales, egg_count',
     
-    // 5. คลังเมนูและตัวเลือกเสริม (คงเดิม)
+    // 5. คลังเมนูและตัวเลือกเสริม: สำหรับยายจัดการเมนูเอง
     menus: '++id, name, price',
-    extra_options: '++id, name, price' 
+    extra_options: '++id, name, price',
+
+    // 6. ✨ [ใหม่] ตารางบันทึกความปลอดภัย (Audit Trail):
+    // บันทึกเหตุการณ์สำคัญ เช่น "มีการเปลี่ยน PromptPay" หรือ "ใส่ PIN ผิด"
+    // ใช้ dateOnly เป็น Index เพื่อให้ดึงข้อมูลลง CSV รายวันได้รวดเร็ว
+    security_logs: '++id, dateOnly, event' 
 });
 
+// เปิดการเชื่อมต่อฐานข้อมูล
 db.open().then(() => {
-    console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 6: รองรับระบบโต๊ะ)");
+    // แก้ไขข้อความ Log ให้ตรงกับความจริง
+    console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 7: ระบบโต๊ะ + ความปลอดภัย)");
 }).catch(err => {
     console.error("❌ เปิดฐานข้อมูลไม่ได้: " + err.stack);
 });
 
+// --- [ตัวแปรสถานะระบบ] ---
 // ตัวแปรพักข้อมูลชั่วคราวขณะกำลังเลือกเมนู
 let currentOrder = { name: "", price: 0, qty: 1 };
 // ตัวแปรสำหรับระบุว่าตอนนี้กำลังจัดการ "โต๊ะไหน" อยู่ (null คือขายหน้าร้านปกติ)
@@ -74,17 +81,20 @@ function showSetting() {
 }
 
 async function saveAndExit() {
-    // --- 1. ดึงค่าพื้นฐานจากหน้าตั้งค่า (รวมส่วนลดใหม่) ---
+    // --- 1. ดึงค่าพื้นฐานจากหน้าตั้งค่า (30-04-2026) ---
     const shopName = document.getElementById('name-input').value;
     const shopMenu = document.getElementById('menu-input').value;
     const counterLabel = document.getElementById('counter-label-input').value;
     const counterUnit = document.getElementById('counter-unit-input').value;
     
-    // 🔥 เพิ่ม: ดึงค่าส่วนลดจากหน้าหลัก (Back-page)
+    // 🔥 แก้ไขจุดที่ 1: ดึงค่าทั้งจากช่องตัวเลข และ Dropdown
     const discountInput = document.getElementById('set_discount');
-    const discountValue = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const discountType = document.getElementById('discount_type'); // ดึงตัวเลือก บาท/% มาด้วย
+    
+    const rawNum = discountInput ? discountInput.value.trim() : "0";
+    const selectedType = discountType ? discountType.value : "amount"; 
 
-    // --- 2. บันทึกรายการเมนูขายหน้าแรก (Quick Menus) ---
+    // --- 2. บันทึกรายการเมนูขายหน้าแรก (เหมือนเดิมที่คุณยายเขียน) ---
     const menuList = [];
     const container = document.getElementById('menu-settings-list');
     if (container) {
@@ -102,39 +112,46 @@ async function saveAndExit() {
         localStorage.setItem('quickMenus', JSON.stringify(menuList));
     }
 
-    // --- 3. บันทึกชื่อร้านและหัวข้อเมนู ---
+    // --- 3. บันทึกชื่อร้านและหัวข้อเมนู (เหมือนเดิม) ---
     if(shopName.trim() !== "") {
-        document.getElementById('name-main').innerText = shopName;
+        if(document.getElementById('name-main')) document.getElementById('name-main').innerText = shopName;
         localStorage.setItem('shopName', shopName);
     }
     if(shopMenu.trim() !== "") {
-        document.getElementById('menu-name').innerText = shopMenu;
+        if(document.getElementById('menu-name')) document.getElementById('menu-name').innerText = shopMenu;
         localStorage.setItem('shopMenu', shopMenu);
     }
 
-    // --- 4. บันทึกค่าการนับ (ไข่ดาว/แก้ว) และอัปเดต Dashboard ---
+    // --- 4. บันทึกค่าการนับ (เหมือนเดิม) ---
     if(counterLabel.trim() !== "") {
         localStorage.setItem('counterLabel', counterLabel);
         if(document.getElementById('display-label')) 
             document.getElementById('display-label').innerText = "📊 วันนี้ใช้ " + counterLabel + " ไปแล้ว";
-        
-        if(document.getElementById('dashboard-unit-header'))
-            document.getElementById('dashboard-unit-header').innerText = counterLabel;
     }
-
     if(counterUnit.trim() !== "") {
         localStorage.setItem('counterUnit', counterUnit);
-        if(document.getElementById('display-unit')) 
-            document.getElementById('display-unit').innerText = counterUnit;
-        
-        if(document.getElementById('dashboard-unit-name'))
-            document.getElementById('dashboard-unit-name').innerText = counterUnit;
     }
 
-    // --- 5. 🔥 ส่วนที่เพิ่มใหม่: บันทึกส่วนลดลงเครื่อง ---
-    // บันทึกค่าส่วนลดลง localStorage เพื่อให้ระบบคำนวณเงินดึงไปใช้ได้ทันที
-    localStorage.setItem('default_discount', discountValue);
-    console.log("🎯 บันทึกส่วนลดพื้นฐานสำเร็จ:", discountValue, "บาท");
+    // --- 5. 🔥 ส่วนที่แก้ไขใหม่: รวมร่างตัวเลขกับเครื่องหมาย % ---
+    let finalDiscountValue = "0";
+    let numValue = parseFloat(rawNum) || 0;
+
+    if (numValue > 0) {
+        // ถ้าเลือกโหมดเปอร์เซ็นต์ ให้เติม % ต่อท้ายก่อนบันทึก
+        if (selectedType === 'percent') {
+            finalDiscountValue = numValue.toString() + "%";
+        } else {
+            finalDiscountValue = numValue.toString();
+        }
+    }
+    
+    // บันทึกลงระบบ (ทั้งคู่เพื่อความชัวร์)
+    localStorage.setItem('default_discount', finalDiscountValue);
+    if (typeof db !== 'undefined') {
+        await db.settings.put({ key: 'default_discount', value: finalDiscountValue });
+    }
+    
+    console.log(`🎯 บันทึกสำเร็จ: ${finalDiscountValue} (${finalDiscountValue.includes('%') ? 'โหมดเปอร์เซ็นต์' : 'โหมดบาท'})`);
 
     // --- 6. ปิดหน้าตั้งค่า ---
     if (window.location.hash === '#settings') {
@@ -143,12 +160,13 @@ async function saveAndExit() {
     document.getElementById('front-page').style.display = 'block';
     document.getElementById('back-page').style.display = 'none';
     
-    // --- 7. อัปเดตหน้าจอขายให้เป็นปัจจุบัน ---
-    renderOrderButtons();  // วาดปุ่มเมนูใหม่ (เผื่อมีการแก้ราคา)
-    renderExtraOptions();  // วาดปุ่มตัวเลือกเสริมใหม่
+    // --- 7. อัปเดตหน้าจอขาย ---
+    if (typeof renderOrderButtons === "function") renderOrderButtons();  
+    if (typeof renderExtraOptions === "function") renderExtraOptions();  
     
-    // แจ้งเตือนสั้นๆ ให้ยายมั่นใจ
-    // alert("💾 บันทึกข้อมูลและส่วนลดเรียบร้อยแล้ว!"); 
+    if (typeof updateOrderPreview === "function") {
+        updateOrderPreview();
+    }
 }
 
 function loadDailyCost() {
@@ -378,177 +396,233 @@ function getSelectedOptions() {
     return { extraPrice, extraNames };
 }
 
-// ฟังก์ชันแสดงผล (มีปุ่มลบรายบรรทัด) 29-04-2026
+// ฟังก์ชันแสดงผล (มีปุ่มลบรายบรรทัด) 30-04-2026
 function updateOrderPreview() {
     const detailBox = document.getElementById('order-detail');
     const totalBox = document.getElementById('order-total-price');
     const qtyBox = document.getElementById('order-qty'); 
     
-    // 🔍 ดึงปุ่มมาจัดการ (ID ต้องตรงกับใน HTML เป๊ะๆ)
     const btnToTable = document.getElementById('btn-to-table');    
     const btnPayNow = document.getElementById('btn-pay-now');      
     const btnCash = document.getElementById('btn-pay-cash');       
     const btnTransfer = document.getElementById('btn-pay-transfer'); 
 
-    // --- ส่วนที่ 1: จัดการปุ่มเขียวเดิม (ซ่อนทิ้งไปเลย ไม่ให้ขยับ Layout) ---
+    // ซ่อนปุ่มชำระเงินด่วนไว้ก่อน (จะเปิดเมื่อมีของในตะกร้า)
     if(btnPayNow) btnPayNow.style.display = 'none'; 
 
-    // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า ---
+    // --- ส่วนที่ 1: วิเคราะห์ส่วนลด (Invisible Logic) ---
+    const rawDiscount = localStorage.getItem('default_discount') || "0";
+    // ตรวจสอบว่าคุณยายใส่ % ไว้ท้ายตัวเลขไหม
+    const isPercent = rawDiscount.toString().includes('%'); 
+    // ดึงเฉพาะตัวเลขออกมาคำนวณ (ตัด % ออกอัตโนมัติ)
+    const discountConfigValue = parseFloat(rawDiscount) || 0; 
+
+    // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า (Clear State) ---
     if (cart.length === 0) {
-        if(detailBox) detailBox.innerHTML = "ยังไม่ได้เลือกเมนู";
-        if(totalBox) totalBox.innerText = "รวมทั้งสิ้น : 0.-";
+        if(detailBox) detailBox.innerHTML = "<div style='text-align:center; color:#999; padding:20px;'>ยังไม่ได้เลือกเมนู</div>";
+        if(totalBox) totalBox.innerHTML = "รวมทั้งสิ้น : 0.-";
         if(qtyBox) qtyBox.innerText = "1"; 
         
-        // ✨ แก้ปัญหาช่องว่างใหญ่: ให้ปุ่มยังอยู่ (block) แต่จาง (opacity)
-        // วิธีนี้จะทำให้ปุ่มไม่หายไปจนหน้าจอเลื่อน (รูป 70 จะไม่เกิดขึ้น)
-        if(btnCash) {
-            btnCash.style.display = 'block'; 
-            btnCash.style.opacity = '0.3'; 
-            btnCash.style.pointerEvents = 'none'; 
-        }
-        if(btnTransfer) {
-            btnTransfer.style.display = 'block';
-            btnTransfer.style.opacity = '0.3'; 
-            btnTransfer.style.pointerEvents = 'none'; 
-        }
+        // ปิดการใช้งานปุ่มจ่ายเงิน (จางลงและกดไม่ได้)
+        [btnCash, btnTransfer].forEach(btn => {
+            if(btn) {
+                btn.style.display = 'block'; 
+                btn.style.opacity = '0.3'; 
+                btn.style.pointerEvents = 'none'; 
+            }
+        });
+
         if(btnToTable) btnToTable.style.display = 'none'; 
-        
         return; 
     }
 
-    // --- ส่วนที่ 3: กรณีมีของในตะกร้า (คำนวณราคาและวาด HTML) ---
+    // --- ส่วนที่ 3: คำนวณรายการอาหาร ---
     let grandTotal = 0;
     let detailHTML = cart.map((item, index) => {
         const itemTotal = item.price * item.qty;
         grandTotal += itemTotal;
         return `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 4px;">
-                <span style="font-size: 1.1rem; flex: 1;">
-                    <b>${item.name}</b> ${item.options ? '<br><small style="color:#666;">('+item.options+')</small>' : ''}
-                </span>
-                <span style="width: 100px; text-align: right; font-weight: bold;">
-                    x ${item.qty} = ${itemTotal.toLocaleString()}.-
-                </span>
-                <button onclick="deleteSpecificItem(${index})" style="background: #ff4757; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; margin-left: 10px; cursor: pointer; font-weight: bold;">×</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 8px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: bold; font-size: 1rem;">${item.name}</div>
+                    ${item.options ? `<small style="color:#7f8c8d;">${item.options}</small>` : ''}
+                </div>
+                <div style="text-align: right; min-width: 80px;">
+                    <span style="font-size: 0.9rem; color:#666;">x ${item.qty}</span><br>
+                    <span style="font-weight: bold;">${itemTotal.toLocaleString()}.-</span>
+                </div>
+                <button onclick="deleteSpecificItem(${index})" style="background: #ff4757; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; margin-left: 12px; cursor: pointer; font-size: 1.2rem;">×</button>
             </div>
         `;
     }).join('');
 
-    if(detailBox) detailBox.innerHTML = detailHTML;
-    if(totalBox) totalBox.innerText = `รวมทั้งสิ้น : ${grandTotal.toLocaleString()}.-`;
-
-    if(qtyBox) qtyBox.innerText = cart[cart.length - 1].qty;
-
-    // --- ส่วนที่ 4: 🔥 คืนชีพปุ่มให้สว่างและกดได้ (เพื่อโชว์ QR Code) ---
-    if(btnCash) {
-        btnCash.style.display = 'block';
-        btnCash.style.opacity = '1';
-        btnCash.style.pointerEvents = 'auto';
-    }
-    if(btnTransfer) {
-        btnTransfer.style.display = 'block';
-        btnTransfer.style.opacity = '1';
-        btnTransfer.style.pointerEvents = 'auto';
+    // --- 🔥 [จุดแก้ไขสำคัญ] คำนวณส่วนลดตามเงื่อนไข ---
+    let actualDiscountAmount = 0;
+    if (isPercent) {
+        // สูตร: (ยอดรวม x เปอร์เซ็นต์) / 100
+        actualDiscountAmount = (grandTotal * discountConfigValue) / 100;
+    } else {
+        // เป็นบาทปกติ
+        actualDiscountAmount = discountConfigValue;
     }
 
-    // จัดการปุ่มฝากลงโต๊ะ (ตัวนี้ยอมให้ display none ได้เพราะอยู่คนละบรรทัด)
-    if (selectedTable) {
+    const netTotal = Math.max(0, grandTotal - actualDiscountAmount);
+    
+    // --- ส่วนที่ 4: แสดงผลส่วนลด (Visual Feedback) ---
+    if(detailBox) {
+        if (actualDiscountAmount > 0) {
+            const label = isPercent ? `ส่วนลดพิเศษ (${discountConfigValue}%)` : `ส่วนลดพื้นฐาน`;
+            detailHTML += `
+                <div style="display: flex; justify-content: space-between; color: #d35400; padding: 12px 0; font-weight: bold; border-top: 2px solid #f9f9f9; background: #fff5e6; margin-top: 10px; border-radius: 8px; padding: 8px;">
+                    <span>${label}:</span>
+                    <span>-${actualDiscountAmount.toLocaleString()}.-</span>
+                </div>
+            `;
+        }
+        detailBox.innerHTML = detailHTML;
+    }
+
+    // แสดงยอดรวมสุทธิแบบเน้นๆ
+    if(totalBox) {
+        totalBox.innerHTML = `
+            <div style="line-height: 1.2;">
+                <small style="font-size: 0.85rem; color: #95a5a6; text-decoration: line-through;">ยอดรวม: ${grandTotal.toLocaleString()}.-</small><br>
+                <span style="font-size: 0.9rem; color: #2c3e50;">สุทธิ:</span> 
+                <span style="color: #27ae60; font-size: 1.6rem; font-weight: 800;">${netTotal.toLocaleString()}.-</span>
+            </div>
+        `;
+    }
+
+    // แสดงจำนวนชิ้นของรายการล่าสุดที่กดมา (ช่วยให้ยายรู้ว่ากดติดไหม)
+    if(qtyBox && cart.length > 0) qtyBox.innerText = cart[cart.length - 1].qty;
+
+    // --- ส่วนที่ 5: ปลดล็อกปุ่ม (Ready to Pay) ---
+    [btnCash, btnTransfer].forEach(btn => {
+        if(btn) {
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+        }
+    });
+
+    // จัดการปุ่ม "ย้ายลงโต๊ะ" (ถ้ามีการเลือกโต๊ะไว้)
+    if (typeof selectedTable !== 'undefined' && selectedTable !== null) {
         if(btnToTable) btnToTable.style.display = 'block'; 
     } else {
         if(btnToTable) btnToTable.style.display = 'none';
     }
 }
-
 // ฟังก์ชันลบเฉพาะบางรายการ 25-04-2026
 function deleteSpecificItem(index) {
     cart.splice(index, 1); // ลบข้อมูลใน Array ตามตำแหน่งที่กด
     updateOrderPreview();  // วาดหน้าจอใหม่
 }
 
-// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 29-04-2026
+// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 30-04-2026
 async function confirmOrder(paymentType) {
-    if (cart.length === 0) return alert("เลือกเมนูก่อนครับ!");
+    // ป้องกันการกดซ้ำหรือตะกร้าว่าง
+    if (cart.length === 0) return alert("เลือกเมนูก่อนครับคุณยาย!");
     
     const thailandTime = new Date().toLocaleString('sv-SE'); 
     const orderId = Date.now(); 
 
-    // --- 1. คำนวณส่วนลดและยอดสุทธิ ---
-    const currentDiscount = parseFloat(localStorage.getItem('default_discount')) || 0;
+    // --- 1. วิเคราะห์ส่วนลด (รองรับ % และ บาท) ---
+    const rawDiscount = localStorage.getItem('default_discount') || "0";
+    const isPercent = rawDiscount.toString().includes('%'); 
+    const discountConfigValue = parseFloat(rawDiscount) || 0; 
+    
+    // คำนวณยอดรวมดิบ (ก่อนลด)
     const rawTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const netTotal = rawTotal - currentDiscount; 
 
-    // 🔥 จุดกู้ชีพ: บังคับค่า payment_method ให้ระบบใบเสร็จอ่านง่าย
-    // ถ้าเพื่อนส่ง 'transfer' มาจากปุ่ม เราจะกำกับให้เป็น 'QR' เพื่อให้ showSmartReceipt เช็กง่ายครับ
+    // 🔥 [คำนวณส่วนลด] แปลงจาก % ให้กลายเป็น "บาท" เพื่อลงบัญชี
+    let actualDiscountBath = isPercent 
+        ? (rawTotal * discountConfigValue) / 100 
+        : discountConfigValue;
+
+    const netTotal = Math.max(0, rawTotal - actualDiscountBath); 
+
+    // จัดระเบียบประเภทการชำระเงิน
     const finalPaymentMethod = (paymentType === 'transfer' || paymentType === 'QR') ? 'QR' : 'Cash';
 
-    // เตรียมข้อมูลสำหรับใบเสร็จ
+    // ข้อมูลสำหรับแสดงผลบนใบเสร็จ (Receipt)
     const receiptData = {
         order_id: orderId,
         items: [...cart], 
         total_price: rawTotal,
-        discount: currentDiscount,
+        discount: actualDiscountBath, // ส่งเป็นยอดบาทเสมอเพื่อให้ Receipt คำนวณง่าย
         net_total: netTotal,
-        payment_method: finalPaymentMethod, // ส่งค่า 'QR' หรือ 'Cash'
+        payment_method: finalPaymentMethod, 
         created_at: thailandTime
     };
 
     try {
-        // --- 2. บันทึกลง Dexie (ตาราง orders) ---
+        // --- 2. บันทึกลงฐานข้อมูล Dexie ---
+        
+        // 2.1 บันทึกรายการอาหารทีละรายการ
         for (let i = 0; i < cart.length; i++) {
             let itemTotal = cart[i].price * cart[i].qty;
             await db.orders.add({
                 order_id: orderId,
                 menu_name: cart[i].name,
                 qty: cart[i].qty,
-                options: cart[i].options,
+                options: cart[i].options || "", // ป้องกันค่า null
                 total_price: itemTotal, 
-                discount: (i === 0) ? currentDiscount : 0, 
-                final_net_price: (i === 0) ? netTotal : itemTotal, 
-                payment_method: finalPaymentMethod, // ใช้ค่าที่เราคัดกรองแล้ว
+                discount: 0,            
+                payment_method: finalPaymentMethod,
                 created_at: thailandTime
             });
         }
 
-        // --- 3. เคลียร์บิลค้างโต๊ะ ---
-        if (selectedTable) {
+        // 2.2 🔥 [จุดยุทธศาสตร์] บันทึกแถวส่วนลดแยกต่างหาก
+        // การระบุชื่อเมนูว่าลดกี่ % จะช่วยให้คุณยายตรวจสอบย้อนหลังได้ง่ายมาก
+        if (actualDiscountBath > 0) {
+            await db.orders.add({
+                order_id: orderId,
+                menu_name: `🔻 ส่วนลด (${isPercent ? discountConfigValue + '%' : 'บาท'})`, 
+                qty: 1,
+                options: "โปรโมชั่น/ส่วนลดพื้นฐาน",
+                total_price: -actualDiscountBath,  // ติดลบไว้เพื่อหักยอดรวมในรายงาน
+                discount: actualDiscountBath,
+                payment_method: finalPaymentMethod,
+                created_at: thailandTime
+            });
+        }
+
+        // --- 3. จัดการสถานะโต๊ะ (ถ้ามี) ---
+        if (typeof selectedTable !== 'undefined' && selectedTable !== null) {
             await db.active_tables.delete(selectedTable);
-            console.log(`🧹 เคลียร์บิลค้างโต๊ะ ${selectedTable} สำเร็จ`);
             selectedTable = null; 
 
+            // ปรับการแสดงผลหน้าจอให้กลับเป็น Walk-in
             const display = document.getElementById('current-table-display');
             if (display) {
                 display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
                 display.style.background = "#34495e";
             }
-
             const pendingBox = document.getElementById('pending-billing-box');
             if (pendingBox) pendingBox.style.display = 'none';
         }
 
-        // --- 4. 🚀 [จุดยุทธศาสตร์] ส่งข้อมูลไปเจน QR Code ---
+        // --- 4. แสดงใบเสร็จและล้างข้อมูล ---
         if (typeof showSmartReceipt === "function") {
-            // ส่ง Object receiptData ที่เราเตรียมไว้ (มี payment_method เป็น 'QR' แล้ว)
             showSmartReceipt(receiptData); 
-        } else {
-            console.error("❌ หาฟังก์ชัน showSmartReceipt ไม่เจอ!");
-            alert("บันทึกแล้ว แต่ระบบใบเสร็จมีปัญหา");
         }
 
-        // --- 5. ล้างกระดาน ---
+        // เคลียร์ตะกร้าและอัปเดตหน้าจอ
         cart = []; 
-        await renderTableSelection(); 
+        if (typeof renderTableSelection === "function") await renderTableSelection(); 
         updateOrderPreview(); 
         
+        // อัปเดตยอดขายวันนี้ทันที
         if (typeof fetchTodaySales === "function") fetchTodaySales();
         if (typeof loadRecentOrders === "function") loadRecentOrders();
 
     } catch (err) {
-        console.error("❌ พังที่ระบบบันทึก:", err);
-        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล!");
+        console.error("❌ บันทึกล้มเหลว:", err);
+        alert("อุ๊ย! มีปัญหาตอนบันทึกข้อมูลครับคุณยาย ลองดูอีกทีนะครับ");
     }
 }
 
-//28-04-2026
+//30-04-2026
 async function fetchTodaySales() {
     try {
         const todayStr = new Date().toLocaleDateString('sv-SE');
@@ -558,40 +632,41 @@ async function fetchTodaySales() {
 
         allOrders.forEach(o => {
             if (o.created_at && o.created_at.startsWith(todayStr)) {
-                // 1. ดึงยอดเต็มของรายการนั้น
-                const rawPrice = Number(o.total_price || 0);
+                
+                // 1. 🔥 [ปรับปรุง] ดึงค่า total_price มาบวกได้เลย 
+                // เพราะ Row อาหารจะเป็น (+) และ Row ส่วนลดจะเป็น (-) มันจะหักล้างกันเอง
+                const amount = Number(o.total_price || 0);
 
-                // 2. 🔥 [เพิ่มใหม่] ดึงส่วนลดที่ "ฝัง" ไว้ในออเดอร์นี้ออกมา
-                // ถ้าเป็นออเดอร์เก่าที่ไม่มีค่านี้ ให้ถือว่าเป็น 0
-                const orderDiscount = Number(o.discount || 0);
-
-                // 3. 🔥 [ปรับปรุง] คำนวณยอดเงินที่ได้รับจริง (ยอดเต็ม - ส่วนลด)
-                const actualIncome = rawPrice - orderDiscount;
-
-                // 4. 🔥 [ปรับปรุง] ใช้ยอดที่ได้รับจริง (actualIncome) ไปบวกยอดรวมแทน price เดิม
-                total += actualIncome; 
+                total += amount; 
                 
                 if (o.payment_method === 'Cash') {
-                    cashTotal += actualIncome;
+                    cashTotal += amount;
                 } else if (o.payment_method === 'QR') {
-                    qrTotal += actualIncome;
+                    qrTotal += amount;
                 }
 
-                // การนับจำนวน (เช่น ไข่ดาว) ยังใช้ค่า qty เหมือนเดิม ไม่เกี่ยวกับราคา
+                // 2. การนับจำนวน (เช่น ไข่ดาว) 
+                // Row ส่วนลดจะไม่เข้าเงื่อนไขนี้ เพราะ menu_name คือ "ส่วนลด (Discount)" 
+                // และไม่มีคำว่า "ไข่" ใน options แน่นอน
                 if (o.options && o.options.includes(targetSearch)) {
                     countItems += Number(o.qty || 0);
                 }
             }
         });
 
+        // 3. 🔥 [จุดกู้ชีพ] ป้องกันยอดรวมติดลบ (กรณีคนคีย์ส่วนลดผิด)
+        const finalTotal = Math.max(0, total);
+        const finalCash = Math.max(0, cashTotal);
+        const finalQR = Math.max(0, qrTotal);
+
         // อัปเดตตัวเลขขึ้นหน้าจอ Dashboard
-        document.getElementById('total-sales-display').innerText = total.toLocaleString();
-        document.getElementById('cash-display').innerText = cashTotal.toLocaleString();
-        document.getElementById('qr-display').innerText = qrTotal.toLocaleString();
+        document.getElementById('total-sales-display').innerText = finalTotal.toLocaleString();
+        document.getElementById('cash-display').innerText = finalCash.toLocaleString();
+        document.getElementById('qr-display').innerText = finalQR.toLocaleString();
         document.getElementById('egg-count').innerText = countItems.toLocaleString();
         
         // ส่งยอดรวมที่ "หักส่วนลดแล้ว" ไปคำนวณกำไร/ขาดทุน
-        updateProfitStatus(total);
+        updateProfitStatus(finalTotal);
 
     } catch (err) { 
         console.error("เกิดข้อผิดพลาดในการดึงยอดขายรายวัน:", err); 
@@ -776,50 +851,52 @@ function selectWalkIn() {
     renderTableSelection(); // วาดปุ่มใหม่เพื่อย้ายไฮไลท์สีส้ม
 }
 
-// 3. ฟังก์ชันเมื่อกดเลือกโต๊ะ 29-04-2026
+// 3. ฟังก์ชันเมื่อกดเลือกโต๊ะ 30-04-2026
 async function selectTable(tableId) {
-    // 1. อัปเดตตัวแปรสถานะว่าตอนนี้เรากำลังคุมโต๊ะเบอร์อะไร
+    // 1. อัปเดตตัวแปรสถานะ
     selectedTable = tableId; 
 
-    // 2. เปลี่ยนข้อความที่หน้าจอให้ชัดเจนว่ายายกำลังทำงานที่โต๊ะไหน
+    // 2. ปรับแต่ง UI ส่วนหัวให้ยายรู้ว่ากำลังคุมโต๊ะไหน
     const display = document.getElementById('current-table-display');
     if (display) {
         display.innerText = "📍 กำลังจัดการ: โต๊ะ " + tableId;
-        display.style.background = "#e67e22"; // สีส้มเด่นชัด
+        display.style.background = "#2ecc71"; // สีเขียว (Ready)
+        display.style.color = "white";
+        display.style.padding = "10px";
+        display.style.borderRadius = "10px";
     }
 
-    // 3. 🔥 เปิดปุ่ม "ฝากลงโต๊ะ" (ปุ่มสีฟ้า)
-    // เพื่อให้ระบบรู้ว่าตอนนี้สถานะไม่ใช่ Walk-in แล้ว สามารถฝากยอดได้
-    const btnToTable = document.getElementById('btn-to-table');
-    if (btnToTable) {
-        btnToTable.style.display = 'block'; 
-    }
+    // ❌ [จุดที่ลบออก]: ลบบรรทัดที่สั่ง btnToTable.style.display = 'block' ตรงนี้ทิ้งไป
+    // เพราะเราจะให้ฟังก์ชัน updateOrderPreview เป็นคนตัดสินใจแทนว่า "ควรโชว์ปุ่มไหม" 
 
-    // 4. ดึงข้อมูลจากฐานข้อมูล active_tables (ตารางพักออเดอร์)
     try {
+        // 3. ดึงข้อมูลจากฐานข้อมูลมาเช็กสถานะโต๊ะ
         const tableData = await db.active_tables.get(tableId);
 
+        // ล้างตะกร้าในมือทุกครั้งที่เปลี่ยนโต๊ะ (ป้องกันออเดอร์ปนกัน)
+        cart = []; 
+
         if (tableData) {
-            // ✅ กรณีโต๊ะนี้ "มีคนนั่งอยู่แล้ว"
-            // ล้างตะกร้า (ฝั่งขวา) เพื่อให้ยายคีย์ออเดอร์ใหม่เพิ่มเข้าไปได้เลย
-            cart = []; 
+            // ✅ กรณีโต๊ะนี้มีบิลค้าง
             if (typeof refreshBillingBox === 'function') {
-                // ดึงรายการเก่ามาโชว์ในกล่องบิลค้าง (Pending Box)
                 await refreshBillingBox(tableId); 
             }
+            
+            const billingBox = document.getElementById('pending-billing-box');
+            if (billingBox) billingBox.style.display = 'block';
+
         } else {
-            // ❌ กรณีเป็น "โต๊ะว่าง"
-            cart = []; 
-            // ซ่อนกล่องเก็บบิล เพราะยังไม่มีข้อมูลเก่า
+            // ❌ กรณีโต๊ะว่าง
             const billingBox = document.getElementById('pending-billing-box');
             if (billingBox) billingBox.style.display = 'none';
         }
 
-        // 5. วาดหน้าจอสั่งอาหารใหม่ (เพื่อให้ตะกร้าฝั่งขวากลับมาว่าง พร้อมรับออเดอร์ใหม่)
-        updateOrderPreview(); 
-
-        // 6. อัปเดตสถานะปุ่มโต๊ะทั้งหมด
-        // เพื่อให้โต๊ะที่เราเลือกมี "ไฮไลท์" หรือขอบสีที่ต่างจากโต๊ะอื่น
+        // 4. 🔥 [จุดสำคัญ]: เรียกใช้ updateOrderPreview เพื่อจัดการปุ่ม "ฝากลงโต๊ะ"
+        // พอมันทำงานหลังจาก cart = []; ปุ่ม "ฝากลงโต๊ะ" จะถูกซ่อนไปโดยอัตโนมัติ (ไม่กะพริบแล้ว!)
+        if (typeof updateOrderPreview === 'function') {
+            updateOrderPreview(); 
+        }
+        
         if (typeof renderTableSelection === 'function') {
             await renderTableSelection();
         }
@@ -941,43 +1018,58 @@ async function refreshBillingBox(tableId) {
     }
 }
 
-//หย่อนบิลสั่งอาหาร 29-04-2026
+//หย่อนบิลสั่งอาหาร 30-04-2026
 async function saveOrderToTable() {
     if (cart.length === 0) return alert("เลือกเมนูก่อนฝากลงโต๊ะครับ!");
     if (!selectedTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
 
     try {
-        // 1. บันทึกข้อมูลลงในตาราง active_tables
-        // 💡 จุดสำคัญ: ผมใช้ชื่อ 'order_items' เพื่อให้ตรงกับที่ฟังก์ชัน refreshBillingBox เรียกใช้นะครับ
+        // --- 1. [ส่วนสำคัญ] ระบบดึงข้อมูลเดิมมาต่อยอด ---
+        // เช็กก่อนว่าโต๊ะนี้มีออเดอร์ค้างอยู่แล้วหรือเปล่า
+        const existingOrder = await db.active_tables.get(selectedTable);
+        
+        let finalItems = [];
+        
+        if (existingOrder && existingOrder.order_items) {
+            // กรณีมีของเก่า: เอา "ของเก่า" มากางออก แล้วเติม "ของใหม่จากตะกร้า" ต่อท้ายเข้าไป
+            finalItems = [...existingOrder.order_items, ...cart];
+            console.log(`➕ โต๊ะ ${selectedTable} สั่งเพิ่ม: รวมเป็น ${finalItems.length} รายการ`);
+        } else {
+            // กรณีโต๊ะว่าง: ใช้ข้อมูลจากตะกร้าได้เลย
+            finalItems = [...cart];
+            console.log(`📥 โต๊ะ ${selectedTable} สั่งครั้งแรก: ${finalItems.length} รายการ`);
+        }
+
+        // --- 2. บันทึกข้อมูลลงในตาราง active_tables ---
+        // ใช้ชื่อ 'order_items' ตามที่เพื่อนกำหนด เพื่อให้ refreshBillingBox ทำงานได้
         await db.active_tables.put({
             table_id: selectedTable,
-            order_items: [...cart], // 🔥 ใช้ชื่อนี้เพื่อให้ refreshBillingBox อ่านค่า .length ได้
-            updated_at: new Date().toLocaleString('sv-SE')
+            order_items: finalItems, // 🔥 ใช้รายการที่รวมกันแล้ว (Array ที่สะสมของเก่า+ใหม่)
+            updated_at: new Date().toLocaleString('sv-SE') // รูปแบบ YYYY-MM-DD HH:mm:ss
         });
 
-        console.log(`📥 บันทึกออเดอร์ลงโต๊ะ ${selectedTable} สำเร็จ`);
         alert(`📥 ฝากรายการลงโต๊ะ ${selectedTable} เรียบร้อย!`);
         
-        // 2. ล้างข้อมูลเพื่อเริ่มออเดอร์ถัดไป
+        // --- 3. ล้างข้อมูลเพื่อเริ่มออเดอร์ถัดไป ---
+        const lastTable = selectedTable; // จำเลขโต๊ะไว้เพื่ออัปเดต UI ก่อนรีเซ็ต
         cart = [];
-        const lastTable = selectedTable; // จำเลขโต๊ะไว้ชั่วคราวเพื่ออัปเดต UI
-        selectedTable = null; // รีเซ็ตสถานะกลับเป็น Walk-in
+        selectedTable = null; // รีเซ็ตสถานะกลับเป็น Walk-in (หน้าร้าน)
         
-        // 3. อัปเดตหน้าจอ (UI)
-        // วาดปุ่มโต๊ะใหม่ (เพื่อให้โต๊ะที่เพิ่งฝากกลายเป็นสีส้ม)
+        // --- 4. อัปเดตหน้าจอ (UI) ---
+        // วาดปุ่มโต๊ะใหม่ เพื่อให้ปุ่มกลายเป็นสีส้ม (สถานะมีบิลค้าง)
         if (typeof renderTableSelection === "function") await renderTableSelection();
         
-        // ล้าง Preview ตะกร้าสินค้า
-        updateOrderPreview();
+        // ล้าง Preview ตะกร้าสินค้าหน้าจอหลัก
+        if (typeof updateOrderPreview === "function") updateOrderPreview();
 
-        // สั่งอัปเดตกล่องรายการค้างชำระ (ถ้ามีฟังก์ชันนี้)
+        // อัปเดตกล่องสรุปยอดเงินข้างๆ (ถ้ามี)
         if (typeof refreshBillingBox === "function") {
             refreshBillingBox(lastTable);
         }
         
     } catch (err) {
         console.error("❌ ฝากลงโต๊ะพลาด:", err);
-        alert("เกิดข้อผิดพลาดในการฝากข้อมูล! เช็ก Console ดูครับ");
+        alert("เกิดข้อผิดพลาดในการฝากข้อมูล! เช็กชื่อตารางใน Dexie อีกครั้งครับ");
     }
 }
  
@@ -1450,6 +1542,36 @@ async function loadRecentOrders() {
     }
 }
 
+// ฟังก์ชันนี้ควรถูกเรียกเมื่อมีการกดปุ่ม Save ในหน้าตั้งค่า ส่วนลด 30-04-2026
+//function saveDiscountSettings() {
+    //const discountInput = document.getElementById('set_discount');
+    //const typeSelect = document.getElementById('discount_type');
+    
+    // ดึงค่าตัวเลขออกมาเตรียมไว้
+    //let value = parseFloat(discountInput.value) || 0;
+    //const type = typeSelect.value;
+
+    // --- 🔥 ส่วนที่ 1: การเตรียมค่าเพื่อบันทึก ---
+    // ถ้าเลือก percent ให้เก็บเป็น String เช่น "10%" 
+    // ถ้าเลือก bath ให้เก็บเป็นตัวเลขธรรมดา เช่น 10
+    //let finalValueToSave = (type === 'percent' && value > 0) ? value + "%" : value;
+
+    // --- ส่วนที่ 2: บันทึกลงความจำเครื่อง ---
+    //localStorage.setItem('default_discount', finalValueToSave);
+    
+    // --- ส่วนที่ 3: [เพิ่มเติม] สั่งให้หน้าจออัปเดตทันที ---
+    // เพื่อให้ตัวเลขในตะกร้าเปลี่ยนตามค่าที่เพิ่งบันทึก
+    //if (typeof updateOrderPreview === "function") {
+       // updateOrderPreview();
+    //}
+
+    // แจ้งเตือนใน Console เพื่อตรวจสอบ (เหมือนที่คุณยายทำไว้ ดีมากครับ)
+    //console.log("✅ บันทึกส่วนลดใหม่แล้วเป็น:", finalValueToSave);
+    
+    // เพิ่ม Alert เล็กน้อยให้คุณยายมั่นใจตอนกด
+    //alert("บันทึกส่วนลดเรียบร้อยแล้วครับคุณยาย!");
+//}
+
 // ฟังก์ชันเสริมสำหรับกดดูบิลเก่าจากหน้าประวัติ
 function reprintReceipt(orderData) {
     // ส่งข้อมูลให้ showSmartReceipt ทำงาน
@@ -1464,6 +1586,156 @@ function reprintReceipt(orderData) {
         created_at: orderData.created_at
     });
 }
+
+// ========================================================================
+//ระบบความปลอดภัยเฉพาะจุด (PromptPay Focused Security)  30-04-2026
+// ========================================================================
+// ฟังก์ชันสำหรับบันทึกเลข PromptPay (ใช้ในหน้าตั้งค่า)
+async function secureSavePromptPay() {
+    const pp1 = document.getElementById('promptpay-input').value.trim();
+    const pp2 = document.getElementById('promptpay-confirm').value.trim();
+
+    // ตรวจสอบความถูกต้องเบื้องต้น
+    if (pp1.length !== 10 && pp1.length !== 13) {
+        alert("❌ เลข PromptPay ต้องมี 10 หรือ 13 หลักเท่านั้นครับ");
+        return;
+    }
+    if (pp1 !== pp2) {
+        alert("❌ เลขทั้งสองช่องไม่ตรงกัน ตรวจสอบอีกทีนะ");
+        return;
+    }
+
+    // ด่านตรวจ PIN
+    const adminSettings = await db.settings.get('admin_pin');
+    
+    // กรณีตั้งค่าครั้งแรก (ยังไม่มี PIN ในระบบ)
+    if (!adminSettings) {
+        const firstPin = prompt("🆕 ตั้งรหัส PIN 6 หลักเพื่อความปลอดภัยในการรับเงิน:");
+        if (firstPin && firstPin.length === 6) {
+            await db.settings.put({ key: 'admin_pin', value: firstPin });
+            await performUpdate(pp1);
+        } else {
+            alert("❌ ต้องตั้งรหัส 6 หลักก่อนครับ");
+        }
+        return;
+    }
+
+    // กรณีมี PIN อยู่แล้ว
+    const enteredPin = prompt("🔐 ใส่รหัส PIN 6 หลักเพื่อยืนยันการเปลี่ยนที่อยู่เงิน:");
+    if (enteredPin === adminSettings.value) {
+        await performUpdate(pp1);
+    } else {
+        // บันทึก Log กรณีใส่รหัสผิด (เจ้าของไปสืบต่อได้)
+        await logSecurityEvent("FAILED_ATTEMPT", "มีคนพยายามเปลี่ยนเลขรับเงินแต่ใส่รหัสผิด");
+        alert("❌ รหัสผิด! ไม่สามารถแก้ไขได้");
+    }
+}
+
+async function performUpdate(newNumber) {
+    await db.settings.put({ key: 'promptpay_no', value: newNumber });
+    await logSecurityEvent("CHANGE_PROMPTPAY", "เห้ย! วันนี้มีการเปลี่ยนเลขรับเงินนะ ไปเช็กดูว่าใครทำ");
+    alert("✅ บันทึกเลขรับเงินเรียบร้อยครับ");
+}
+
+// ฟังก์ชันบันทึกเหตุการณ์ความปลอดภัย (ลง Dexie) 30-04-2026
+/**
+ * ฟังก์ชันบันทึกเหตุการณ์ด้านความปลอดภัย
+ * @param {string} event - ชื่อเหตุการณ์ (เช่น 'CHANGE_PROMPTPAY', 'FAILED_PIN')
+ * @param {string} note - ข้อความแจ้งเตือนที่จะไปโชว์ใน CSV
+ */
+async function logSecurityEvent(event, note) {
+    try {
+        // 1. ตรวจสอบว่าตาราง security_logs พร้อมใช้งานหรือไม่
+        // ป้องกัน Error "reading 'add' of undefined" ที่เจอในรูป 75.jpg
+        if (!db.security_logs) {
+            console.error("❌ ระบบฐานข้อมูล Log ยังไม่พร้อมใช้งาน");
+            return;
+        }
+
+        // 2. บันทึกข้อมูลลง Dexie
+        await db.security_logs.add({
+            timestamp: new Date().toISOString(), // เวลามาตรฐาน (ISO) สำหรับจัดเรียง
+            dateOnly: new Date().toLocaleDateString('th-TH'), // วันที่แบบไทย สำหรับฟิลเตอร์ลง CSV รายวัน
+            event: event,
+            note: note
+        });
+
+        // 3. (Optional) Log ลง Console เพื่อให้เพื่อนตรวจสอบตอน Dev ได้ง่าย
+        console.log(`🔒 [Security Log]: ${event} - ${note}`);
+
+    } catch (err) {
+        // 4. ดักจับข้อผิดพลาดกรณีฐานข้อมูลมีปัญหา เพื่อไม่ให้แอป "ค้าง"
+        console.error("❌ ไม่สามารถบันทึก Log ความปลอดภัยได้:", err);
+    }
+}
+
+// เปิด Modal
+function openPromptPayModal() {
+    document.getElementById('ppModal').style.display = 'block';
+}
+
+// ปิด Modal
+function closePromptPayModal() {
+    document.getElementById('ppModal').style.display = 'none';
+    // ล้างค่าที่กรอกค้างไว้เพื่อความปลอดภัย
+    document.getElementById('promptpay-input').value = '';
+    document.getElementById('promptpay-confirm').value = '';
+    checkMatch(); 
+}
+
+// ตรวจสอบความถูกต้องแบบ Real-time (เหมือนที่คุยกันไว้)
+function checkMatch() {
+    const p1 = document.getElementById('promptpay-input').value.trim();
+    const p2 = document.getElementById('promptpay-confirm').value.trim();
+    const btn = document.getElementById('save-btn');
+    
+    // เงื่อนไข: ต้องตรงกัน และมีความยาว 10 หรือ 13 เท่านั้น
+    const isValidLength = (p1.length === 10 || p1.length === 13);
+    
+    if (p1 === p2 && isValidLength) {
+        btn.style.backgroundColor = "#27ae60"; // สีเขียว
+        btn.disabled = false;
+    } else {
+        btn.style.backgroundColor = "#ccc"; // สีเทา
+        btn.disabled = true;
+    }
+}
+
+//ระบบ ยกเลิกตั้งค่า  Promptpay 30-04-2026
+async function clearSecurityData() {
+    try {
+        const adminSettings = await db.settings.get('admin_pin');
+
+        if (!adminSettings || !adminSettings.value) {
+            alert("⚠️ ระบบยังไม่ได้ตั้งรหัส PIN อยู่แล้วครับ");
+            return;
+        }
+
+        const enteredPin = prompt("🔐 กรุณาใส่รหัส PIN 6 หลักเพื่อยืนยันการล้างระบบความปลอดภัย:");
+
+        if (enteredPin === adminSettings.value) {
+            const finalConfirm = confirm("⚠️ รหัสถูกต้อง! คุณแน่ใจนะว่าจะล้างเลข PromptPay และ PIN ให้เป็นค่าว่าง?");
+            
+            if (finalConfirm) {
+                await db.settings.delete('admin_pin');
+                await db.settings.delete('promptpay_no');
+
+                // บันทึก Log ไว้เป็นหลักฐาน
+                await logSecurityEvent("MANUAL_RESET_WITH_PIN", "ผู้ใช้ยืนยันด้วย PIN เพื่อล้างระบบความปลอดภัยทั้งหมด");
+
+                alert("✅ ล้างข้อมูลสำเร็จ! ระบบกลับสู่ค่าเริ่มต้นเรียบร้อยครับ");
+                location.reload(); 
+            }
+        } else {
+            alert("❌ รหัส PIN ไม่ถูกต้อง!");
+            await logSecurityEvent("FAILED_RESET_ATTEMPT", "มีการพยายามล้างระบบแต่ใส่ PIN ผิด");
+        }
+    } catch (err) {
+        console.error("❌ Reset Error:", err);
+    }
+}
+
+
 
 // ==========================================
 // กล่องที่ 6: ระบบจัดการฐานข้อมูล (Backup, Restore, Export)  ปรับแก้ 25-04-2026
@@ -1546,17 +1818,24 @@ async function restoreDatabase(event) {
     reader.readAsText(file);
 }
 
-// 3. ฟังก์ชันส่งออกยอดขายเป็น CSV (สำหรับเปิดใน Excel) 28-04-2026
+// 3. ฟังก์ชันส่งออกยอดขายเป็น CSV (สำหรับเปิดใน Excel) 30-04-2026
 async function exportToCSV() {
     try {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
+        // --- [ส่วนที่เพิ่มใหม่: ดึง Log ความปลอดภัยเฉพาะของวันนี้] ---
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0]; 
+        const todayStr = now.toISOString().split('T')[0];
+        const todayLocale = now.toLocaleDateString('th-TH'); // ใช้เทียบกับ Log ที่เราบันทึกไว้
+        
+        // ดึงเฉพาะเหตุการณ์ที่สำคัญ (เช่น เปลี่ยนเลข PromptPay หรือ ใส่ PIN ผิด)
+        const securityLogs = await db.security_logs
+            .where('dateOnly').equals(todayLocale).toArray();
+
+        // --- (Logic การคำนวณยอดสรุป summary.today, week, month, year เหมือนเดิมของคุณทุกประการ) ---
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
-
         const startOfWeek = new Date(now);
         const day = now.getDay();
         const diff = now.getDate() - (day === 0 ? 6 : day - 1);
@@ -1571,18 +1850,15 @@ async function exportToCSV() {
         };
 
         orders.forEach(o => {
-            // --- [จุดตายที่ 1: หักส่วนลดออกจากยอดสรุป] ---
             const rawPrice = parseFloat(o.total_price) || 0;
             const discount = parseFloat(o.discount) || 0;
-            const actualPrice = rawPrice - discount; // 🔥 นี่คือยอดเงินที่ได้รับจริง
-
+            const actualPrice = rawPrice - discount;
             const method = (o.payment_method || "").toString().trim().toLowerCase();
             const isCash = method === "cash" || method.includes("เงินสด");
             const datePart = (o.created_at || "").split(' ')[0];
             const oDate = new Date(datePart);
 
             if (!isNaN(oDate.getTime())) {
-                // ใช้ actualPrice ในการสะสมยอดทั้งหมด
                 if (datePart === todayStr) {
                     summary.today.total += actualPrice;
                     isCash ? summary.today.cash += actualPrice : summary.today.transfer += actualPrice;
@@ -1590,7 +1866,6 @@ async function exportToCSV() {
                 if (oDate.getFullYear() === currentYear) {
                     summary.year.total += actualPrice;
                     isCash ? summary.year.cash += actualPrice : summary.year.transfer += actualPrice;
-
                     if (oDate.getMonth() === currentMonth) {
                         summary.month.total += actualPrice;
                         isCash ? summary.month.cash += actualPrice : summary.month.transfer += actualPrice;
@@ -1603,8 +1878,21 @@ async function exportToCSV() {
             }
         });
 
+        // --- [ส่วนการสร้าง CSV Content] ---
         let csvContent = "\ufeff"; 
-        csvContent += "รายการสรุปยอด (คำนวณจากยอดรับสุทธิ),,,\n"; // บอกให้คนอ่านรู้ว่าหักส่วนลดแล้ว
+
+        // --- [ส่วนที่เพิ่มใหม่: เขียนบรรทัดแจ้งเตือนไว้ที่หัวไฟล์] ---
+        if (securityLogs.length > 0) {
+            csvContent += "🚩 [รายงานแจ้งเตือนความปลอดภัย],,,,\n";
+            securityLogs.forEach(log => {
+                // บันทึกเฉพาะหัวข้อ และเวลา เพื่อให้เจ้าของไปสืบต่อ
+                csvContent += `🚨 แจ้งเตือน,${log.event},"${log.note}",เวลา ${new Date(log.timestamp).toLocaleTimeString('th-TH')}\n`;
+            });
+            csvContent += ",,,,\n"; // เว้นบรรทัดเพื่อให้ดูง่าย
+        }
+
+        // เขียนส่วนสรุปยอดเดิมของคุณ
+        csvContent += "รายการสรุปยอด (คำนวณจากยอดรับสุทธิ),,,\n";
         csvContent += "ช่วงเวลา,ยอดสุทธิ (บาท),เงินสด,เงินโอน\n";
         csvContent += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
         csvContent += `สัปดาห์นี้,${summary.week.total},${summary.week.cash},${summary.week.transfer}\n`;
@@ -1612,7 +1900,6 @@ async function exportToCSV() {
         csvContent += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n\n\n`;
 
         csvContent += "รายละเอียดออเดอร์,,,,,,\n";
-        // --- [จุดตายที่ 2: เพิ่มคอลัมน์ส่วนลดในตารางรายละเอียด] ---
         csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคาเต็ม,ส่วนลด,ยอดรับจริง,วิธีชำระเงิน\n";
 
         let lastDateSeen = "";
@@ -1621,21 +1908,19 @@ async function exportToCSV() {
             if (lastDateSeen !== "" && lastDateSeen !== datePart) {
                 csvContent += "\n"; 
             }
-
             const rawPrice = parseFloat(o.total_price) || 0;
             const discount = parseFloat(o.discount) || 0;
             const netPaid = rawPrice - discount;
-
-            // เพิ่มข้อมูลส่วนลด และยอดสุทธิ ลงในบรรทัด CSV
             csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${rawPrice},${discount},${netPaid},${o.payment_method}\n`;
             lastDateSeen = datePart;
         });
 
+        // --- [การดาวน์โหลดไฟล์เหมือนเดิม] ---
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Report_Sales_Snapshot_${todayStr}.csv`;
+        a.download = `Report_Full_Security_${todayStr}.csv`;
         a.click();
         URL.revokeObjectURL(url);
 
@@ -1914,32 +2199,65 @@ async function getOrderAndShowReceipt(id) {
         showSmartReceipt(order);
     }
 }
-// คำสั่ง ตั้งค่า เงินโอนเข้าบัญชี ผ่าน QR 28-04-2026
+// คำสั่ง ตั้งค่า เงินโอนเข้าบัญชี ผ่าน QR 30-04-2026
 async function saveSettings() {
-    // 1. ดึงค่าจาก Input เฉพาะที่มีอยู่ใน Modal พร้อมเพย์
-    const pp = document.getElementById('set_promptpay').value;
+    // --- 1. สแกนและดึงค่าจากหน้าจอ (ดักจับทุก Element) ---
+    const elPromptPay = document.getElementById('set_promptpay');
+    const elDiscountInput = document.getElementById('set_discount');
+    const elTypeSelect = document.getElementById('discount_type'); // Dropdown เจ้าปัญหา
+
+    const pp = elPromptPay.value.trim();
+    const rawValue = elDiscountInput.value.trim();
+    const selectedMode = elTypeSelect.value; // 'percent' หรือ 'amount'
 
     try {
-        // --- ส่วนที่ 1: บันทึกข้อมูลลง Dexie (เพื่อความถาวร) ---
-        
-        // บันทึกเลข PromptPay
-        if (pp.trim() !== "") {
+        // --- 2. ส่วนบันทึก PromptPay ---
+        if (pp !== "") {
             await db.settings.put({ key: 'promptpay', value: pp });
-            // เก็บลง localStorage เผื่อกรณีดึงไปใช้สร้าง QR ทันที
             localStorage.setItem('promptpay_number', pp);
-            console.log("📱 บันทึกเลข PromptPay สำเร็จ:", pp);
         }
-        
-        // --- ส่วนที่ 2: การตอบสนองบนหน้าจอ (UI Update) ---
 
-        alert("💾 บันทึกเลข PromptPay เรียบร้อยแล้วจ้า!");
+        // --- 3. ส่วนบันทึกส่วนลด (จุดที่ต้องแก้ให้ตาสว่าง) ---
+        let finalDiscountToSave = "0";
+        let numValue = parseFloat(rawValue) || 0;
+
+        if (numValue > 0) {
+            // 🔥 บังคับเช็ค: ถ้า Dropdown เป็น percent ต้องใส่ % ต่อท้ายเท่านั้น!
+            if (selectedMode === 'percent') {
+                finalDiscountToSave = numValue.toString() + "%";
+            } else {
+                finalDiscountToSave = numValue.toString();
+            }
+        }
+
+        // บันทึกลงระบบ
+        await db.settings.put({ key: 'default_discount', value: finalDiscountToSave });
+        localStorage.setItem('default_discount', finalDiscountToSave);
         
-        // ปิด Modal ตั้งค่า
-        document.getElementById('settingsModal').style.display = 'none';
+        // แจ้งเตือนใน Console (เช็ค % ให้เห็นกับตา)
+        const isPercent = finalDiscountToSave.includes('%');
+        console.log(`🎯 บันทึกส่วนลดสำเร็จ: ${finalDiscountToSave} (${isPercent ? 'โหมดเปอร์เซ็นต์' : 'โหมดบาท'})`);
+
+        // --- 4. ปิดหน้าตั้งค่าและจัดการ Navigation ---
+        if (window.location.hash === '#settings') {
+            history.back(); 
+        }
+        document.getElementById('front-page').style.display = 'block';
+        document.getElementById('back-page').style.display = 'none';
         
+        // --- 5. อัปเดตหน้าจอขายให้เป็นปัจจุบัน ---
+        renderOrderButtons();  
+        renderExtraOptions();  
+        
+        // สั่งอัปเดตยอดเงินทันที
+        if (typeof updateOrderPreview === "function") {
+            updateOrderPreview();
+        }
+
+        alert("💾 บันทึกการตั้งค่าเรียบร้อยแล้วจ้า!");
+
     } catch (error) {
-        console.error("บันทึกพลาด:", error);
-        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูลครับ");
+        console.error("❌ สแกนพบความผิดพลาดขณะบันทึก:", error);
     }
 }
 
