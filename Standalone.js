@@ -1079,6 +1079,45 @@ function closeBillingBox() {
     selectedTable = null;
     renderTableSelection(); // รีเฟรชสีปุ่มโต๊ะ
 }
+//โหมดหน้าร้าน 30-04-2026
+function selectTakeawayMode() {
+    // 1. ล้างสถานะการเลือกโต๊ะในระบบ (ถ้าคุณยายมีตัวแปรเก็บสถานะโต๊ะ)
+    // สมมติว่าปกติคุณยายใช้ currentTable เก็บเลขโต๊ะ
+    currentTable = "หน้าร้าน"; 
+
+    // 2. ล้างการ "ไฮไลท์" (ขอบสี หรือ สีปุ่ม) ของทุกโต๊ะออกให้หมด
+    // สมมติว่าปุ่มโต๊ะของคุณยายอยู่ใน div ที่มี class หรือ id บางอย่าง 
+    // เราจะสั่งให้ทุกปุ่มในกลุ่มโต๊ะกลับเป็นสีปกติ
+    const tableButtons = document.querySelectorAll('.table-grid button, .table-selector button');
+    tableButtons.forEach(btn => {
+        btn.classList.remove('selected-table'); // ลบ Class ที่ทำให้ปุ่มดูเหมือนถูกกดออก
+        btn.style.border = "none"; // ถ้าคุณยายใช้การใส่ขอบ ก็สั่งลบออก
+        btn.style.backgroundColor = ""; // คืนค่าสีเดิม
+    });
+
+    // 3. ไฮไลท์ปุ่ม "ขายหน้าร้าน" ให้เด่นขึ้นมาแทน
+    const btnTakeaway = document.getElementById('btn-takeaway');
+    if (btnTakeaway) {
+        btnTakeaway.classList.add('selected-table');
+        btnTakeaway.style.backgroundColor = "#d35400"; // เปลี่ยนเป็นสีเข้มขึ้นเพื่อให้รู้ว่าเลือกแล้ว
+        btnTakeaway.style.border = "3px solid #ffffff"; // ใส่ขอบสีขาวให้เด่น
+    }
+
+    // 4. อัปเดตข้อความบนหน้าจอว่าตอนนี้คือ "หน้าร้าน"
+    const tableDisplay = document.getElementById('current-table-display');
+    if (tableDisplay) {
+        tableDisplay.innerText = "🥡 โหมดปัจจุบัน: ขายหน้าร้าน (กลับบ้าน)";
+        tableDisplay.style.color = "#e67e22"; 
+    }
+
+    // 5. แจ้งระบบว่าไม่ต้องไปสนเลขโต๊ะที่เคยเลือกไว้แล้วนะ
+    console.log("🧹 ล้างค่าโต๊ะเก่าเรียบร้อย -> เข้าสู่โหมดหน้าร้าน");
+
+    // 6. ถ้ามีฟังก์ชันที่ใช้คำนวณราคาใหม่หรืออัปเดตออเดอร์ ให้เรียกตรงนี้ด้วยครับ
+    if (typeof updateOrderPreview === "function") {
+        updateOrderPreview();
+    }
+}
 
 
 // ==========================================
@@ -1824,16 +1863,18 @@ async function exportToCSV() {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
-        // --- [ส่วนที่เพิ่มใหม่: ดึง Log ความปลอดภัยเฉพาะของวันนี้] ---
+        // --- 1. ดึง Log ความปลอดภัย (ป้องกันการพังถ้าไม่มีตาราง) ---
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
-        const todayLocale = now.toLocaleDateString('th-TH'); // ใช้เทียบกับ Log ที่เราบันทึกไว้
+        const todayLocale = now.toLocaleDateString('th-TH');
         
-        // ดึงเฉพาะเหตุการณ์ที่สำคัญ (เช่น เปลี่ยนเลข PromptPay หรือ ใส่ PIN ผิด)
-        const securityLogs = await db.security_logs
-            .where('dateOnly').equals(todayLocale).toArray();
+        let securityLogs = [];
+        if (db.security_logs) {
+            securityLogs = await db.security_logs
+                .where('dateOnly').equals(todayLocale).toArray();
+        }
 
-        // --- (Logic การคำนวณยอดสรุป summary.today, week, month, year เหมือนเดิมของคุณทุกประการ) ---
+        // --- 2. Logic การคำนวณสรุปยอด (เหมือนเดิมของคุณยาย) ---
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
         const startOfWeek = new Date(now);
@@ -1878,53 +1919,60 @@ async function exportToCSV() {
             }
         });
 
-        // --- [ส่วนการสร้าง CSV Content] ---
+        // --- 3. การสร้างเนื้อหา CSV (เน้นภาษาไทยไม่เพี้ยน) ---
+        // \ufeff คือหัวใจสำคัญที่ทำให้ Excel อ่านภาษาไทยออกครับคุณยาย
         let csvContent = "\ufeff"; 
 
-        // --- [ส่วนที่เพิ่มใหม่: เขียนบรรทัดแจ้งเตือนไว้ที่หัวไฟล์] ---
+        // ส่วนที่ 3.1: รายงานความปลอดภัย (ถ้ามี)
         if (securityLogs.length > 0) {
-            csvContent += "🚩 [รายงานแจ้งเตือนความปลอดภัย],,,,\n";
+            csvContent += "🚩 [รายงานแจ้งเตือนความปลอดภัย],,,,,,,\n";
             securityLogs.forEach(log => {
-                // บันทึกเฉพาะหัวข้อ และเวลา เพื่อให้เจ้าของไปสืบต่อ
-                csvContent += `🚨 แจ้งเตือน,${log.event},"${log.note}",เวลา ${new Date(log.timestamp).toLocaleTimeString('th-TH')}\n`;
+                // ใส่ "" ครอบ note ไว้ป้องกันกรณีคุณยายพิมพ์เครื่องหมายคอมม่า (,) ในบันทึก
+                csvContent += `🚨 แจ้งเตือน,${log.event},"${log.note}",เวลา ${new Date(log.timestamp).toLocaleTimeString('th-TH')},,,,\n`;
             });
-            csvContent += ",,,,\n"; // เว้นบรรทัดเพื่อให้ดูง่าย
+            csvContent += ",,,,,,,\n"; 
         }
 
-        // เขียนส่วนสรุปยอดเดิมของคุณ
-        csvContent += "รายการสรุปยอด (คำนวณจากยอดรับสุทธิ),,,\n";
-        csvContent += "ช่วงเวลา,ยอดสุทธิ (บาท),เงินสด,เงินโอน\n";
-        csvContent += `วันนี้,${summary.today.total},${summary.today.cash},${summary.today.transfer}\n`;
-        csvContent += `สัปดาห์นี้,${summary.week.total},${summary.week.cash},${summary.week.transfer}\n`;
-        csvContent += `เดือนนี้,${summary.month.total},${summary.month.cash},${summary.month.transfer}\n`;
-        csvContent += `ปีนี้,${summary.year.total},${summary.year.cash},${summary.year.transfer}\n\n\n`;
+        // ส่วนที่ 3.2: สรุปยอด
+        csvContent += "รายการสรุปยอด (คำนวณจากยอดรับสุทธิ),,,,,,,\n";
+        csvContent += "ช่วงเวลา,ยอดสุทธิ (บาท),เงินสด,เงินโอน,,,,\n";
+        csvContent += `วันนี้,${summary.today.total.toFixed(2)},${summary.today.cash.toFixed(2)},${summary.today.transfer.toFixed(2)},,,,\n`;
+        csvContent += `สัปดาห์นี้,${summary.week.total.toFixed(2)},${summary.week.cash.toFixed(2)},${summary.week.transfer.toFixed(2)},,,,\n`;
+        csvContent += `เดือนนี้,${summary.month.total.toFixed(2)},${summary.month.cash.toFixed(2)},${summary.month.transfer.toFixed(2)},,,,\n`;
+        csvContent += `ปีนี้,${summary.year.total.toFixed(2)},${summary.year.cash.toFixed(2)},${summary.year.transfer.toFixed(2)},,,,\n\n`;
 
-        csvContent += "รายละเอียดออเดอร์,,,,,,\n";
+        // ส่วนที่ 3.3: รายละเอียดออเดอร์
+        csvContent += "รายละเอียดออเดอร์,,,,,,,\n";
         csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคาเต็ม,ส่วนลด,ยอดรับจริง,วิธีชำระเงิน\n";
 
         let lastDateSeen = "";
         orders.forEach(o => {
             const datePart = (o.created_at || "").split(' ')[0];
             if (lastDateSeen !== "" && lastDateSeen !== datePart) {
-                csvContent += "\n"; 
+                csvContent += "\n"; // เว้นบรรทัดเมื่อเปลี่ยนวัน
             }
             const rawPrice = parseFloat(o.total_price) || 0;
             const discount = parseFloat(o.discount) || 0;
             const netPaid = rawPrice - discount;
-            csvContent += `${o.created_at},${o.menu_name},"${o.options || ''}",${o.qty},${rawPrice},${discount},${netPaid},${o.payment_method}\n`;
+            
+            // ใช้ "" ครอบข้อความป้องกันเครื่องหมายคอมม่าทำบรรทัดเคลื่อน
+            csvContent += `${o.created_at},"${o.menu_name}","${o.options || ''}",${o.qty},${rawPrice},${discount},${netPaid},"${o.payment_method}"\n`;
             lastDateSeen = datePart;
         });
 
-        // --- [การดาวน์โหลดไฟล์เหมือนเดิม] ---
+        // --- 4. การดาวน์โหลดไฟล์ ---
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Report_Full_Security_${todayStr}.csv`;
+        a.download = `รายงานยอดขาย_${todayStr}.csv`;
+        document.body.appendChild(a); // เพิ่มเข้า document เพื่อให้ทำงานได้บนทุก Browser
         a.click();
+        document.body.removeChild(a); // ลบออกเมื่อโหลดเสร็จ
         URL.revokeObjectURL(url);
 
     } catch (err) {
+        console.error("CSV Export Error:", err);
         alert("❌ ข้อผิดพลาดในการส่งออก: " + err.message);
     }
 }

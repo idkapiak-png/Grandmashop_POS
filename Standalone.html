@@ -15,7 +15,7 @@
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=9.7"></script>
+    <script src="qrcode.min.js?v=10.0"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -26,7 +26,7 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=9.7"></script>
+    <script src="Standalone.js?v=10.0"></script>
 
 </head>
 
@@ -71,6 +71,13 @@
                     style="width: 90%; padding: 12px; border-radius: 25px; border: 2px solid #e2ff42; font-size: 16px; outline: none;">
                 
                 <div id="search-results-area" style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center;"></div>
+            </div>
+
+            <!-- เพิ่มปุ่มนี้เข้าไปในส่วนที่แสดงปุ่มโต๊ะของคุณยายครับ 30-04-2026 -->
+            <div class="mode-selector" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                <button id="btn-takeaway" onclick="selectTakeawayMode()" style="flex: 1; padding: 15px; background-color: #58baf7; color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer;">
+                    🥡 ขายหน้าร้าน (กลับบ้าน)
+                </button>
             </div>
 
             <div id="Order-menu" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
