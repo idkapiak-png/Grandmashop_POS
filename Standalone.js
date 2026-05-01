@@ -1972,7 +1972,6 @@ async function exportToCSV() {
         const orders = await db.orders.toArray();
         if (orders.length === 0) return alert("ไม่มีข้อมูลยอดขายให้ส่งออก");
 
-        // --- 1. ดึง Log ความปลอดภัย (ป้องกันการพังถ้าไม่มีตาราง) ---
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
         const todayLocale = now.toLocaleDateString('th-TH');
@@ -1983,7 +1982,8 @@ async function exportToCSV() {
                 .where('dateOnly').equals(todayLocale).toArray();
         }
 
-        // --- 2. Logic การคำนวณสรุปยอด (เหมือนเดิมของคุณยาย) ---
+        // --- 1. การคำนวณสรุปยอด (คงเดิมของคุณยาย) ---
+        // ... (ส่วนคำนวณยอด summary วัน/สัปดาห์/เดือน/ปี คงไว้ตามเดิม) ...
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
         const startOfWeek = new Date(now);
@@ -2028,21 +2028,20 @@ async function exportToCSV() {
             }
         });
 
-        // --- 3. การสร้างเนื้อหา CSV (เน้นภาษาไทยไม่เพี้ยน) ---
-        // \ufeff คือหัวใจสำคัญที่ทำให้ Excel อ่านภาษาไทยออกครับคุณยาย
-        let csvContent = "\ufeff"; 
+        // --- 2. การสร้างเนื้อหา CSV (หัวใจสำคัญคือ \ufeff) ---
+        // เราจะเก็บข้อมูลไว้ในตัวแปรแบบข้อความธรรมดาก่อน
+        let csvContent = ""; 
 
-        // ส่วนที่ 3.1: รายงานความปลอดภัย (ถ้ามี)
+        // 2.1: รายงานความปลอดภัย
         if (securityLogs.length > 0) {
             csvContent += "🚩 [รายงานแจ้งเตือนความปลอดภัย],,,,,,,\n";
             securityLogs.forEach(log => {
-                // ใส่ "" ครอบ note ไว้ป้องกันกรณีคุณยายพิมพ์เครื่องหมายคอมม่า (,) ในบันทึก
-                csvContent += `🚨 แจ้งเตือน,${log.event},"${log.note}",เวลา ${new Date(log.timestamp).toLocaleTimeString('th-TH')},,,,\n`;
+                csvContent += `🚨 แจ้งเตือน,${log.event},"${log.note || ''}",เวลา ${new Date(log.timestamp).toLocaleTimeString('th-TH')},,,,\n`;
             });
             csvContent += ",,,,,,,\n"; 
         }
 
-        // ส่วนที่ 3.2: สรุปยอด
+        // 2.2: สรุปยอด
         csvContent += "รายการสรุปยอด (คำนวณจากยอดรับสุทธิ),,,,,,,\n";
         csvContent += "ช่วงเวลา,ยอดสุทธิ (บาท),เงินสด,เงินโอน,,,,\n";
         csvContent += `วันนี้,${summary.today.total.toFixed(2)},${summary.today.cash.toFixed(2)},${summary.today.transfer.toFixed(2)},,,,\n`;
@@ -2050,7 +2049,7 @@ async function exportToCSV() {
         csvContent += `เดือนนี้,${summary.month.total.toFixed(2)},${summary.month.cash.toFixed(2)},${summary.month.transfer.toFixed(2)},,,,\n`;
         csvContent += `ปีนี้,${summary.year.total.toFixed(2)},${summary.year.cash.toFixed(2)},${summary.year.transfer.toFixed(2)},,,,\n\n`;
 
-        // ส่วนที่ 3.3: รายละเอียดออเดอร์
+        // 2.3: รายละเอียดออเดอร์
         csvContent += "รายละเอียดออเดอร์,,,,,,,\n";
         csvContent += "วัน-เวลา,ชื่อเมนู,ส่วนเพิ่มเติม,จำนวน,ราคาเต็ม,ส่วนลด,ยอดรับจริง,วิธีชำระเงิน\n";
 
@@ -2058,26 +2057,27 @@ async function exportToCSV() {
         orders.forEach(o => {
             const datePart = (o.created_at || "").split(' ')[0];
             if (lastDateSeen !== "" && lastDateSeen !== datePart) {
-                csvContent += "\n"; // เว้นบรรทัดเมื่อเปลี่ยนวัน
+                csvContent += "\n"; 
             }
             const rawPrice = parseFloat(o.total_price) || 0;
             const discount = parseFloat(o.discount) || 0;
             const netPaid = rawPrice - discount;
-            
-            // ใช้ "" ครอบข้อความป้องกันเครื่องหมายคอมม่าทำบรรทัดเคลื่อน
-            csvContent += `${o.created_at},"${o.menu_name}","${o.options || ''}",${o.qty},${rawPrice},${discount},${netPaid},"${o.payment_method}"\n`;
+            csvContent += `${o.created_at},"${o.menu_name}","${o.options || ''}",${o.qty || 1},${rawPrice},${discount},${netPaid},"${o.payment_method}"\n`;
             lastDateSeen = datePart;
         });
 
-        // --- 4. การดาวน์โหลดไฟล์ ---
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        // --- 3. 🔥 จุดที่แก้ไข: การประกอบไฟล์เพื่อให้เป็นภาษาไทย 100% ---
+        // เราต้องใส่ BOM (\ufeff) ลงไปในอาเรย์ของ Blob โดยตรงเพื่อให้ Browser รับรู้รหัสภาษา
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // นี่คือรหัส BOM สำหรับ UTF-8
+        const blob = new Blob([bom, csvContent], { type: "text/csv;charset=utf-8;" });
+        
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = `รายงานยอดขาย_${todayStr}.csv`;
-        document.body.appendChild(a); // เพิ่มเข้า document เพื่อให้ทำงานได้บนทุก Browser
+        document.body.appendChild(a); 
         a.click();
-        document.body.removeChild(a); // ลบออกเมื่อโหลดเสร็จ
+        document.body.removeChild(a); 
         URL.revokeObjectURL(url);
 
     } catch (err) {
