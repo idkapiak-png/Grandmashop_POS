@@ -746,17 +746,7 @@ async function renderTableSelection() {
     container.innerHTML = ''; // ล้างปุ่มเก่า
 
     // --- 2. กรณีไม่มีการตั้งค่า ---
-    if (total === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; color: #888; padding: 30px; grid-column: 1/-1; background: #fdfdfd; border-radius: 15px; border: 2px dashed #dcdde1;">
-                <div style="font-size: 3rem; margin-bottom: 10px;">🍽️</div>
-                <p style="margin: 0 0 15px 0; font-weight: bold;">ยังไม่ได้ตั้งค่าจำนวนโต๊ะครับ</p>
-                <button onclick="showSetting()" style="padding: 10px 20px; cursor: pointer; border-radius: 25px; border: none; background: #3498db; color: white; font-weight: bold; box-shadow: 0 4px #2980b9;">
-                    ⚙️ ตั้งค่าโต๊ะตอนนี้
-                </button>
-            </div>`;
-        return;
-    }
+
 
     // --- 3. ดึงสถานะบิลค้าง (Active) จาก DB ---
     let activeTableIds = [];
