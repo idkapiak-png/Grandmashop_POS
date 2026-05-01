@@ -1,47 +1,42 @@
 // ==========================================
-// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) - อัปเกรดระบบโต๊ะ 30-04-2026
+// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) - อัปเกรดระบบโต๊ะ 1-05-2026
 // ==========================================
 // ✅ ประกาศตัวแปร db เพียงครั้งเดียว (ลบบรรทัดที่ซ้ำออกแล้ว)
 const db = new Dexie("StandaloneDatabase");
 
-// 🚀 อัปเดตเป็น version(7) เพื่อรองรับทั้ง "ระบบโต๊ะ" และ "ระบบความปลอดภัย"
-db.version(7).stores({
-    // 1. ตารางตั้งค่า: เก็บชื่อร้าน, เลข PromptPay, รหัส PIN (Hash), จำนวนโต๊ะ
+// 🚀 อัปเดตเป็น version(9) เพื่อรองรับ "ระบบจดของอัจฉริยะ" และ "ประวัติราคา"
+db.version(9).stores({
+    // 1-6: ตารางเดิมของคุณยาย (ห้ามลบ)
     settings: 'key', 
-
-    // 2. ตารางการขายจริง: บันทึกเมื่อเช็คบิลแล้ว (รวมส่วนลดและวิธีชำระเงิน)
     orders: '++id, order_id, menu_name, total_price, discount, created_at, options, payment_method',
-    
-    // 3. ระบบโต๊ะ (หัวใจของหน้าจอสั่งอาหาร): เก็บออเดอร์ที่ยังไม่เช็คบิล
-    // table_id: เลขโต๊ะ (Key หลัก), last_update: เวลาอัปเดตล่าสุด
     active_tables: 'table_id, last_update', 
-
-    // 4. ตารางสรุปยอดรายวัน: ใช้สำหรับดูสถิติย้อนหลัง
     dailysummary: 'summary_date, total_sales, egg_count',
-    
-    // 5. คลังเมนูและตัวเลือกเสริม: สำหรับยายจัดการเมนูเอง
     menus: '++id, name, price',
     extra_options: '++id, name, price',
+    security_logs: '++id, dateOnly, event',
 
-    // 6. ✨ [ใหม่] ตารางบันทึกความปลอดภัย (Audit Trail):
-    // บันทึกเหตุการณ์สำคัญ เช่น "มีการเปลี่ยน PromptPay" หรือ "ใส่ PIN ผิด"
-    // ใช้ dateOnly เป็น Index เพื่อให้ดึงข้อมูลลง CSV รายวันได้รวดเร็ว
-    security_logs: '++id, dateOnly, event' 
+    // ✨ [ส่วนที่เพิ่มใหม่ 1] ตารางรายการซื้อของ (Shopping List)
+    // เก็บชื่อวัตถุดิบ, ราคาที่จดไว้, สถานะ (ซื้อยัง/ค้างอยู่), และวันที่
+    shopping_list: '++id, name, price, status, date',
+
+    // ✨ [ส่วนที่เพิ่มใหม่ 2] คลังประวัติราคา (Price Insight)
+    // ใช้ 'name' เป็น Key หลัก เพื่อใช้ค้นหาว่า "กะเพรา" ครั้งก่อนซื้อเท่าไหร่ได้ทันที
+    price_history: 'name, last_price, best_price' 
 });
 
 // เปิดการเชื่อมต่อฐานข้อมูล
 db.open().then(() => {
-    // แก้ไขข้อความ Log ให้ตรงกับความจริง
-    console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 7: ระบบโต๊ะ + ความปลอดภัย)");
+    console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 9: ระบบโต๊ะ + ความปลอดภัย + จดของอัจฉริยะ)");
 }).catch(err => {
     console.error("❌ เปิดฐานข้อมูลไม่ได้: " + err.stack);
 });
 
 // --- [ตัวแปรสถานะระบบ] ---
-// ตัวแปรพักข้อมูลชั่วคราวขณะกำลังเลือกเมนู
 let currentOrder = { name: "", price: 0, qty: 1 };
-// ตัวแปรสำหรับระบุว่าตอนนี้กำลังจัดการ "โต๊ะไหน" อยู่ (null คือขายหน้าร้านปกติ)
 let selectedTable = null;
+
+// ✨ [ตัวแปรเพิ่มใหม่] สำหรับระบบจดของ
+let currentShoppingItem = { name: "", price: 0 };
 
 // ==========================================
 // กล่องที่ 2: ระบบจัดการหน้าตาเว็บและการตั้งค่า
@@ -396,7 +391,7 @@ function getSelectedOptions() {
     return { extraPrice, extraNames };
 }
 
-// ฟังก์ชันแสดงผล (มีปุ่มลบรายบรรทัด) 30-04-2026
+// ฟังก์ชันแสดงผล (มีปุ่มลบรายบรรทัด) 1-05-2026
 function updateOrderPreview() {
     const detailBox = document.getElementById('order-detail');
     const totalBox = document.getElementById('order-total-price');
@@ -407,23 +402,19 @@ function updateOrderPreview() {
     const btnCash = document.getElementById('btn-pay-cash');       
     const btnTransfer = document.getElementById('btn-pay-transfer'); 
 
-    // ซ่อนปุ่มชำระเงินด่วนไว้ก่อน (จะเปิดเมื่อมีของในตะกร้า)
     if(btnPayNow) btnPayNow.style.display = 'none'; 
 
-    // --- ส่วนที่ 1: วิเคราะห์ส่วนลด (Invisible Logic) ---
+    // --- ส่วนที่ 1: วิเคราะห์ส่วนลด ---
     const rawDiscount = localStorage.getItem('default_discount') || "0";
-    // ตรวจสอบว่าคุณยายใส่ % ไว้ท้ายตัวเลขไหม
     const isPercent = rawDiscount.toString().includes('%'); 
-    // ดึงเฉพาะตัวเลขออกมาคำนวณ (ตัด % ออกอัตโนมัติ)
     const discountConfigValue = parseFloat(rawDiscount) || 0; 
 
-    // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า (Clear State) ---
+    // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า ---
     if (cart.length === 0) {
         if(detailBox) detailBox.innerHTML = "<div style='text-align:center; color:#999; padding:20px;'>ยังไม่ได้เลือกเมนู</div>";
         if(totalBox) totalBox.innerHTML = "รวมทั้งสิ้น : 0.-";
         if(qtyBox) qtyBox.innerText = "1"; 
         
-        // ปิดการใช้งานปุ่มจ่ายเงิน (จางลงและกดไม่ได้)
         [btnCash, btnTransfer].forEach(btn => {
             if(btn) {
                 btn.style.display = 'block'; 
@@ -456,13 +447,11 @@ function updateOrderPreview() {
         `;
     }).join('');
 
-    // --- 🔥 [จุดแก้ไขสำคัญ] คำนวณส่วนลดตามเงื่อนไข ---
+    // คำนวณส่วนลดจริง
     let actualDiscountAmount = 0;
     if (isPercent) {
-        // สูตร: (ยอดรวม x เปอร์เซ็นต์) / 100
         actualDiscountAmount = (grandTotal * discountConfigValue) / 100;
     } else {
-        // เป็นบาทปกติ
         actualDiscountAmount = discountConfigValue;
     }
 
@@ -482,21 +471,25 @@ function updateOrderPreview() {
         detailBox.innerHTML = detailHTML;
     }
 
-    // แสดงยอดรวมสุทธิแบบเน้นๆ
+    // --- 🔥 [จุดที่ปรับแต่งใหม่] แสดงยอดรวมสุทธิแบบฉลาด ---
     if(totalBox) {
+        // สร้างตัวแปรเก็บ HTML ของขีดฆ่า (ถ้าไม่มีส่วนลด จะได้ค่าว่าง)
+        const strikeThroughHTML = (actualDiscountAmount > 0) 
+            ? `<small style="font-size: 0.85rem; color: #95a5a6; text-decoration: line-through;">ยอดรวม: ${grandTotal.toLocaleString()}.-</small><br>` 
+            : '';
+
         totalBox.innerHTML = `
             <div style="line-height: 1.2;">
-                <small style="font-size: 0.85rem; color: #95a5a6; text-decoration: line-through;">ยอดรวม: ${grandTotal.toLocaleString()}.-</small><br>
+                ${strikeThroughHTML}
                 <span style="font-size: 0.9rem; color: #2c3e50;">สุทธิ:</span> 
                 <span style="color: #27ae60; font-size: 1.6rem; font-weight: 800;">${netTotal.toLocaleString()}.-</span>
             </div>
         `;
     }
 
-    // แสดงจำนวนชิ้นของรายการล่าสุดที่กดมา (ช่วยให้ยายรู้ว่ากดติดไหม)
+    // --- ส่วนที่ 5: ปลดล็อกปุ่มและฟีเจอร์อื่นๆ ---
     if(qtyBox && cart.length > 0) qtyBox.innerText = cart[cart.length - 1].qty;
 
-    // --- ส่วนที่ 5: ปลดล็อกปุ่ม (Ready to Pay) ---
     [btnCash, btnTransfer].forEach(btn => {
         if(btn) {
             btn.style.opacity = '1';
@@ -504,7 +497,6 @@ function updateOrderPreview() {
         }
     });
 
-    // จัดการปุ่ม "ย้ายลงโต๊ะ" (ถ้ามีการเลือกโต๊ะไว้)
     if (typeof selectedTable !== 'undefined' && selectedTable !== null) {
         if(btnToTable) btnToTable.style.display = 'block'; 
     } else {
@@ -1079,44 +1071,53 @@ function closeBillingBox() {
     selectedTable = null;
     renderTableSelection(); // รีเฟรชสีปุ่มโต๊ะ
 }
-//โหมดหน้าร้าน 30-04-2026
-function selectTakeawayMode() {
-    // 1. ล้างสถานะการเลือกโต๊ะในระบบ (ถ้าคุณยายมีตัวแปรเก็บสถานะโต๊ะ)
-    // สมมติว่าปกติคุณยายใช้ currentTable เก็บเลขโต๊ะ
-    currentTable = "หน้าร้าน"; 
+//โหมดหน้าร้าน 1-05-2026
+async function selectTakeawayMode() {
+    // --- ส่วนที่ 1: เคลียร์โต๊ะ "จองทิพย์" (กดเลือกแต่ไม่มีอาหาร) ---
+    if (selectedTable) {
+        try {
+            const tableData = await db.active_tables.get(selectedTable);
+            
+            // ถ้าเช็กแล้วว่าโต๊ะนี้ว่างจริง (ไม่มีอาหาร) ให้ลบทิ้งจากระบบ "บิลค้าง" ทันที
+            if (!tableData || !tableData.order_items || tableData.order_items.length === 0) {
+                await db.active_tables.delete(selectedTable);
+                console.log(`🧹 เคลียร์โต๊ะ ${selectedTable} ให้กลับเป็นสีเทาเพราะไม่มีอาหาร`);
+            }
+        } catch (err) {
+            console.error("เกิดข้อผิดพลาดในการตรวจสอบโต๊ะก่อนสลับโหมด:", err);
+        }
+    }
 
-    // 2. ล้างการ "ไฮไลท์" (ขอบสี หรือ สีปุ่ม) ของทุกโต๊ะออกให้หมด
-    // สมมติว่าปุ่มโต๊ะของคุณยายอยู่ใน div ที่มี class หรือ id บางอย่าง 
-    // เราจะสั่งให้ทุกปุ่มในกลุ่มโต๊ะกลับเป็นสีปกติ
-    const tableButtons = document.querySelectorAll('.table-grid button, .table-selector button');
-    tableButtons.forEach(btn => {
-        btn.classList.remove('selected-table'); // ลบ Class ที่ทำให้ปุ่มดูเหมือนถูกกดออก
-        btn.style.border = "none"; // ถ้าคุณยายใช้การใส่ขอบ ก็สั่งลบออก
-        btn.style.backgroundColor = ""; // คืนค่าสีเดิม
+    // --- ส่วนที่ 2: เปลี่ยนสถานะระบบเป็น "ขายหน้าร้าน" ---
+    // บอกระบบว่าตอนนี้ออเดอร์ปัจจุบันไม่ผูกกับโต๊ะไหนแล้ว
+    selectedTable = null; 
+
+    // --- ส่วนที่ 3: จัดการความสวยงามของปุ่ม (UI) ---
+    // 3.1 ล้างไฮไลท์สีเขียวออกจากปุ่มโต๊ะทั้งหมดในทันที
+    document.querySelectorAll('.table-btn').forEach(btn => {
+        btn.classList.remove('active'); 
     });
 
-    // 3. ไฮไลท์ปุ่ม "ขายหน้าร้าน" ให้เด่นขึ้นมาแทน
+    // 3.2 เน้นปุ่ม "ขายหน้าร้าน" ให้เด่นขึ้น (ใช้สีส้มเข้มแบบพรีเมียม)
     const btnTakeaway = document.getElementById('btn-takeaway');
     if (btnTakeaway) {
-        btnTakeaway.classList.add('selected-table');
-        btnTakeaway.style.backgroundColor = "#d35400"; // เปลี่ยนเป็นสีเข้มขึ้นเพื่อให้รู้ว่าเลือกแล้ว
-        btnTakeaway.style.border = "3px solid #ffffff"; // ใส่ขอบสีขาวให้เด่น
+        btnTakeaway.style.backgroundColor = "#ff9f43"; // สีส้มเข้มเพื่อให้รู้ว่าทำงานโหมดนี้อยู่
+        btnTakeaway.style.boxShadow = "0 5px 0 #000000"; // ใส่เงาให้ดูมีมิติ
     }
 
-    // 4. อัปเดตข้อความบนหน้าจอว่าตอนนี้คือ "หน้าร้าน"
-    const tableDisplay = document.getElementById('current-table-display');
-    if (tableDisplay) {
-        tableDisplay.innerText = "🥡 โหมดปัจจุบัน: ขายหน้าร้าน (กลับบ้าน)";
-        tableDisplay.style.color = "#e67e22"; 
+    // --- ส่วนที่ 4: 🔥 [จุดที่ต้องเพิ่ม] สั่งให้หน้าจอวาดตัวเองใหม่ ---
+    // 4.1 เรียก "ช่างทาสี" (renderTableSelection) มาเช็กฐานข้อมูลและระบายสีปุ่มใหม่
+    // บรรทัดนี้จะทำให้โต๊ะ 1 ที่เคยเขียว เปลี่ยนเป็นสีเทา (ถ้าไม่มีอาหาร) หรือสีส้ม (ถ้ามีอาหารค้าง)
+    if (typeof renderTableSelection === "function") {
+        await renderTableSelection(); 
     }
 
-    // 5. แจ้งระบบว่าไม่ต้องไปสนเลขโต๊ะที่เคยเลือกไว้แล้วนะ
-    console.log("🧹 ล้างค่าโต๊ะเก่าเรียบร้อย -> เข้าสู่โหมดหน้าร้าน");
-
-    // 6. ถ้ามีฟังก์ชันที่ใช้คำนวณราคาใหม่หรืออัปเดตออเดอร์ ให้เรียกตรงนี้ด้วยครับ
+    // 4.2 อัปเดตพรีวิวออเดอร์ (เพื่อให้ปุ่ม "ฝากลงโต๊ะ" หายไป)
     if (typeof updateOrderPreview === "function") {
         updateOrderPreview();
     }
+
+    console.log("🥡 เข้าสู่โหมดขายหน้าร้าน ");
 }
 
 
@@ -1473,6 +1474,153 @@ window.onload = async function() {
 };
 
 // ==========================================
+// ระบบจดบันทึกวัตถุดิบ 1-04-2026
+// ==========================================
+async function addShoppingItem() {
+    const input = document.getElementById('shopping-input');
+    const name = input.value.trim();
+    
+    if (name) {
+        // 🧐 ระบบเช็กความฉลาด: ค้นหาว่าชื่อคล้ายกันเคยซื้อเท่าไหร่
+        const history = await db.price_history.get(name);
+        let alertMsg = "";
+
+        if (history) {
+            alertMsg = ` (เคยซื้อล่าสุด: ${history.last_price}.-)`; //
+        }
+
+        // บันทึกลงรายการจดของ
+        await db.shopping_list.add({ 
+            name: name + alertMsg, 
+            price: 0, 
+            status: 'pending', 
+            date: new Date().toLocaleDateString() 
+        });
+
+        input.value = ''; // ล้างช่องพิมพ์
+        renderShoppingList(); // วาดรายการใหม่
+    }
+}
+
+async function renderShoppingList() {
+    const container = document.getElementById('shopping-list-display');
+    if (!container) return;
+
+    // 1. ดึงรายการซื้อของล่าสุด (เรียงจากใหม่ไปเก่า)
+    const items = await db.shopping_list.reverse().toArray(); 
+
+    container.innerHTML = items.map(item => {
+        // แยกชื่อวัตถุดิบออกมาเพื่อใช้ส่งไปบันทึกราคา (กันชื่อยาวเกินไปจากตัวโน้ต)
+        const cleanName = item.name.split(' (')[0];
+
+        return `
+        <div style="background: white; padding: 15px; margin-bottom: 12px; border-radius: 15px; 
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #eee;">
+            
+            <!-- ส่วนที่ 1: ข้อมูลวัตถุดิบและปุ่มจัดการ -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <div style="flex-grow: 1;">
+                    <strong style="font-size: 1.2rem; color: #2c3e50; display: block;">${item.name}</strong>
+                    <span style="font-size: 0.85rem; color: #95a5a6;">📅 ${item.date}</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <!-- 📝 ปุ่มแก้ไข -->
+                    <button onclick="editShoppingItem(${item.id}, '${item.name}')" 
+                            style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">
+                        📝
+                    </button>
+                    <!-- 🗑️ ปุ่มลบ -->
+                    <button onclick="deleteShoppingItem(${item.id})" 
+                            style="background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+
+            <!-- ส่วนที่ 2: 💰 ช่องใส่ราคาซื้อจริง (ไฮไลท์สีเขียวให้มองเห็นชัด) -->
+            <div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
+                <span style="font-size: 0.95rem; font-weight: bold; color: #27ae60;">ซื้อมาจริง:</span>
+                <input type="number" id="real-price-${item.id}" 
+                       value="${item.price > 0 ? item.price : ''}" 
+                       placeholder="ใส่ราคา" 
+                       style="width: 90px; padding: 8px; border-radius: 8px; border: 2px solid #27ae60; font-size: 1.1rem; text-align: center; font-weight: bold;">
+                <button onclick="updateActualPrice(${item.id}, '${cleanName}')" 
+                        style="flex-grow: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 3px 0 #219150;">
+                    ✅ บันทึกราคา
+                </button>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+async function editShoppingItem(id, currentName) {
+    // 1. ดึงชื่อที่จดไว้ (ตัดข้อความ "ล่าสุดซื้อที่..." ออกถ้ามี)
+    const cleanName = currentName.split(' (')[0]; 
+    
+    // 2. เอาชื่อไปใส่ในช่อง Input ข้างบน
+    const input = document.getElementById('shopping-input');
+    input.value = cleanName;
+    input.focus(); // ให้เคอร์เซอร์ไปกระพริบรอเลย
+
+    // 3. ลบรายการเก่าออกจากรายการชั่วคราว (เพื่อให้ยายกดบันทึกใหม่เป็นอันที่ถูกต้อง)
+    await db.shopping_list.delete(id);
+    
+    // 4. วาดหน้าจอใหม่
+    renderShoppingList();
+    
+    console.log("✏️ ดึงข้อมูลกลับมาแก้ไขแล้วครับคุณยาย");
+}
+
+// เพิ่มฟังก์ชันลบรายการด้วยครับ
+async function deleteShoppingItem(id) {
+    if (confirm("คุณยายต้องการลบรายการนี้ใช่ไหมครับ?")) {
+        await db.shopping_list.delete(id);
+        renderShoppingList();
+    }
+}
+
+async function updateActualPrice(id, cleanName) {
+    const priceInput = document.getElementById(`real-price-${id}`);
+    const actualPrice = parseFloat(priceInput.value);
+
+    if (isNaN(actualPrice) || actualPrice <= 0) {
+        alert("คุณยายอย่าลืมใส่ราคาที่ซื้อจริงเป็นตัวเลขด้วยนะครับ");
+        return;
+    }
+
+    try {
+        // 1. อัปเดตราคาในตารางรายการซื้อของ (เพื่อแสดงผลหน้าจอ)
+        await db.shopping_list.update(id, { price: actualPrice, status: 'completed' });
+
+        // 2. อัปเดตเข้า "คลังประวัติราคา" (เพื่อไว้เปรียบเทียบครั้งหน้า)
+        const history = await db.price_history.get(cleanName);
+        
+        if (history) {
+            // ถ้าเคยมีประวัติแล้ว ให้บันทึกราคาล่าสุด และเช็กว่านี่คือราคาที่ถูกที่สุด (Best Price) หรือไม่
+            await db.price_history.put({
+                name: cleanName,
+                last_price: actualPrice,
+                best_price: Math.min(history.best_price, actualPrice)
+            });
+        } else {
+            // ถ้าเป็นของใหม่ ให้สร้างประวัติครั้งแรก
+            await db.price_history.put({
+                name: cleanName,
+                last_price: actualPrice,
+                best_price: actualPrice
+            });
+        }
+
+        alert(`บันทึกราคา ${cleanName} เรียบร้อย! ต่อไประบบจะจำราคานี้ไว้ให้ครับ`);
+        renderShoppingList(); // วาดหน้าจอใหม่เพื่อให้ช่อง input หายไปหรือแสดงผลว่าซื้อแล้ว
+
+    } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการบันทึกราคา:", err);
+    }
+}
+
+// ==========================================
 // [เพิ่มเติม] ระบบแสดงประวัติการขายล่าสุด (ฝังส่วนลด) 28-04-2026
 // ==========================================
 async function loadRecentOrders() {
@@ -1581,35 +1729,6 @@ async function loadRecentOrders() {
     }
 }
 
-// ฟังก์ชันนี้ควรถูกเรียกเมื่อมีการกดปุ่ม Save ในหน้าตั้งค่า ส่วนลด 30-04-2026
-//function saveDiscountSettings() {
-    //const discountInput = document.getElementById('set_discount');
-    //const typeSelect = document.getElementById('discount_type');
-    
-    // ดึงค่าตัวเลขออกมาเตรียมไว้
-    //let value = parseFloat(discountInput.value) || 0;
-    //const type = typeSelect.value;
-
-    // --- 🔥 ส่วนที่ 1: การเตรียมค่าเพื่อบันทึก ---
-    // ถ้าเลือก percent ให้เก็บเป็น String เช่น "10%" 
-    // ถ้าเลือก bath ให้เก็บเป็นตัวเลขธรรมดา เช่น 10
-    //let finalValueToSave = (type === 'percent' && value > 0) ? value + "%" : value;
-
-    // --- ส่วนที่ 2: บันทึกลงความจำเครื่อง ---
-    //localStorage.setItem('default_discount', finalValueToSave);
-    
-    // --- ส่วนที่ 3: [เพิ่มเติม] สั่งให้หน้าจออัปเดตทันที ---
-    // เพื่อให้ตัวเลขในตะกร้าเปลี่ยนตามค่าที่เพิ่งบันทึก
-    //if (typeof updateOrderPreview === "function") {
-       // updateOrderPreview();
-    //}
-
-    // แจ้งเตือนใน Console เพื่อตรวจสอบ (เหมือนที่คุณยายทำไว้ ดีมากครับ)
-    //console.log("✅ บันทึกส่วนลดใหม่แล้วเป็น:", finalValueToSave);
-    
-    // เพิ่ม Alert เล็กน้อยให้คุณยายมั่นใจตอนกด
-    //alert("บันทึกส่วนลดเรียบร้อยแล้วครับคุณยาย!");
-//}
 
 // ฟังก์ชันเสริมสำหรับกดดูบิลเก่าจากหน้าประวัติ
 function reprintReceipt(orderData) {
