@@ -2032,11 +2032,19 @@ async function exportToCSV() {
         // เราจะเก็บข้อมูลไว้ในตัวแปรแบบข้อความธรรมดาก่อน
         let csvContent = ""; 
 
-        // 2.1: รายงานความปลอดภัย
+     // 2.1: รายงานความปลอดภัย (ปรับให้มือถืออ่านง่ายขึ้น)
         if (securityLogs.length > 0) {
-            csvContent += "🚩 [รายงานแจ้งเตือนความปลอดภัย],,,,,,,\n";
+            // ตัด Emoji ออก หรือใช้คำว่า [!] แทน เพื่อลดความเสี่ยงภาษาเพี้ยนในมือถือ
+            csvContent += "!!! [SECURITY REPORT] !!!,,,,,,,\n"; 
             securityLogs.forEach(log => {
-                csvContent += `🚨 แจ้งเตือน,${log.event},"${log.note || ''}",เวลา ${new Date(log.timestamp).toLocaleTimeString('th-TH')},,,,\n`;
+                // 1. ล้างตัวอักษรพิเศษใน log.note (ถ้ามี)
+                const safeNote = (log.note || '').replace(/[\r\n",]/g, " ").trim();
+                
+                // 2. ใช้เวลาแบบมาตรฐาน (ISO) หรือจัดการ String ให้สะอาด
+                const logTime = new Date(log.timestamp).toLocaleTimeString('th-TH').replace(/ /g, "");
+                
+                // 3. จัดโครงสร้างให้เรียบง่ายที่สุด
+                csvContent += `ALERT,${log.event},"${safeNote}",Time: ${logTime},,,,\n`;
             });
             csvContent += ",,,,,,,\n"; 
         }
