@@ -2066,11 +2066,27 @@ async function exportToCSV() {
             lastDateSeen = datePart;
         });
 
-        // --- 3. 🔥 จุดที่แก้ไข: การประกอบไฟล์เพื่อให้เป็นภาษาไทย 100% ---
-        // เราต้องใส่ BOM (\ufeff) ลงไปในอาเรย์ของ Blob โดยตรงเพื่อให้ Browser รับรู้รหัสภาษา
-        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // นี่คือรหัส BOM สำหรับ UTF-8
-        const blob = new Blob([bom, csvContent], { type: "text/csv;charset=utf-8;" });
+// --- 3. 🔥 จุดที่แก้ไขเพื่อให้เปิดในมือถือ/แท็บเล็ตได้ทันที ---
         
+        // 3.1 สร้างรหัส BOM (รหัสลับระบุภาษาไทย UTF-8)
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+
+        // 3.2 แปลงข้อความ csvContent ทั้งหมดให้เป็น "รหัสตัวเลข" (Uint8Array)
+        // ขั้นตอนนี้สำคัญมาก เพราะจะทำให้ข้อมูลไม่ถูกบิดเบือนโดยเบราว์เซอร์
+        const encoder = new TextEncoder();
+        const csvUint8 = encoder.encode(csvContent);
+
+        // 3.3 นำ BOM และ ข้อมูลที่แปลงแล้ว มา "ต่อกาว" รวมกันเป็นก้อนเดียว
+        // เราจะสร้างอาเรย์ใหม่ที่มีขนาดเท่ากับ (BOM + เนื้อหา)
+        const combinedArray = new Uint8Array(bom.length + csvUint8.length);
+        combinedArray.set(bom); // ใส่รหัสลับไว้หน้าสุด
+        combinedArray.set(csvUint8, bom.length); // ต่อท้ายด้วยเนื้อหาภาษาไทย
+
+        // 3.4 สร้างไฟล์ Blob จาก "ก้อนข้อมูลตัวเลข" ที่รวมกันแล้ว
+        // เราจะไม่ใช้ csvContent (ที่เป็นข้อความ) อีกต่อไป แต่จะใช้ combinedArray แทน
+        const blob = new Blob([combinedArray], { type: "text/csv;charset=utf-8" });
+        
+        // --- 4. สั่งดาวน์โหลด (ส่วนนี้เหมือนเดิมของคุณยายครับ) ---
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
