@@ -15,7 +15,7 @@
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=10.6"></script>
+    <script src="qrcode.min.js?v=10.8"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -26,7 +26,7 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=10.6"></script>
+    <script src="Standalone.js?v=10.8"></script>
 
 </head>
 
@@ -475,13 +475,24 @@
     </div>
 </div>
         
-    <!--สร้างเลขบัญชีโอนเงิน เป็น QR Code 27-04-2026-->
+    <!--สร้างเลขบัญชีโอนเงิน เป็น QR Code 2-05-2026-->
         <div id="settingsModal" class="modal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items: center; justify-content: center;">
             <div style="background:white; margin: auto; padding:20px; width:85%; max-width: 400px; border-radius:15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
                 <h3 style="margin-top:0; color: #2c3e50;">⚙️ ตั้งค่าร้านค้า & ส่วนลด</h3>
                 
-                <label style="font-weight: bold; display: block; margin-bottom: 5px;">📱 เลข PromptPay:</label>
-                <input type="text" id="set_promptpay" placeholder="เบอร์โทร หรือ เลขบัตร" style="width:100%; padding:12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;">
+                <!-- ใน settingsModal ให้เปลี่ยนจาก input เป็นปุ่มกดแทน 02-05-2026 -->
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">📱 เลข PromptPay ปัจจุบัน:</label>
+
+                <!-- เปลี่ยน input ให้เป็น readonly (อ่านได้อย่างเดียว) เพื่อโชว์เลขปัจจุบัน 02-05-2026 -->
+                <input type="text" id="set_promptpay" readonly 
+                    placeholder="กดปุ่มด้านล่างเพื่อแก้ไข" 
+                    style="width:100%; padding:12px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; color: #777;">
+
+                    <!-- เพิ่มปุ่มสำหรับเปิดหน้าตั้งค่าที่มีระบบ PIN 02-05-2026-->
+                <button type="button" onclick="openPromptPayModal()" 
+                    style="width:100%; background:#3498db; color:white; padding:8px; border:none; border-radius:8px; margin-bottom: 15px; font-size: 0.85rem; cursor:pointer;">
+                    🔐 แก้ไขเลขรับเงิน (ต้องใช้ PIN)
+                </button>
 
                 <button onclick="saveSettings()" style="width:100%; background:#27ae60; color:white; padding:12px; border:none; border-radius:8px; font-weight: bold; font-size: 1rem; cursor:pointer;">💾 บันทึกการตั้งค่าทั้งหมด</button>
                 

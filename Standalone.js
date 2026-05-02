@@ -1778,11 +1778,30 @@ async function secureSavePromptPay() {
         alert("❌ รหัสผิด! ไม่สามารถแก้ไขได้");
     }
 }
-
+//การจดจำบันทึกเลข promptpay 2-05-2026 
 async function performUpdate(newNumber) {
-    await db.settings.put({ key: 'promptpay_no', value: newNumber });
-    await logSecurityEvent("CHANGE_PROMPTPAY", "เห้ย! วันนี้มีการเปลี่ยนเลขรับเงินนะ ไปเช็กดูว่าใครทำ");
-    alert("✅ บันทึกเลขรับเงินเรียบร้อยครับ");
+    try {
+        // --- 🛠️ จุดแก้ไขสำคัญ (Critical Fix) ---
+        // เปลี่ยนจาก id เป็น key เพื่อให้ตรงกับ Schema: settings: 'key' ใน Version 9
+        // และใช้ค่า 'promptpay' เพื่อให้หน้าใบเสร็จดึงไปใช้งานได้ถูกบ้าน
+        await db.settings.put({ key: 'promptpay', value: newNumber });
+
+        // บันทึก Log ความปลอดภัยแบบไม่มี Emoji (ป้องกันภาษาต่างดาวใน CSV)
+        await logSecurityEvent("CHANGE_PROMPTPAY", "PromptPay updated to: " + newNumber);
+
+        // แจ้งเตือนยืนยันกับคุณยาย
+        alert("✅ บันทึกเลขรับเงิน (" + newNumber + ") เรียบร้อยแล้วครับ");
+
+        // ปิดหน้าต่าง Modal อัตโนมัติ
+        if (typeof closePromptPayModal === 'function') {
+            closePromptPayModal();
+        }
+
+    } catch (err) {
+        // ดักจับ Error หากมีการบันทึกพลาด (จะเห็น Error สีแดงน้อยลงแล้วครับ)
+        console.error("จุดที่บันทึกพลาด:", err);
+        alert("❌ บันทึกไม่สำเร็จ: " + err.message);
+    }
 }
 
 // ฟังก์ชันบันทึกเหตุการณ์ความปลอดภัย (ลง Dexie) 30-04-2026
@@ -2248,7 +2267,7 @@ function closeReceipt() {
 }
 
 // ==========================================
-// กล่องที่ 7: ระบบใบเสร็จฉลาด (Smart Receipt & QR) - เติม 29-04-2026
+// กล่องที่ 7: ระบบใบเสร็จฉลาด (Smart Receipt & QR) - เติม 2-05-2026
 // ==========================================
 
 async function showSmartReceipt(data) {
@@ -2264,6 +2283,10 @@ async function showSmartReceipt(data) {
     // ดึงค่าคงที่จาก Dexie
     const storeData = await db.settings.get('store_name');
     const ppData = await db.settings.get('promptpay');
+
+    // 🔥 [จุดพิสูจน์ที่ 1] เช็กว่าดึงข้อมูลจาก Database (Dexie) สำเร็จไหม 2-05-2026
+    console.log("1. ข้อมูล PromptPay จาก Database:", ppData); // <--- เพิ่มบรรทัดนี้
+
     const shopName = storeData ? storeData.value : (localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง");
     
     // 2. ใส่หัวใบเสร็จและรายการ
@@ -2296,6 +2319,9 @@ async function showSmartReceipt(data) {
     
     if (isQR) {
         const promptpayNumber = ppData ? ppData.value : null;
+
+        // 🔥 [จุดพิสูจน์ที่ 2] เช็กค่าที่ตัวแปรนำไปใช้จริง 2-05-2026
+        console.log("2. ค่าเลข PromptPay ที่จะนำไปวาด QR:", promptpayNumber); // <--- เพิ่มบรรทัดนี้
 
         if (promptpayNumber) {
             const cleanNumber = promptpayNumber.replace(/[^0-9]/g, "").trim();
