@@ -1,32 +1,42 @@
 // ==========================================
-// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) - อัปเกรดระบบโต๊ะ 1-05-2026
+// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) - อัปเกรดเตรียมทำ Dashboard 03-05-2026
 // ==========================================
-// ✅ ประกาศตัวแปร db เพียงครั้งเดียว (ลบบรรทัดที่ซ้ำออกแล้ว)
 const db = new Dexie("StandaloneDatabase");
 
-// 🚀 อัปเดตเป็น version(9) เพื่อรองรับ "ระบบจดของอัจฉริยะ" และ "ประวัติราคา"
-db.version(9).stores({
-    // 1-6: ตารางเดิมของคุณยาย (ห้ามลบ)
+// 🚀 อัปเกรดเป็น version(11) เพื่อรองรับระบบ "ประวัติการซื้อย้อนหลัง"
+// การขยับเลขเวอร์ชันจะทำให้ Dexie อัปเดตโครงสร้างตารางโดยไม่ลบข้อมูลเก่าครับ
+db.version(11).stores({
+    // 1: ตารางตั้งค่า (ห้ามลบ)
     settings: 'key', 
+
+    // 2: ตารางคำสั่งซื้อ
     orders: '++id, order_id, menu_name, total_price, discount, created_at, options, payment_method',
+
+    // 3: ระบบโต๊ะ
     active_tables: 'table_id, last_update', 
-    dailysummary: 'summary_date, total_sales, egg_count',
+
+    // 4: ตารางสรุปรายวัน (ใช้ทำกราฟเส้นหัวใจ)
+    dailysummary: 'summary_date, total_sales, egg_count, daily_investment, net_profit',
+
+    // 5-6: เมนูและตัวเลือกเสริม
     menus: '++id, name, price',
     extra_options: '++id, name, price',
+
+    // 7: บันทึกความปลอดภัย
     security_logs: '++id, dateOnly, event',
 
-    // ✨ [ส่วนที่เพิ่มใหม่ 1] ตารางรายการซื้อของ (Shopping List)
-    // เก็บชื่อวัตถุดิบ, ราคาที่จดไว้, สถานะ (ซื้อยัง/ค้างอยู่), และวันที่
-    shopping_list: '++id, name, price, status, date',
+    // 8: [จุดที่แก้ไข ✨] ตารางรายการซื้อของ (Shopping List)
+    // เพิ่ม 'confirmed_date' เพื่อบันทึกวันที่ซื้อจริง และทำให้ค้นหา 'status' ได้เร็วขึ้น
+    shopping_list: '++id, name, price, status, date, confirmed_date',
 
-    // ✨ [ส่วนที่เพิ่มใหม่ 2] คลังประวัติราคา (Price Insight)
-    // ใช้ 'name' เป็น Key หลัก เพื่อใช้ค้นหาว่า "กะเพรา" ครั้งก่อนซื้อเท่าไหร่ได้ทันที
-    price_history: 'name, last_price, best_price' 
+    // 9: [จุดที่แก้ไข ✨] คลังประวัติราคา (Price Insight)
+    // เพิ่ม 'last_updated' เพื่อใช้จัดลำดับราคาล่าสุดที่เคยบันทึกไว้
+    price_history: 'name, last_price, best_price, last_updated' 
 });
 
 // เปิดการเชื่อมต่อฐานข้อมูล
 db.open().then(() => {
-    console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 9: ระบบโต๊ะ + ความปลอดภัย + จดของอัจฉริยะ)");
+    console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 11: เปิดระบบประวัติการซื้อย้อนหลังให้คุณยาย)");
 }).catch(err => {
     console.error("❌ เปิดฐานข้อมูลไม่ได้: " + err.stack);
 });
@@ -35,8 +45,23 @@ db.open().then(() => {
 let currentOrder = { name: "", price: 0, qty: 1 };
 let selectedTable = null;
 
-// ✨ [ตัวแปรเพิ่มใหม่] สำหรับระบบจดของ
+// สำหรับระบบจดของ
+let currentEditId = null; // บันทึกเสร็จแล้ว เคลียร์ค่า ID ทิ้ง
 let currentShoppingItem = { name: "", price: 0 };
+
+
+// ✨ เพิ่มบรรทัดนี้เข้าไปครับ เพื่อแก้ Error: menus is not defined
+let menus = [];
+
+// ฟังก์ชันบันทึกรายการ (จดปากกาเขียนลงสมุด)
+async function saveShoppingItem() { 
+    /* ...โค้ดชุดที่มี nowWithTime และ status: 'pending' ที่พี่แก้แล้ว... */
+}
+
+// ฟังก์ชันดูประวัติราคา (เมื่อยายกดแว่นขยาย 🔍)
+async function showPriceHistory(itemName) {
+    /* ...โค้ดชุดที่มี filter status: 'completed' และแสดง Modal... */
+}
 
 // ==========================================
 // กล่องที่ 2: ระบบจัดการหน้าตาเว็บและการตั้งค่า
@@ -169,9 +194,39 @@ function loadDailyCost() {
     if (savedCost) document.getElementById('daily-cost').value = savedCost;
 }
 
-function saveCostAndRefresh() {
-    const newCost = document.getElementById('daily-cost').value;
+//ทุนวันนี้ 03-05-2026
+async function saveCostAndRefresh() {
+    // 1. ดึงค่าจากช่อง "ทุนวันนี้" ใน HTML
+    const newCost = parseFloat(document.getElementById('daily-cost').value) || 0;
+    
+    // 2. เก็บใน localStorage ไว้เหมือนเดิม (เพื่อให้ UI ส่วนอื่นที่ดึงค่านี้ไปใช้ยังทำงานได้)
     localStorage.setItem('myDailyCost', newCost);
+
+    // 3. เตรียมข้อมูลวันที่ (ใช้ Key เดียวกับ dailysummary)
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+        // 4. ดึงข้อมูลยอดขายของวันนี้ที่มีอยู่ในฐานข้อมูลมาก่อน (ถ้ามี)
+        const existingData = await db.dailysummary.get(today);
+        const currentSales = existingData ? existingData.total_sales : 0;
+        const currentEggs = existingData ? existingData.egg_count : 0;
+
+        // 5. บันทึก (put) ลง Dexie DB Version 10
+        await db.dailysummary.put({
+            summary_date: today,
+            total_sales: currentSales,
+            egg_count: currentEggs,
+            daily_investment: newCost, // ✨ บันทึกทุนวันนี้ลงไปแล้ว!
+            net_profit: currentSales - newCost // ✨ คำนวณกำไรสุทธิเก็บไว้เลย
+        });
+
+        console.log(`✅ หลานรักจดบันทึกให้ยายแล้ว: ทุน ${newCost} บาท, กำไรวันนี้ ${currentSales - newCost} บาท`);
+
+    } catch (error) {
+        console.error("❌ จดบันทึกลงฐานข้อมูลไม่ได้:", error);
+    }
+
+    // 6. เรียกฟังก์ชันเดิมของคุณเพื่ออัปเดตการแสดงผลบนหน้าจอ
     fetchTodaySales();
 }
 
@@ -614,7 +669,7 @@ async function confirmOrder(paymentType) {
     }
 }
 
-//30-04-2026
+//03-05-2026
 async function fetchTodaySales() {
     try {
         const todayStr = new Date().toLocaleDateString('sv-SE');
@@ -624,11 +679,8 @@ async function fetchTodaySales() {
 
         allOrders.forEach(o => {
             if (o.created_at && o.created_at.startsWith(todayStr)) {
-                
-                // 1. 🔥 [ปรับปรุง] ดึงค่า total_price มาบวกได้เลย 
-                // เพราะ Row อาหารจะเป็น (+) และ Row ส่วนลดจะเป็น (-) มันจะหักล้างกันเอง
+                // 1. ดึงค่า total_price มาบวก/ลบ ได้เลย (อาหารเป็น + ส่วนลดเป็น -)
                 const amount = Number(o.total_price || 0);
-
                 total += amount; 
                 
                 if (o.payment_method === 'Cash') {
@@ -637,31 +689,75 @@ async function fetchTodaySales() {
                     qrTotal += amount;
                 }
 
-                // 2. การนับจำนวน (เช่น ไข่ดาว) 
-                // Row ส่วนลดจะไม่เข้าเงื่อนไขนี้ เพราะ menu_name คือ "ส่วนลด (Discount)" 
-                // และไม่มีคำว่า "ไข่" ใน options แน่นอน
+                // 2. การนับจำนวนสิ่งที่อยากนับ (เช่น ไข่ดาว)
                 if (o.options && o.options.includes(targetSearch)) {
                     countItems += Number(o.qty || 0);
                 }
             }
         });
 
-        // 3. 🔥 [จุดกู้ชีพ] ป้องกันยอดรวมติดลบ (กรณีคนคีย์ส่วนลดผิด)
+        // 3. ป้องกันยอดรวมติดลบ
         const finalTotal = Math.max(0, total);
         const finalCash = Math.max(0, cashTotal);
         const finalQR = Math.max(0, qrTotal);
 
-        // อัปเดตตัวเลขขึ้นหน้าจอ Dashboard
+        // อัปเดตตัวเลขยอดขายขึ้นหน้าจอ
         document.getElementById('total-sales-display').innerText = finalTotal.toLocaleString();
         document.getElementById('cash-display').innerText = finalCash.toLocaleString();
         document.getElementById('qr-display').innerText = finalQR.toLocaleString();
-        document.getElementById('egg-count').innerText = countItems.toLocaleString();
         
-        // ส่งยอดรวมที่ "หักส่วนลดแล้ว" ไปคำนวณกำไร/ขาดทุน
-        updateProfitStatus(finalTotal);
+        // ตรวจสอบว่ามี id="egg-count" ใน HTML หรือไม่ก่อนอัปเดต
+        const eggElem = document.getElementById('egg-count');
+        if(eggElem) eggElem.innerText = countItems.toLocaleString();
+        
+        // --- ✨ [ส่วนที่เพิ่มใหม่: คำนวณกำไรจากฐานข้อมูล] ---
+        
+        // 4. ดึงข้อมูลสรุปรายวันจาก Dexie (Version 10)
+        const summary = await db.dailysummary.get(todayStr);
+        const dailyCost = summary ? (summary.daily_investment || 0) : (parseFloat(localStorage.getItem('myDailyCost')) || 0);
+        
+        // อัปเดตช่อง input "ทุนวันนี้" ให้ตรงกับใน DB
+        const costInput = document.getElementById('daily-cost');
+        if (costInput) costInput.value = dailyCost;
+
+        // 5. คำนวณกำไรสุทธิ
+        const netProfit = finalTotal - dailyCost;
+        updateProfitStatusDisplay(netProfit); // เรียกฟังก์ชันแสดงผลกำไร
+
+        // 6. [แถม] อัปเดตยอดขายกลับลง DB ให้เป็นปัจจุบันเสมอ
+        await db.dailysummary.put({
+            summary_date: todayStr,
+            total_sales: finalTotal,
+            egg_count: countItems,
+            daily_investment: dailyCost,
+            net_profit: netProfit
+        });
 
     } catch (err) { 
         console.error("เกิดข้อผิดพลาดในการดึงยอดขายรายวัน:", err); 
+    }
+}
+
+// ✨ ฟังก์ชันใหม่สำหรับเปลี่ยน "⚠️ รอคำนวณ" เป็น "กำไรสีเขียวๆ"
+function updateProfitStatusDisplay(profit) {
+    const statusDiv = document.getElementById('profit-status');
+    if (!statusDiv) return;
+
+    if (profit > 0) {
+        statusDiv.innerHTML = `
+            <div style="background: #e8f5e9; color: #2e7d32; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                🎉 กำไรวันนี้: ${profit.toLocaleString()} บาท
+            </div>`;
+    } else if (profit < 0) {
+        statusDiv.innerHTML = `
+            <div style="background: #fff5f5; color: #e74c3c; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                📉 ยังไม่คืนทุน: อีก ${Math.abs(profit).toLocaleString()} บาท
+            </div>`;
+    } else {
+        statusDiv.innerHTML = `
+            <div style="background: #f8f9fa; color: #555; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                ⚖️ เท่าทุนพอดี
+            </div>`;
     }
 }
 
@@ -1417,7 +1513,7 @@ async function clearOldOrders() {
 
 // เริ่มระบบ
 window.onload = async function() {
-    // 1. ดึงข้อมูลชื่อร้านและหัวข้อเมนู
+    // 1. ดึงข้อมูลชื่อร้านและหัวข้อเมนู (จาก LocalStorage)
     const keys = [{ k: 'shopName', i: 'name-main' }, { k: 'shopMenu', i: 'menu-name' }];
     keys.forEach(item => {
         let val = localStorage.getItem(item.k);
@@ -1433,74 +1529,176 @@ window.onload = async function() {
     if (document.getElementById('display-label')) document.getElementById('display-label').innerText = "📊 วันนี้ใช้ " + savedLabel + " ไปแล้ว";
     if (document.getElementById('display-unit')) document.getElementById('display-unit').innerText = savedUnit;
     
-    // อัปเดตหัวตาราง Dashboard
     if(document.getElementById('dashboard-unit-header')) document.getElementById('dashboard-unit-header').innerText = savedLabel;
     if(document.getElementById('dashboard-unit-name')) document.getElementById('dashboard-unit-name').innerText = savedUnit;
 
-    // ใส่ค่าลงใน Input หน้าตั้งค่าเผื่อไว้เลย
     if (document.getElementById('counter-label-input')) document.getElementById('counter-label-input').value = savedLabel;
     if (document.getElementById('counter-unit-input')) document.getElementById('counter-unit-input').value = savedUnit;
 
-    // 3. 🔥 ดึงค่าส่วนลดพื้นฐานมาแสดง (เพิ่มใหม่ 29-04-2026)
+    // 3. ดึงค่าส่วนลดพื้นฐานมาแสดง
     const savedDiscount = localStorage.getItem('default_discount') || 0;
     if (document.getElementById('set_discount')) {
         document.getElementById('set_discount').value = savedDiscount;
     }
 
-    // 4. 🔥 วาดปุ่มโต๊ะทั้งหมดทันที (หัวใจของระบบโต๊ะ)
-    // การใส่ await เพื่อให้ระบบดึงข้อมูลจาก Dexie มาวาดปุ่มให้เสร็จก่อนโชว์หน้าจอ
+    // 4. 🔥 วาดปุ่มโต๊ะทั้งหมดทันที
     if (typeof renderTableSelection === 'function') {
         await renderTableSelection();
     }
 
-    // 5. โหลดข้อมูลตัวเลขและปุ่มขาย
-    loadDailyCost();    // โหลดทุนวันนี้
-    fetchTodaySales();  // คำนวณยอดขาย/กำไร
+    // 5. โหลดข้อมูลการขายและเมนูอาหาร
+    loadDailyCost();      // โหลดทุนวันนี้
+    fetchTodaySales();    // คำนวณยอดขาย/กำไร
     renderOrderButtons(); // วาดปุ่มเมนูอาหาร
     renderExtraOptions(); // วาดปุ่มตัวเลือกเสริม
     loadRecentOrders();   // โหลดประวัติออเดอร์ล่าสุด
+
+    // 6. ✨ [จุดที่เพิ่มใหม่]: โหลดระบบจดของและประวัติการซื้อ ✨
+    // สั่งให้วาด "รายการที่กำลังจด" (สถานะ pending)
+    if (typeof renderShoppingList === 'function') {
+        renderShoppingList(); 
+    }
+
+    // สั่งให้วาด "ประวัติการซื้อทั้งหมด" (สถานะ completed) 
+    // เพื่อให้ประวัติเก่าโผล่มาทันทีที่เปิดแอป
+    if (typeof renderFullHistory === 'function') {
+        await renderFullHistory(); 
+    }
+
+    // เพิ่มบรรทัดนี้ลงไปครับ ✨
+    updateDashboardPriceInsight();
     
-    console.log("🚀 Smart POS พร้อมดูแลร้านยายแล้วจ้า!");
+    
+    console.log("🚀 Smart POS พร้อมดูแลร้านยายแล้วจ้า! (Version 11: ระบบประวัติพร้อมใช้งาน)");
 };
 
 // ==========================================
-// ระบบจดบันทึกวัตถุดิบ 1-04-2026
+// สรุปภาพรวมธุรกิจ (มุมหลานรัก) chart  03-05--2026
 // ==========================================
+async function openGrandmaDashboard() {
+    document.getElementById('dashboard-modal').style.display = 'block';
+    
+    // 1. ดึงข้อมูลทั้งหมดจาก dailysummary
+    const history = await db.dailysummary.orderBy('summary_date').toArray();
+    
+    let labels = [];
+    let salesData = [];
+    let investmentData = [];
+    let accumSales = 0;
+    let accumInvest = 0;
+
+    // 2. คำนวณค่าสะสม (Cumulative) เพื่อทำกราฟเส้นหัวใจ
+    history.forEach(day => {
+        labels.push(day.summary_date.split('-').slice(1).join('/')); // เก็บแค่ ว/ด
+        accumSales += (day.total_sales || 0);
+        accumInvest += (day.daily_investment || 0);
+        
+        salesData.push(accumSales);
+        investmentData.push(accumInvest);
+    });
+
+    // 3. วาดกราฟด้วย Chart.js
+    const ctx = document.getElementById('businessHeartChart').getContext('2d');
+    if (window.myChart) window.myChart.destroy(); // เคลียร์กราฟเก่า
+    
+    window.myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'ยอดขายสะสม', data: salesData, borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.1)', fill: true, tension: 0.3 },
+                { label: 'ทุนสะสม', data: investmentData, borderColor: '#e74c3c', borderDash: [5, 5], tension: 0.1 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // 4. อัปเดตการ์ดตัวเลขและข้อความให้กำลังใจ
+    updateDashboardUI(accumSales, accumInvest);
+
+    // 🚩 5. เพิ่มส่วนนี้เข้าไปครับ: สั่งวาดคะแนนความเป็นเนื้อเป็นตัว 04-05-2026
+    // เราส่งค่า accumSales และ accumInvest ที่คำนวณไว้แล้วไปใช้ได้เลย!
+    await renderEfficiencyDashboard(accumSales, accumInvest);
+}
+
+function updateDashboardUI(totalSales, totalInvest) {
+    const net = totalSales - totalInvest;
+    const statsDiv = document.getElementById('dashboard-stats');
+    const msgDiv = document.getElementById('grandma-message');
+
+    statsDiv.innerHTML = `
+        <div style="background:#e8f5e9; padding:10px; border-radius:10px; text-align:center;">
+            <small>ยอดขายรวม</small><br><strong>${totalSales.toLocaleString()}</strong>
+        </div>
+        <div style="background:#ffebee; padding:10px; border-radius:10px; text-align:center;">
+            <small>ทุนสะสม</small><br><strong>${totalInvest.toLocaleString()}</strong>
+        </div>
+    `;
+
+    if (net >= 0) {
+        msgDiv.innerText = `ยายครับ! ตอนนี้เรากำไรสะสมแล้ว ${net.toLocaleString()} บาท หลานภูมิใจในตัวยายที่สุดเลยครับ!`;
+    } else {
+        msgDiv.innerText = `สู้ๆ ครับยาย อีกแค่ ${Math.abs(net).toLocaleString()} บาท เราก็จะคืนทุนทั้งหมดแล้วครับ!`;
+    }
+}
+
+function closeDashboard() {
+    document.getElementById('dashboard-modal').style.display = 'none';
+}
+
+// ==========================================
+// ระบบจดบันทึกวัตถุดิบ 3-05-2026
+// ==========================================
+// ฟังก์ชันเปิด/ปิดหน้าจัดการ
+function openShoppingManager() {
+    document.getElementById('shopping-manager-page').style.display = 'block';
+    renderShoppingList(); // วาดรายการทันทีที่เปิดหน้า
+}
+
+// 1. ฟังก์ชันจดของ (เน้นจดอย่างเดียวให้เร็วที่สุด)
 async function addShoppingItem() {
     const input = document.getElementById('shopping-input');
     const name = input.value.trim();
     
     if (name) {
-        // 🧐 ระบบเช็กความฉลาด: ค้นหาว่าชื่อคล้ายกันเคยซื้อเท่าไหร่
+        // [ปรับปรุง] ค้นหาประวัติเพื่อเอามาโชว์ใน UI เท่านั้น ไม่บันทึกข้อความเตือนลง DB
         const history = await db.price_history.get(name);
-        let alertMsg = "";
-
-        if (history) {
-            alertMsg = ` (เคยซื้อล่าสุด: ${history.last_price}.-)`; //
-        }
-
-        // บันทึกลงรายการจดของ
+        
+        // [บันทึก] ลงรายการจดของ (เน้นชื่อเพียวๆ เพื่อให้ Database สะอาด)
         await db.shopping_list.add({ 
-            name: name + alertMsg, 
+            name: name, 
             price: 0, 
             status: 'pending', 
-            date: new Date().toLocaleDateString() 
+            date: new Date().toLocaleDateString(),
+            last_recorded_price: history ? history.last_price : null // เก็บประวัติแยก field ไว้ดูเทียบ
         });
 
         input.value = ''; // ล้างช่องพิมพ์
-        renderShoppingList(); // วาดรายการใหม่
+        renderShoppingList(); // สั่งวาดรายการใหม่ทันที
     }
 }
 
 async function renderShoppingList() {
     const container = document.getElementById('shopping-list-display');
-    if (!container) return;
+    if (!container) return; 
 
-    // 1. ดึงรายการซื้อของล่าสุด (เรียงจากใหม่ไปเก่า)
-    const items = await db.shopping_list.reverse().toArray(); 
+    // 1. ดึงรายการซื้อของที่ "ยังไม่ได้บันทึกราคา" (pending)
+    // เรียงจากใหม่ไปเก่า รายการล่าสุดอยู่บนสุดเสมอ
+    const items = await db.shopping_list.where('status').equals('pending').reverse().toArray();
 
+    // 2. กรณีไม่มีรายการจด
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding: 40px 20px; color: #bdc3c7;">
+                <i class="fas fa- clipboard-list" style="font-size: 3rem; margin-bottom: 10px;"></i>
+                <p>ยายยังไม่ได้จดอะไรเพิ่มเลยครับ<br><small>ลองพิมพ์ชื่อวัตถุดิบข้างบนดูนะ</small></p>
+            </div>
+        `;
+        return;
+    }
+
+    // 3. สร้าง HTML สำหรับแต่ละรายการ
     container.innerHTML = items.map(item => {
-        // แยกชื่อวัตถุดิบออกมาเพื่อใช้ส่งไปบันทึกราคา (กันชื่อยาวเกินไปจากตัวโน้ต)
         const cleanName = item.name.split(' (')[0];
 
         return `
@@ -1509,17 +1707,26 @@ async function renderShoppingList() {
             
             <!-- ส่วนที่ 1: ข้อมูลวัตถุดิบและปุ่มจัดการ -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                <div style="flex-grow: 1;">
-                    <strong style="font-size: 1.2rem; color: #2c3e50; display: block;">${item.name}</strong>
-                    <span style="font-size: 0.85rem; color: #95a5a6;">📅 ${item.date}</span>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <strong style="font-size: 1.2rem; color: #2c3e50;">${item.name}</strong>
+                        
+                        <span onclick="showPriceHistory('${cleanName}')" 
+                              style="cursor: pointer; background: #fff4e6; padding: 2px 8px; border-radius: 8px; font-size: 0.9rem; border: 1px solid #e67e22; color: #e67e22; font-weight: bold;">
+                            🔍 ประวัติ
+                        </span>
+                    </div>
+                    <!-- ✨ ปรับปรุงจุดนี้: ใส่ Icon นาฬิกา และจัดรูปแบบให้อ่านง่าย -->
+                    <div style="font-size: 0.85rem; color: #95a5a6; margin-top: 5px; display: flex; align-items: center; gap: 4px;">
+                        <span>🕒 จดเมื่อ: ${item.date || 'ไม่ระบุวันที่'}</span>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <!-- 📝 ปุ่มแก้ไข -->
+                
+                <div style="display: flex; gap: 8px; margin-left: 10px;">
                     <button onclick="editShoppingItem(${item.id}, '${item.name}')" 
                             style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">
                         📝
                     </button>
-                    <!-- 🗑️ ปุ่มลบ -->
                     <button onclick="deleteShoppingItem(${item.id})" 
                             style="background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">
                         🗑️
@@ -1527,16 +1734,18 @@ async function renderShoppingList() {
                 </div>
             </div>
 
-            <!-- ส่วนที่ 2: 💰 ช่องใส่ราคาซื้อจริง (ไฮไลท์สีเขียวให้มองเห็นชัด) -->
+            <!-- ส่วนที่ 2: 💰 ช่องใส่ราคาซื้อจริง -->
             <div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
                 <span style="font-size: 0.95rem; font-weight: bold; color: #27ae60;">ซื้อมาจริง:</span>
+                
                 <input type="number" id="real-price-${item.id}" 
                        value="${item.price > 0 ? item.price : ''}" 
-                       placeholder="ใส่ราคา" 
-                       style="width: 90px; padding: 8px; border-radius: 8px; border: 2px solid #27ae60; font-size: 1.1rem; text-align: center; font-weight: bold;">
+                       placeholder="บาท" 
+                       style="width: 100px; padding: 8px; border-radius: 8px; border: 2px solid #27ae60; font-size: 1.1rem; text-align: center; font-weight: bold;">
+                
                 <button onclick="updateActualPrice(${item.id}, '${cleanName}')" 
-                        style="flex-grow: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 3px 0 #219150;">
-                    ✅ บันทึกราคา
+                        style="flex: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 3px 0 #219150;">
+                    ✅ บันทึก
                 </button>
             </div>
         </div>
@@ -1545,21 +1754,84 @@ async function renderShoppingList() {
 }
 
 async function editShoppingItem(id, currentName) {
-    // 1. ดึงชื่อที่จดไว้ (ตัดข้อความ "ล่าสุดซื้อที่..." ออกถ้ามี)
     const cleanName = currentName.split(' (')[0]; 
-    
-    // 2. เอาชื่อไปใส่ในช่อง Input ข้างบน
     const input = document.getElementById('shopping-input');
     input.value = cleanName;
-    input.focus(); // ให้เคอร์เซอร์ไปกระพริบรอเลย
+    input.focus();
+    currentEditId = id; // ✅ ใช้งานได้ทันทีเพราะประกาศไว้ข้างบนแล้ว
+    console.log("✏️ เตรียมแก้ไขรายการ ID:", id);
+}
 
-    // 3. ลบรายการเก่าออกจากรายการชั่วคราว (เพื่อให้ยายกดบันทึกใหม่เป็นอันที่ถูกต้อง)
-    await db.shopping_list.delete(id);
+// 4. ฟังก์ชันบันทึกที่สมบูรณ์ (ใช้กับปุ่มบันทึกของพี่)
+async function saveShoppingItem() {
+    const input = document.getElementById('shopping-input');
+    const name = input.value.trim();
     
-    // 4. วาดหน้าจอใหม่
-    renderShoppingList();
-    
-    console.log("✏️ ดึงข้อมูลกลับมาแก้ไขแล้วครับคุณยาย");
+    if (!name) {
+        alert("กรุณากรอกชื่อวัตถุดิบก่อนบันทึกครับคุณยาย");
+        return;
+    }
+
+    try {
+        // สร้างรูปแบบวันที่และเวลาที่อ่านง่ายสำหรับยาย
+        const nowWithTime = new Date().toLocaleString('th-TH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        if (currentEditId) {
+            // 1. กรณีแก้ไข: อัปเดตข้อมูลเดิม
+            await db.shopping_list.update(currentEditId, {
+                name: name,
+                // ใช้สถานะเดิม หรือถ้าซื้อเสร็จแล้วค่อยเป็น completed
+                confirmed_date: nowWithTime // ✨ เปลี่ยนมาเก็บเวลาด้วย
+            });
+            console.log("✅ อัปเดตข้อมูลเรียบร้อย");
+            currentEditId = null;
+        } else {
+            // 2. กรณีเพิ่มใหม่: สร้างข้อมูลใหม่
+            await db.shopping_list.add({
+                name: name,
+                price: 0,
+                status: 'pending', // ให้ค้างไว้ที่หน้ารายการซื้อก่อน
+                date: nowWithTime // ✨ เก็บเวลาตั้งแต่วินาทีที่ยายกดจด
+            });
+            console.log("✅ บันทึกรายการใหม่เรียบร้อย");
+        }
+
+        // เคลียร์ช่อง Input และวาดหน้าจอใหม่
+        input.value = '';
+        renderShoppingList(); // อัปเดตรายการที่หน้าจอทันที
+        
+    } catch (error) {
+        console.error("เกิดข้อผิดพลาดในการบันทึก:", error);
+    }
+}
+
+// 3. ฟังก์ชันใหม่: ยืนยันราคาและจำประวัติ (จุดสำคัญของระบบ)
+async function confirmPrice(id, name) {
+    const priceInput = document.getElementById(`actual-price-${id}`);
+    const price = parseFloat(priceInput.value);
+
+    if (price > 0) {
+        // อัปเดตสถานะใน shopping_list ว่าซื้อแล้ว
+        await db.shopping_list.update(id, { price: price, status: 'completed' });
+
+        // อัปเดตประวัติราคาใน price_history (เพื่อให้ระบบจำไปใช้ครั้งหน้า)
+        await db.price_history.put({
+            name: name,
+            last_price: price,
+            update_at: new Date().toLocaleDateString()
+        });
+
+        alert(`บันทึก ${name} ราคา ${price} บาท เรียบร้อย!`);
+        renderShoppingList(); // วาดใหม่ รายการที่ซื้อแล้วจะหายไปจากหน้าจดของ
+    } else {
+        alert("กรุณาใส่ราคาที่ซื้อมาจริงด้วยครับยาย");
+    }
 }
 
 // เพิ่มฟังก์ชันลบรายการด้วยครับ
@@ -1580,34 +1852,517 @@ async function updateActualPrice(id, cleanName) {
     }
 
     try {
-        // 1. อัปเดตราคาในตารางรายการซื้อของ (เพื่อแสดงผลหน้าจอ)
-        await db.shopping_list.update(id, { price: actualPrice, status: 'completed' });
+        // สร้างรูปแบบ วันที่ + เวลา สำหรับแสดงผลให้ยายอ่านง่าย
+        // ผลลัพธ์จะเป็นประมาณ: "3 พฤษภาคม 2569 18:15"
+        const nowWithTime = new Date().toLocaleString('th-TH', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
 
-        // 2. อัปเดตเข้า "คลังประวัติราคา" (เพื่อไว้เปรียบเทียบครั้งหน้า)
+        // 1. ดึงข้อมูลประวัติเดิมมา "เทียบ" เพื่อวิเคราะห์ราคา
         const history = await db.price_history.get(cleanName);
-        
+        let compliment = ""; 
+
         if (history) {
-            // ถ้าเคยมีประวัติแล้ว ให้บันทึกราคาล่าสุด และเช็กว่านี่คือราคาที่ถูกที่สุด (Best Price) หรือไม่
+            const priceDiff = history.last_price - actualPrice;
+
+            if (actualPrice < history.best_price) {
+                compliment = `\n🏆 ทุบสถิติ! นี่คือราคาที่ถูกที่สุดที่ยายเคยซื้อเลยครับ (เดิม ${history.best_price}.-)`;
+            } else if (priceDiff > 0) {
+                compliment = `\n✨ ยายซื้อถูกลงกว่ารอบก่อน ${priceDiff} บาทแน่ะ!`;
+            } else if (priceDiff < 0) {
+                compliment = `\n📦 รอบนี้ของแพงขึ้นนิดหน่อยนะครับยาย (เพิ่มขึ้น ${Math.abs(priceDiff)}.-)`;
+            }
+
+            // อัปเดตตาราง price_history พร้อมบันทึกเวลาอัปเดตล่าสุด
             await db.price_history.put({
                 name: cleanName,
                 last_price: actualPrice,
-                best_price: Math.min(history.best_price, actualPrice)
+                best_price: Math.min(history.best_price, actualPrice),
+                last_updated: nowWithTime // เปลี่ยนจากแค่ Date เป็น DateTime
             });
         } else {
-            // ถ้าเป็นของใหม่ ให้สร้างประวัติครั้งแรก
+            compliment = "\n🌟 บันทึกราคาครั้งแรกเรียบร้อย ต่อไปหลานจะช่วยจำให้นะครับ";
             await db.price_history.put({
                 name: cleanName,
                 last_price: actualPrice,
-                best_price: actualPrice
+                best_price: actualPrice,
+                last_updated: nowWithTime
             });
         }
 
-        alert(`บันทึกราคา ${cleanName} เรียบร้อย! ต่อไประบบจะจำราคานี้ไว้ให้ครับ`);
-        renderShoppingList(); // วาดหน้าจอใหม่เพื่อให้ช่อง input หายไปหรือแสดงผลว่าซื้อแล้ว
+        // 2. เปลี่ยนสถานะใน shopping_list เป็น 'completed' 
+        // บันทึกเวลาที่ซื้อสำเร็จลงไปที่นี่ เพื่อให้หน้าประวัติโชว์เวลาได้
+        await db.shopping_list.update(id, { 
+            price: actualPrice, 
+            status: 'completed',
+            confirmed_date: nowWithTime // ยายจะเห็นเวลาในหน้าประวัติซื้อของ
+        });
+
+        // 3. เชื่อมโยงข้อมูลไปที่ระบบบัญชีร้านค้า
+        await syncPurchaseToInvestment(actualPrice);
+
+        // [ผลลัพธ์]: แจ้งเตือนพร้อมคำวิเคราะห์
+        alert(`บันทึกราคา ${cleanName} เรียบร้อย!${compliment}`);
+        
+        // 4. ✨ อัปเดตการแสดงผลหน้าจอให้ทันสมัยที่สุด
+        renderShoppingList(); // ลบของที่เพิ่งซื้อออกจากรายการจด
+        
+        if (typeof renderFullHistory === "function") {
+            await renderFullHistory(); // วาดประวัติใหม่พร้อมเวลาล่าสุด
+        }
+
+        if (typeof updateDashboardPriceInsight === "function") {
+            updateDashboardPriceInsight(); // อัปเดตกล่องสีเหลืองใน Dashboard
+        }
+
+        if (typeof runSmartAnalysis === "function") {
+            runSmartAnalysis(); 
+        }
 
     } catch (err) {
         console.error("เกิดข้อผิดพลาดในการบันทึกราคา:", err);
+        alert("อุ๊ย! เกิดข้อผิดพลาดนิดหน่อยครับคุณยาย ลองใหม่อีกครั้งนะ");
     }
+}
+
+// ฟังก์ชันช่วยส่งยอดซื้อไปรวมกับทุนรายวัน (เพื่อให้ Dashboard ขยับ)
+async function syncPurchaseToInvestment(amount) {
+    const today = new Date().toLocaleDateString();
+    const summary = await db.dailysummary.get(today);
+    
+    if (summary) {
+        // เพิ่มยอดเงินลงทุนสะสมตามราคาที่เพิ่งบันทึกจริงเข้าไป
+        await db.dailysummary.update(today, {
+            daily_investment: (summary.daily_investment || 0) + amount
+        });
+    }
+}
+
+async function runSmartAnalysis() {
+    // 1. วิเคราะห์ดัชนีราคา (ดึงราคาจากตาราง price_history)
+    const history = await db.price_history.orderBy('best_price').limit(3).toArray();
+    
+    // ✨ ชี้ไปที่ ID "price-content" ตามที่อยู่ใน HTML ของพี่เป๊ะๆ
+    const priceDiv = document.getElementById('price-content'); 
+    
+    if (history.length > 0) {
+        // [แก้ไข]: ใส่ข้อมูลเข้าไปใน price-content และใช้แว่นขยาย 🔍
+        priceDiv.innerHTML = history.map(item => 
+            `<div onclick="showPriceHistory(\`${item.name}\`)" 
+                  style="cursor:pointer; padding:8px; border-bottom:1px solid #eee; margin-bottom:5px; color: #5d4037;"
+                  title="คลิกดูประวัติราคา">
+                • <b>${item.name}</b> ถูกสุด <b>${item.best_price}.-</b> 🔍
+             </div>`).join('');
+    } else {
+        priceDiv.innerText = "ยายจดของบ่อยๆ นะ แล้วหลานจะจำราคาที่ถูกที่สุดให้ครับ!";
+    }
+
+    // 2. คำนวณ Efficiency Score (ยอดขาย / ต้นทุน)
+    // [คงเดิม]: แสดงผลคะแนนความเก่งในการบริหารทุน
+    const today = new Date().toLocaleDateString();
+    const summary = await db.dailysummary.get(today);
+    const scoreContent = document.getElementById('score-content');
+    const scoreMsg = document.getElementById('score-message');
+
+    if (summary && summary.daily_investment > 0) {
+        const ratio = summary.total_sales / summary.daily_investment;
+        let score = (ratio * 2).toFixed(1); 
+        score = Math.min(score, 10); 
+        
+        scoreContent.innerText = `${score}/10`;
+        scoreMsg.innerText = score >= 7 ? "วันนี้ยายบริหารทุนเก่งมากครับ!" : "วันนี้คนอาจจะน้อยหน่อย พรุ่งนี้สู้ใหม่นะยาย!";
+    }
+
+    // 3. ระบบพยากรณ์ของที่ต้องซื้อ
+    // [คงเดิม]: กรองเฉพาะรายการ 'pending' เพื่อแจ้งเตือนของที่ยังไม่ได้ซื้อ
+    const pendingList = await db.shopping_list.where('status').equals('pending').toArray();
+    const suggestDiv = document.getElementById('suggestion-content');
+    
+    if (pendingList.length > 0) {
+        suggestDiv.innerHTML = `ยายมีของค้างในใจ <b>${pendingList.length} อย่าง</b> อย่าลืมซื้อนะครับ!`;
+    } else {
+        suggestDiv.innerText = "ตอนนี้ของครบแล้ว ยายพักผ่อนให้สบายนะครับ";
+    }
+}
+
+async function showPriceHistory(itemName) {
+    try {
+        // 1. ดึงข้อมูลจากฐานข้อมูล shopping_list โดยตรง
+        // ใช้ชื่อวัตถุดิบเป็นตัวกรอง
+        const allRecords = await db.shopping_list
+            .where('name')
+            .equals(itemName)
+            .toArray();
+
+        // 2. กรองเฉพาะรายการที่ซื้อสำเร็จ (completed) และมีราคาที่เป็นตัวเลขจริงๆ
+        // [สิ่งที่ปรับ]: ใช้ parseFloat เพื่อป้องกันกรณีราคาถูกเก็บเป็น String แล้วคำนวณผิด
+        const history = allRecords
+            .filter(item => item.status === 'completed' && !isNaN(parseFloat(item.price)))
+            .sort((a, b) => {
+                // [จุดสำคัญ]: JavaScript มักจะงงกับวันที่ภาษาไทย (4 พฤษภาคม 2569)
+                // เราจึงใช้ ID (Primary Key) ในการเรียงแทน เพราะรายการที่มาทีหลัง ID จะมากกว่าเสมอ
+                return b.id - a.id; 
+            });
+
+        const tableContent = document.getElementById('history-table-content');
+        const titleElement = document.getElementById('history-title');
+        
+        titleElement.innerText = `📊 ประวัติราคา: ${itemName}`;
+        
+        if (history.length > 0) {
+            // 3. คำนวณราคา (ใช้ parseFloat เพื่อความแม่นยำ)
+            const minPrice = Math.min(...history.map(item => parseFloat(item.price)));
+            const latestPrice = parseFloat(history[0].price);
+
+            let html = `
+                <div style="background: #fff8f0; padding: 10px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #e67e22;">
+                    <small style="color: #7f8c8d;">สรุปราคาล่าสุด:</small>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                        <span>💰 ล่าสุด: <b>${latestPrice.toLocaleString()}.-</b></span>
+                        <span style="color: #27ae60;">📉 ถูกสุด: <b>${minPrice.toLocaleString()}.-</b></span>
+                    </div>
+                </div>
+                <table style="width:100%; border-collapse:collapse; font-size: 0.95rem;">
+                <thead style="background:#fdf2f2; color:#e67e22;">
+                    <tr>
+                        <th style="padding:12px 8px; border-bottom:2px solid #eee; text-align:left;">วันที่ซื้อ</th>
+                        <th style="padding:12px 8px; border-bottom:2px solid #eee; text-align:right;">ราคา (บาท)</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            // 4. แสดงผล 5 รายการล่าสุด (ใช้ slice เพื่อไม่ให้ตารางยาวเกินไป)
+            history.slice(0, 5).forEach(h => {
+                const currentPrice = parseFloat(h.price);
+                const isMinPrice = currentPrice === minPrice;
+                
+                // [สิ่งที่ปรับ]: ใส่สีเขียวเข้มและตัวหนาเฉพาะแถวที่เป็นราคาถูกที่สุด
+                const priceStyle = isMinPrice ? 'color: #27ae60; font-weight: bold;' : 'color: #2c3e50;';
+                
+                html += `
+                <tr style="border-bottom: 1px solid #f9f9f9;">
+                    <td style="padding:12px 8px; color: #7f8c8d;">
+                        ${h.confirmed_date || h.date || 'ไม่ระบุวันที่'} 
+                    </td>
+                    <td style="padding:12px 8px; text-align:right; ${priceStyle}">
+                        ${currentPrice.toLocaleString()}.- ${isMinPrice ? '✨' : ''}
+                    </td>
+                </tr>`;
+            });
+            
+            html += `</tbody></table>`;
+            tableContent.innerHTML = html;
+        } else {
+            // กรณีไม่มีข้อมูลประวัติการซื้อที่สำเร็จ
+            tableContent.innerHTML = `
+                <div style="text-align:center; padding:30px 10px; color:#999;">
+                    <p style="font-size: 3rem; margin:0;">📝</p>
+                    <p>ยังไม่มีประวัติการซื้อ "${itemName}"<br>
+                    <small>ยายต้องกด "จ่ายเงิน/ปิดยอด" ในเมนูจดของก่อนนะครับ</small></p>
+                </div>`;
+        }
+
+        // 5. แสดง Modal (ต้องมั่นใจว่า ID นี้มีอยู่ใน HTML)
+        document.getElementById('price-history-modal').style.display = 'flex';
+
+    } catch (error) {
+        console.error("เกิดข้อผิดพลาดในการดึงประวัติ:", error);
+        alert("ไม่สามารถโหลดประวัติได้ครับพี่ ลองเช็ค console ดูนะ");
+    }
+}
+
+async function renderFullHistory() {
+    const historyContainer = document.getElementById('full-history-display'); 
+    if (!historyContainer) return;
+
+    try {
+        // 1. [การดึงข้อมูล]: ดึงเฉพาะรายการที่ซื้อสำเร็จ (completed)
+        // ใช้ .reverse() เพื่อให้รายการที่เพิ่งซื้อล่าสุด (รวมถึงเวลาล่าสุด) อยู่บนสุดเสมอ
+        const allHistory = await db.shopping_list
+            .where('status')
+            .equals('completed')
+            .reverse()
+            .toArray();
+
+        // 2. [กรณีไม่มีข้อมูล]: แสดงสถานะว่างเปล่า
+        if (allHistory.length === 0) {
+            historyContainer.innerHTML = `
+                <div style="text-align:center; padding: 30px; color:#95a5a6;">
+                    <i class="fas fa-shopping-basket" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <p>ยังไม่มีประวัติการซื้อครับยาย<br><small>พอยายกด "บันทึกราคา" ประวัติจะมาโชว์ตรงนี้ครับ</small></p>
+                </div>
+            `;
+            return;
+        }
+
+        // 3. [การแสดงผล]: วาดรายการประวัติพร้อมรายละเอียด "เวลา"
+        historyContainer.innerHTML = allHistory.map(item => {
+            // แยกวันที่กับเวลาออกจากกัน (ถ้ามี) เพื่อจัดรูปแบบให้สวยขึ้น
+            // สมมติ confirmed_date คือ "3 พฤษภาคม 2569 18:15"
+            const fullDate = item.confirmed_date || item.date;
+            
+            return `
+                <div id="history-item-${item.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 12px; border-bottom: 1px solid #f8f9fa;">
+                    <div style="flex: 1;">
+                        <div style="color: #2c3e50; font-weight: bold; font-size: 1.05rem; margin-bottom: 3px;">
+                            <!-- สำคัญมาก: ต้องมี id="name-display-${item.id}" -->
+                            <span id="name-display-${item.id}">${item.name.split(' (')[0]}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px; color: #7f8c8d; font-size: 0.85rem;">
+                            <span>📅 ${fullDate}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: right; min-width: 100px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                        <div style="color: #27ae60; font-weight: 800; font-size: 1.2rem;">
+                            <!-- สำคัญมาก: ต้องมี id="price-display-${item.id}" -->
+                            <span id="price-display-${item.id}">${Number(item.price).toLocaleString()}</span>.-
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <small style="color: #bdc3c7; font-size: 0.7rem;">บันทึกแล้ว</small>
+                            <!-- ปุ่มแก้ไข -->
+                            <button onclick="editHistoryItem(${item.id})" 
+                                    style="border: none; background: #f1f2f6; border-radius: 4px; cursor: pointer; padding: 2px 5px; font-size: 0.9rem;">
+                                ✏️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error("Error rendering history:", err);
+        historyContainer.innerHTML = `<div style="text-align:center; color:red; padding:10px;">เกิดข้อผิดพลาดในการโหลดประวัติครับ</div>`;
+    }
+}
+
+//แก้ไขรายละเอียดประวัติการซื้อวัตถุดิบ 04-05-2026
+function editHistoryItem(id) {
+    // [จุดที่ต้องแก้]: เปลี่ยนจาก -text- เป็น -display- ให้ตรงกับ HTML
+    const nameSpan = document.getElementById(`name-display-${id}`);
+    const priceSpan = document.getElementById(`price-display-${id}`);
+    
+    // ตรวจสอบความปลอดภัยกัน Error อีกรอบ
+    if (!nameSpan || !priceSpan) {
+        console.error("หาไอดีไม่เจอครับพี่! เช็คสะกดใน HTML อีกทีนะ");
+        return;
+    }
+
+    // เก็บค่าเดิม (ลบลูกน้ำออกด้วยเพื่อให้แก้ราคาที่เป็นตัวเลขได้เลย)
+    const oldName = nameSpan.innerText;
+    const oldPrice = priceSpan.innerText.replace(/,/g, '').replace('.-', '');
+
+    // เปลี่ยนเป็น Input ให้พี่พิมพ์แก้ไขได้
+    nameSpan.innerHTML = `<input type="text" id="edit-name-${id}" value="${oldName}" style="width: 100%; max-width: 150px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">`;
+    
+    priceSpan.innerHTML = `
+        <input type="number" id="edit-price-${id}" value="${oldPrice}" style="width: 70px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"> 
+        <button onclick="saveEdit(${id})" style="background: #27ae60; color: white; border: none; border-radius: 4px; padding: 5px 12px; margin-left: 5px; cursor: pointer;">ตกลง</button>
+    `;
+}
+
+async function saveEdit(id) {
+    const nameInput = document.getElementById(`edit-name-${id}`);
+    const priceInput = document.getElementById(`edit-price-${id}`);
+
+    if (!nameInput || !priceInput) return;
+
+    const newName = nameInput.value;
+    const newPrice = priceInput.value;
+
+    try {
+        // 1. อัปเดตข้อมูลในฐานข้อมูล Dexie
+        await db.shopping_list.update(id, {
+            name: newName,
+            price: Number(newPrice)
+        });
+
+        console.log("✅ แก้ไขข้อมูลสำเร็จ");
+
+        // 2. [จุดสำคัญ]: เรียกฟังก์ชันวาดหน้าจอใหม่ (ตามชื่อที่เจอในรูป)
+        renderFullHistory(); 
+        
+        // 3. อัปเดตข้อมูลวิเคราะห์ราคาบน Dashboard (ถ้ามี)
+        if (typeof updateDashboardPriceInsight === "function") {
+            updateDashboardPriceInsight();
+        }
+        
+    } catch (error) {
+        console.error("❌ เกิดข้อผิดพลาดในการแก้ไข:", error);
+        alert("ไม่สามารถบันทึกการแก้ไขได้ครับ");
+    }
+}
+
+// คนส่งข้อมูล ประวัติวัตถุดิบ โชว์ Dashboard
+async function updateDashboardPriceInsight() {
+    const priceDisplay = document.getElementById('price-content');
+    if (!priceDisplay) return;
+
+    try {
+        // 1. [การดึงข้อมูล]: ดึงรายการล่าสุดที่สถานะเป็น 'completed'
+        // ใช้ .reverse().first() เพื่อหยิบเอา "ชิ้นล่าสุด" ที่เพิ่งบันทึกไปมาโชว์ทันที
+        const lastItem = await db.shopping_list
+            .where('status').equals('completed')
+            .reverse()
+            .first(); 
+
+        if (lastItem) {
+            // 2. [การจัดการชื่อ]: ตัดส่วนที่เป็นหน่วยหรือรายละเอียดในวงเล็บออก เพื่อให้ประหยัดพื้นที่บน Dashboard
+            const shortName = lastItem.name ? lastItem.name.split(' (')[0] : "ไม่ระบุชื่อ";
+            
+            // 3. [การแสดงผล]: เน้นราคาให้ชัดเจน และโชว์ "วันที่+เวลา" ที่เราเพิ่งอัปเกรดเข้าไป
+            priceDisplay.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+                    <div style="color: #856404; font-weight: bold;">
+                        ${shortName} ล่าสุด <span style="color: #e67e22; font-size: 1.1rem;">${Number(lastItem.price).toLocaleString()}.-</span>
+                    </div>
+                    <!-- เพิ่มปุ่มแว่นขยายตรงนี้ -->
+                    <button onclick="showPriceHistory('${lastItem.name}')" 
+                            style="background: #f39c12; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        🔍
+                    </button>
+                </div>
+                <div style="color: #997404; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                    🕒 <small>ซื้อเมื่อ: ${lastItem.confirmed_date || lastItem.date || 'ไม่ระบุเวลา'}</small>
+                </div>
+            `;
+        } else {
+            // 4. [กรณีหน้าใหม่]: ถ้าเปิดแอปครั้งแรกแล้วยังไม่มีประวัติ
+            priceDisplay.innerHTML = `
+                <div style="color: #95a5a6; font-style: italic; padding: 5px;">
+                    ยังไม่มีประวัติการซื้อครับยาย... <br>
+                    <small>พอยายบันทึกราคา ข้อมูลจะมาโชว์ที่นี่ครับ</small>
+                </div>
+            `;
+        }
+    } catch (err) {
+        console.error("Dashboard Insight Error:", err);
+        priceDisplay.innerText = "รอข้อมูลสักครู่นะครับ...";
+    }
+}
+
+function closeShoppingManager() {
+    document.getElementById('shopping-manager-page').style.display = 'none';
+}
+// ==========================================
+// วิเคราะห์ "ช่วงเวลาทำเงิน" 4-05-2026
+// ==========================================
+
+//นับว่าในแต่ละชั่วโมง (0-23) มีออเดอร์เข้าเท่าไหร่
+async function getPeakSalesData() {
+    const orders = await db.orders.toArray();
+    // สร้าง Array 24 ช่อง (แทน 24 ชั่วโมง) เริ่มต้นที่ 0
+    const hourlySales = new Array(24).fill(0);
+
+    orders.forEach(order => {
+        if (order.created_at) {
+            const date = new Date(order.created_at);
+            const hour = date.getHours(); // ดึงชั่วโมง (0-23)
+            hourlySales[hour]++;
+        }
+    });
+
+    return hourlySales;
+}
+
+//2. ส่วนการแสดงผล (UI)
+async function renderPeakSalesChart() {
+    const data = await getPeakSalesData();
+    const maxSales = Math.max(...data); // หาชั่วโมงที่ขายดีที่สุดเพื่อตั้งเป็นเกณฑ์
+    const chartContainer = document.getElementById('peak-sales-chart');
+    
+    if (!chartContainer) return;
+
+    let html = `
+        <div style="display: flex; align-items: flex-end; gap: 4px; height: 100px; padding: 10px 0; border-bottom: 2px solid #eee;">
+    `;
+
+    data.forEach((count, hour) => {
+        // คำนวณความสูง (คิดเป็น %)
+        const height = maxSales > 0 ? (count / maxSales) * 100 : 0;
+        // ไฮไลท์สีส้มเข้มถ้าเป็นชั่วโมงที่ขายดีที่สุด
+        const barColor = count === maxSales && maxSales > 0 ? '#e67e22' : '#bdc3c7';
+        
+        // แสดงเฉพาะชั่วโมงหลักๆ เพื่อไม่ให้แน่นเกินไป (เช่น 06, 12, 18)
+        const label = [6, 12, 18, 21].includes(hour) ? `<span style="font-size: 8px;">${hour}</span>` : '';
+
+        html += `
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="width: 100%; height: ${height}%; background: ${barColor}; border-radius: 2px 2px 0 0;" title="${hour}:00 - ${count} ออเดอร์"></div>
+                ${label}
+            </div>
+        `;
+    });
+
+    html += `</div>
+        <div style="margin-top: 8px; font-size: 0.85rem; color: #7f8c8d; text-align: center;">
+            🕒 ช่วงที่ยายขายดีที่สุดคือ: <b>${data.indexOf(maxSales)}:00 น.</b>
+        </div>
+    `;
+
+    chartContainer.innerHTML = html;
+}
+
+// ==========================================
+// ระบบ ความคุ่มค่า เห็นกำไร (Efficiency Score)  4-05-2026
+// ==========================================
+
+//Logic การคำนวณ
+async function calculateEfficiencyScore() {
+    // 1. ดึงยอดขายทั้งหมด
+    const allOrders = await db.orders.toArray();
+    const totalSales = allOrders.reduce((sum, order) => sum + (Number(order.total_price) || 0), 0);
+
+    // 2. ดึงต้นทุนวัตถุดิบทั้งหมด (ที่บันทึกแล้ว)
+    const allPurchases = await db.shopping_list.where('status').equals('completed').toArray();
+    const totalInvest = allPurchases.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+
+    if (totalInvest === 0) return 0; // ป้องกันการหารด้วยศูนย์
+
+    // 3. คำนวณ Score (เป้าหมายคือยอดขายควรเป็น 3 เท่าของต้นทุนวัตถุดิบตามหลักร้านอาหาร)
+    // สูตร: (ยอดขาย / (ต้นทุน * 3)) * 100
+    let score = (totalSales / (totalInvest * 3)) * 100;
+    
+    return Math.min(Math.round(score), 100); // ไม่ให้เกิน 100 คะแนน
+}
+
+//ส่วนการแสดงผลบน Dashboard (UI)
+async function renderEfficiencyDashboard(totalSales, totalInvest) {
+    // เลือกจุดที่จะวาดข้อมูล (เปลี่ยนให้ตรงกับ ID ใหม่ที่เราตั้ง)
+    const container = document.getElementById('efficiency-content-area');
+    if (!container) return;
+
+    if (totalInvest === 0) return;
+
+    // คำนวณคะแนนเต็ม 10 ตามที่พี่เขียนไว้ในรูป
+    let rawScore = (totalSales / (totalInvest * 3)) * 10;
+    let scoreForShow = Math.min(Math.round(rawScore * 10) / 10, 10); // เช่น 3.5/10
+
+    let statusText = "";
+    let statusColor = scoreForShow >= 8 ? "#27ae60" : (scoreForShow >= 5 ? "#f1c40f" : "#e74c3c");
+
+    if (scoreForShow >= 8) statusText = "สุดยอดครับยาย! บริหารเงินได้กริบมาก";
+    else if (scoreForShow >= 5) statusText = "พอใช้ได้ครับยาย แต่ยังลดต้นทุนได้อีกนะ";
+    else statusText = "ต้องระวังครับ! ช่วงนี้รายจ่ายสูงกว่ายอดขายนะ";
+
+    // วาดข้อมูลใหม่ลงไปในกรอบเดิมที่พี่ทำไว้
+    container.innerHTML = `
+        <div style="text-align: center; font-size: 2.2rem; font-weight: 800; color: ${statusColor}; margin: 5px 0;">
+            ${scoreForShow}/10
+        </div>
+        <div style="background: #eee; height: 8px; border-radius: 4px; margin-bottom: 10px;">
+            <div style="background: ${statusColor}; width: ${scoreForShow * 10}%; height: 100%; border-radius: 4px; transition: width 0.8s;"></div>
+        </div>
+        <div style="font-size: 0.85rem; color: #555; font-style: italic; text-align: center;">
+            ${statusText}
+        </div>
+    `;
 }
 
 // ==========================================
