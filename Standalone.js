@@ -3236,7 +3236,7 @@ async function showSmartReceipt(data) {
                             height: 200,
                             colorDark: "#000000",
                             colorLight: "#ffffff",
-                            correctLevel: QRCode.correctLevel.M 
+                            correctLevel: QRCode.CorrectLevel.H 
                         });
 
                         // เพิ่มคำแนะนำใต้ QR
