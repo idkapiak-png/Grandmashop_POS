@@ -2731,7 +2731,7 @@ async function backupDatabase() {
     }
 }
 
-// 2. ฟังก์ชันนำเข้าข้อมูล (Restore) - จากไฟล์เครื่องเก่า
+// 2. ฟังก์ชันนำเข้าข้อมูล (Restore) - ฉบับปรับปรุงดัก Error รายส่วน 04-05-2026
 async function restoreDatabase(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -2741,31 +2741,77 @@ async function restoreDatabase(event) {
         try {
             const data = JSON.parse(e.target.result);
             
-            if (confirm("⚠️ การนำเข้าข้อมูลจะเขียนทับข้อมูลปัจจุบัน ยืนยันไหม?")) {
-                // ล้างข้อมูลเก่า
-                await db.orders.clear();
-                await db.dailysummary.clear();
-                await db.menus.clear();
-                await db.extra_options.clear();
-
-                // ใส่ข้อมูลใหม่ลงไป
-                if (data.orders) await db.orders.bulkAdd(data.orders);
-                if (data.dailysummary) await db.dailysummary.bulkAdd(data.dailysummary);
-                if (data.menus) await db.menus.bulkAdd(data.menus);
-                if (data.extra_options) await db.extra_options.bulkAdd(data.extra_options);
-
-                // คืนค่า Settings ลง LocalStorage
-                if (data.settings) {
-                    Object.keys(data.settings).forEach(key => {
-                        if (data.settings[key]) localStorage.setItem(key, data.settings[key]);
-                    });
+            if (confirm("⚠️ การนำเข้าข้อมูลจะเขียนทับข้อมูลปัจจุบันทั้งหมด ยืนยันไหมครับยาย?")) {
+                
+                // --- ขั้นตอนที่ 1: ล้างข้อมูลเก่าออกให้หมด ---
+                try {
+                    await Promise.all([
+                        db.orders.clear(),
+                        db.dailysummary.clear(),
+                        db.menus.clear(),
+                        db.extra_options.clear()
+                    ]);
+                } catch (err) {
+                    throw new Error("ล้างข้อมูลเก่าไม่สำเร็จ: " + err.message);
                 }
 
-                alert("✅ นำเข้าข้อมูลสำเร็จ! ระบบจะทำการเริ่มใหม่");
+                // --- ขั้นตอนที่ 2: ทยอยนำเข้าข้อมูลใหม่ทีละส่วน (พร้อมดัก Error) ---
+                
+                // นำเข้าข้อมูลออเดอร์
+                if (data.orders && data.orders.length > 0) {
+                    try {
+                        await db.orders.bulkAdd(data.orders);
+                    } catch (err) {
+                        console.error("Error Restore Orders:", err);
+                        alert("❌ พบปัญหาที่ข้อมูล 'รายการขาย': " + err.message);
+                    }
+                }
+
+                // นำเข้าข้อมูลสรุปรายวัน
+                if (data.dailysummary && data.dailysummary.length > 0) {
+                    try {
+                        await db.dailysummary.bulkAdd(data.dailysummary);
+                    } catch (err) {
+                        alert("❌ พบปัญหาที่ข้อมูล 'สรุปรายวัน': " + err.message);
+                    }
+                }
+
+                // นำเข้าข้อมูลเมนู
+                if (data.menus && data.menus.length > 0) {
+                    try {
+                        await db.menus.bulkAdd(data.menus);
+                    } catch (err) {
+                        alert("❌ พบปัญหาที่ข้อมูล 'เมนูอาหาร': " + err.message);
+                    }
+                }
+
+                // นำเข้าตัวเลือกเสริม
+                if (data.extra_options && data.extra_options.length > 0) {
+                    try {
+                        await db.extra_options.bulkAdd(data.extra_options);
+                    } catch (err) {
+                        alert("❌ พบปัญหาที่ข้อมูล 'ตัวเลือกเสริม': " + err.message);
+                    }
+                }
+
+                // --- ขั้นตอนที่ 3: คืนค่าการตั้งค่า (LocalStorage) ---
+                if (data.settings) {
+                    try {
+                        Object.keys(data.settings).forEach(key => {
+                            if (data.settings[key] !== null) {
+                                localStorage.setItem(key, data.settings[key]);
+                            }
+                        });
+                    } catch (err) {
+                        alert("❌ พบปัญหาการตั้งค่าชื่อร้าน/ต้นทุน: " + err.message);
+                    }
+                }
+
+                alert("✅ นำเข้าข้อมูลเสร็จสิ้น! ระบบจะเริ่มการทำงานใหม่ครับ");
                 location.reload();
             }
         } catch (err) {
-            alert("❌ ไฟล์ไม่ถูกต้องหรือเสีย: " + err.message);
+            alert("❌ รูปแบบไฟล์ไม่ถูกต้อง: " + err.message);
         }
     };
     reader.readAsText(file);
@@ -2915,6 +2961,7 @@ async function exportToCSV() {
     }
 }
 
+//******************************************************************************************************************************************************************************************* */
 // ฟังก์ชันปิดหน้าใบเสร็จ 26-04-2026
 function closeReceipt() {
     document.getElementById('receipt-modal').style.display = 'none';
