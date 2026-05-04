@@ -1573,13 +1573,26 @@ window.onload = async function() {
 };
 
 // ==========================================
-// สรุปภาพรวมธุรกิจ (มุมหลานรัก) chart  03-05--2026
+// สรุปภาพรวมธุรกิจ (มุมหลานรัก) chart  04-05--2026
 // ==========================================
 async function openGrandmaDashboard() {
+    // --- ส่วนที่ 1: การจัดการหน้าจอและประวัติการเข้าชม ---
+    
+    // แสดงหน้าต่าง Modal "มุมหลานรักของยาย"
     document.getElementById('dashboard-modal').style.display = 'block';
     
-    // 1. ดึงข้อมูลทั้งหมดจาก dailysummary
-    const history = await db.dailysummary.orderBy('summary_date').toArray();
+    /**
+     * 🚩 จุดเพิ่มใหม่: สร้าง "ประวัติจำลอง" (Push State)
+     * เมื่อยายกดเปิดหน้าหนี้ แอปจะหลอกเบราว์เซอร์ว่า "มีการขยับไปอีกหน้าหนึ่ง" 
+     * เพื่อให้เวลาเรากดปุ่มย้อนกลับ (Back) ที่ตัวเครื่องมือถือ หรือ Tablet 
+     * มันจะย้อนกลับมาที่ 'state' เดิม (ปิด Modal) แทนที่จะปิดแอปทิ้งไปเลย
+     */
+    history.pushState({ modalOpen: true }, 'GrandmaDashboard'); 
+
+    // --- ส่วนที่ 2: การเตรียมข้อมูลจากฐานข้อมูล ---
+
+    // ดึงข้อมูลสรุปรายวันทั้งหมด เรียงตามวันที่
+    const historyData = await db.dailysummary.orderBy('summary_date').toArray();
     
     let labels = [];
     let salesData = [];
@@ -1587,9 +1600,11 @@ async function openGrandmaDashboard() {
     let accumSales = 0;
     let accumInvest = 0;
 
-    // 2. คำนวณค่าสะสม (Cumulative) เพื่อทำกราฟเส้นหัวใจ
-    history.forEach(day => {
-        labels.push(day.summary_date.split('-').slice(1).join('/')); // เก็บแค่ ว/ด
+    // คำนวณค่าสะสม (Cumulative) เพื่อสร้างกราฟเส้นหัวใจ
+    historyData.forEach(day => {
+        // จัดรูปแบบวันที่จาก 2026-05-04 เป็น 05/04 เพื่อความสวยงามบนกราฟ
+        labels.push(day.summary_date.split('-').slice(1).join('/')); 
+        
         accumSales += (day.total_sales || 0);
         accumInvest += (day.daily_investment || 0);
         
@@ -1597,9 +1612,11 @@ async function openGrandmaDashboard() {
         investmentData.push(accumInvest);
     });
 
-    // 3. วาดกราฟด้วย Chart.js
+    // --- ส่วนที่ 3: การแสดงผลกราฟและตัวเลข ---
+
+    // วาดกราฟเส้นหัวใจธุรกิจ (Chart.js)
     const ctx = document.getElementById('businessHeartChart').getContext('2d');
-    if (window.myChart) window.myChart.destroy(); // เคลียร์กราฟเก่า
+    if (window.myChart) window.myChart.destroy(); // เคลียร์กราฟเก่าทิ้งก่อนวาดใหม่ป้องกันข้อมูลซ้อน
     
     window.myChart = new Chart(ctx, {
         type: 'line',
@@ -1610,15 +1627,29 @@ async function openGrandmaDashboard() {
                 { label: 'ทุนสะสม', data: investmentData, borderColor: '#e74c3c', borderDash: [5, 5], tension: 0.1 }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false 
+        }
     });
 
-    // 4. อัปเดตการ์ดตัวเลขและข้อความให้กำลังใจ
+    // อัปเดตตัวเลขยอดรวมและการ์ดข้อความให้กำลังใจในหน้าจอหลักของ Modal
     updateDashboardUI(accumSales, accumInvest);
 
-    // 🚩 5. เพิ่มส่วนนี้เข้าไปครับ: สั่งวาดคะแนนความเป็นเนื้อเป็นตัว 04-05-2026
-    // เราส่งค่า accumSales และ accumInvest ที่คำนวณไว้แล้วไปใช้ได้เลย!
+    // --- ส่วนที่ 4: การคำนวณขั้นสูง (ฟังก์ชันย่อย) ---
+
+    // 🚩 สั่งวาดคะแนน "ความเป็นเนื้อเป็นตัว" (Efficiency Score) ลงในกรอบสีฟ้า
+    // ส่งค่าสะสมที่คำนวณได้ไปประมวลผลเป็นคะแนน 0-10
     await renderEfficiencyDashboard(accumSales, accumInvest);
+
+    /**
+     * 🚩 จุดแก้ไข: วิเคราะห์ "ช่วงเวลาทำเงิน"
+     * สั่งรันกราฟแท่งเพื่อดูว่าช่วงเวลาไหนของวันที่ยายขายดีที่สุด
+     * (ต้องมั่นใจว่าในฐานข้อมูลมีการเก็บเวลาที่ทำรายการขายไว้ด้วย)
+     */
+    if (typeof renderPeakSalesChart === "function") {
+        renderPeakSalesChart();
+    }
 }
 
 function updateDashboardUI(totalSales, totalInvest) {
@@ -2353,7 +2384,7 @@ async function renderEfficiencyDashboard(totalSales, totalInvest) {
 
     // วาดข้อมูลใหม่ลงไปในกรอบเดิมที่พี่ทำไว้
     container.innerHTML = `
-        <div style="text-align: center; font-size: 2.2rem; font-weight: 800; color: ${statusColor}; margin: 5px 0;">
+        <div style="text-align: center; font-size: 1.8rem; font-weight: 800; color: ${statusColor}; margin: 5px 0;">
             ${scoreForShow}/10
         </div>
         <div style="background: #eee; height: 8px; border-radius: 4px; margin-bottom: 10px;">
@@ -3264,6 +3295,32 @@ window.addEventListener('load', () => {
     }
 });
 
+/**
+ * 🚩 ดักจับการกดย้อนกลับ (Back Button) บนมือถือหรือแท็บเล็ต 04-05-2026
+ * ฟังก์ชันนี้จะทำงานเมื่อเบราว์เซอร์ตรวจพบว่ามีการ "ย้อนกลับ" ในประวัติการเข้าชม (History)
+ */
 window.onpopstate = function(event) {
-    if (document.getElementById('back-page').style.display === 'block') saveAndExit(); 
+    // 1. ดึงหน้าต่าง Modal "มุมหลานรักของยาย" มาเช็ค
+    const dashboardModal = document.getElementById('dashboard-modal');
+
+    // 2. ถ้าปัจจุบันยายเปิดหน้า Dashboard ค้างไว้อยู่
+    if (dashboardModal && dashboardModal.style.display === 'block') {
+        // ให้สั่งปิดหน้า Dashboard แทนการออกจากแอป
+        dashboardModal.style.display = 'none';
+        
+        // (ออปชันเสริม) พี่สามารถใส่คำสั่งเพื่อให้ยายรู้ว่ากลับมาหน้าหลักแล้วได้ที่นี่
+        console.log("ปิดหน้าแดชบอร์ดและกลับสู่หน้าหลักเรียบร้อย");
+        return; // จบการทำงาน ไม่ต้องไปทำคำสั่งอื่น
+    }
+
+    /**
+     * 3. จุดที่พี่เคยเขียนไว้: ถ้าอยู่หน้า 'back-page' ให้บันทึกและออก
+     * ส่วนนี้ยังคงรักษาไว้ได้ถ้าพี่มีการใช้หน้า 'back-page' ในส่วนอื่นของแอป
+     */
+    const backPage = document.getElementById('back-page');
+    if (backPage && backPage.style.display === 'block') {
+        if (typeof saveAndExit === "function") {
+            saveAndExit();
+        }
+    }
 };
