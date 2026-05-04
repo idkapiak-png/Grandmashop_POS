@@ -337,7 +337,7 @@ async function renderExtraOptions() {
         container.appendChild(label);
     });
 }
-// 25-04-2026 
+// 04-05-2026 
 function syncOptions() {
     // 1. ถ้าในตะกร้ายังไม่มีของเลย ก็ไม่ต้องทำอะไร
     if (cart.length === 0) return;
@@ -353,13 +353,22 @@ function syncOptions() {
     // 3. เข้าไปแก้ไข "รายการล่าสุด" ในตะกร้า
     let lastItem = cart[cart.length - 1];
     
-    // อัปเดตราคา (ราคาพื้นฐาน + ราคาตัวเลือกเสริม)
+    // --- 🚩 จุดที่แก้ไข: ตรวจสอบและบันทึกราคาพื้นฐาน (Base Price) ---
+    // ถ้าตัวแปร basePrice ยังไม่มีค่า ให้เอาค่า price ปัจจุบันนั่นแหละบันทึกเก็บไว้ก่อน
+    if (lastItem.basePrice === undefined || lastItem.basePrice === null) {
+        lastItem.basePrice = parseFloat(lastItem.price) || 0;
+    }
+
+    // อัปเดตราคาที่ถูกต้อง (ราคาพื้นฐานที่จำไว้ + ราคาตัวเลือกเสริมที่เพิ่งติ๊ก)
     lastItem.price = lastItem.basePrice + extraPrice;
+    
     // อัปเดตชื่อตัวเลือกเสริม
     lastItem.options = extraNames.join(', ');
 
     // 4. สั่งวาดหน้าจอใหม่
-    updateOrderPreview();
+    if (typeof updateOrderPreview === "function") {
+        updateOrderPreview();
+    }
 }
 
 async function renderOptionsSettings() {
@@ -510,6 +519,13 @@ function updateOrderPreview() {
         actualDiscountAmount = discountConfigValue;
     }
 
+    // 🚩 วางโค้ดตรวจสอบ (Debug) ตรงนี้ครับ
+    console.log("--- 🕵️ ตรวจสอบการคำนวณ ---");
+    console.log("1. ราคาเต็มจากตะกร้า (ก่อนลด):", grandTotal);
+    console.log("2. ยอดส่วนลดที่ดึงมาใช้:", actualDiscountAmount);
+    console.log("3. ยอดสุทธิ (ข้อ 1 ลบ ข้อ 2):", grandTotal - actualDiscountAmount);
+    console.log("-----------------------");
+
     const netTotal = Math.max(0, grandTotal - actualDiscountAmount);
     
     // --- ส่วนที่ 4: แสดงผลส่วนลด (Visual Feedback) ---
@@ -604,31 +620,40 @@ async function confirmOrder(paymentType) {
     try {
         // --- 2. บันทึกลงฐานข้อมูล Dexie ---
         
-        // 2.1 บันทึกรายการอาหารทีละรายการ
+        // 2.1 บันทึกรายการอาหารทีละรายการ 04-05-2026
         for (let i = 0; i < cart.length; i++) {
-            let itemTotal = cart[i].price * cart[i].qty;
-            await db.orders.add({
-                order_id: orderId,
-                menu_name: cart[i].name,
-                qty: cart[i].qty,
-                options: cart[i].options || "", // ป้องกันค่า null
-                total_price: itemTotal, 
-                discount: 0,            
-                payment_method: finalPaymentMethod,
-                created_at: thailandTime
-            });
-        }
 
-        // 2.2 🔥 [จุดยุทธศาสตร์] บันทึกแถวส่วนลดแยกต่างหาก
-        // การระบุชื่อเมนูว่าลดกี่ % จะช่วยให้คุณยายตรวจสอบย้อนหลังได้ง่ายมาก
-        if (actualDiscountBath > 0) {
+            // 🚩 บรรทัดที่ให้เพิ่มเพื่อเช็คครับ
+            console.log(`รายการที่ ${i+1}:`, cart[i].name, "ราคาในตะกร้าคือ:", cart[i].price);
+
+        // 🚩 มั่นใจว่าราคาที่บันทึก คือราคาที่รวม options แล้วจริงๆ
+        // ถ้าโครงสร้างข้อมูลพี่มี basePrice ให้ใช้ basePrice + extra (ถ้ามี)
+        // แต่ถ้าพี่แก้ syncOptions ให้ update ค่า price แล้ว itemTotal จะถูกต้องเองครับ
+        let itemTotal = cart[i].price * cart[i].qty; 
+
+        await db.orders.add({
+            order_id: orderId,
+            menu_name: cart[i].name,
+            qty: cart[i].qty,
+            options: cart[i].options || "", 
+            total_price: itemTotal, // <--- ตัวนี้ต้องเป็น 60 ไม่ใช่ 50
+            discount: 0,            
+            payment_method: finalPaymentMethod,
+            created_at: thailandTime
+        });
+    }
+
+        // 2.2 🔥 [จุดยุทธศาสตร์] บันทึกแถวส่วนลดแยกต่างหาก 04-05-2026
+       // 2.2 🔥 บันทึกแถวส่วนลด
+        // เปลี่ยนจาก actualDiscountAmount เป็น actualDiscountBath ให้ตรงกันครับ
+        if (actualDiscountBath > 0) { 
             await db.orders.add({
                 order_id: orderId,
                 menu_name: `🔻 ส่วนลด (${isPercent ? discountConfigValue + '%' : 'บาท'})`, 
                 qty: 1,
                 options: "โปรโมชั่น/ส่วนลดพื้นฐาน",
-                total_price: -actualDiscountBath,  // ติดลบไว้เพื่อหักยอดรวมในรายงาน
-                discount: actualDiscountBath,
+                total_price: -actualDiscountBath, // ต้องใช้ชื่อนี้เท่านั้น
+                discount: actualDiscountBath,     // ต้องใช้ชื่อนี้เท่านั้น
                 payment_method: finalPaymentMethod,
                 created_at: thailandTime
             });
@@ -2996,7 +3021,7 @@ async function loadRecentOrders() {
             .startsWith(todayStr)
             .toArray();
 
-        // 2. รวมร่างรายการที่ order_id เดียวกัน และ "หักส่วนลด"
+        // 2. รวมร่างรายการที่ order_id เดียวกัน (Logic ใหม่: ป้องกันส่วนลดซ้ำซ้อน)
         const groupedOrders = {};
         allOrders.forEach(order => {
             const gid = order.order_id || order.id; 
@@ -3005,26 +3030,32 @@ async function loadRecentOrders() {
                     order_id: gid,
                     time: order.created_at.includes(' ') ? order.created_at.split(' ')[1].substring(0, 5) : "00:00",
                     itemList: [],
-                    totalRaw: 0,
-                    totalDiscount: 0 // เตรียมไว้ลบส่วนลด
+                    totalNet: 0,       // ยอดสุทธิ (รวมบวกและลบมาแล้ว)
+                    totalDiscount: 0 
                 };
             }
-            groupedOrders[gid].itemList.push(`${order.menu_name}${order.qty > 1 ? ' x' + order.qty : ''}`);
-            groupedOrders[gid].totalRaw += Number(order.total_price || 0);
+
+            // ถ้าไม่ใช่บรรทัดส่วนลด (ราคาเป็นบวก) ให้เพิ่มชื่อเมนู
+            if (order.total_price > 0) {
+                groupedOrders[gid].itemList.push(`${order.menu_name}${order.qty > 1 ? ' x' + order.qty : ''}`);
+            }
             
-            // 🔥 หัวใจ: รวมส่วนลดที่ฝังอยู่ในแต่ละรายการ (ปกติจะอยู่ที่รายการแรก)
-            groupedOrders[gid].totalDiscount += Number(order.discount || 0);
+            // รวมยอดเงิน (60 บวกกับ -10 จะได้ 50 ทันที)
+            groupedOrders[gid].totalNet += Number(order.total_price || 0);
+            
+            // เก็บยอดส่วนลดไว้โชว์สวยๆ เท่านั้น
+            if (order.discount > 0) {
+                groupedOrders[gid].totalDiscount += Number(order.discount || 0);
+            }
         });
 
-        // 3. เรียงจากใหม่ไปเก่า (10 บิลล่าสุด)
+        // 🚩 3. บรรทัดที่พี่ขาดไปจนทำให้ Error: เรียงจากใหม่ไปเก่า (10 บิลล่าสุด)
         const displayOrders = Object.values(groupedOrders).reverse().slice(0, 10);
 
+        // 4. วาดตารางแสดงผล
         tableBody.innerHTML = displayOrders.length ? '' : '<tr><td colspan="4" style="text-align:center; padding:20px;">ยังไม่มีรายการของวันนี้</td></tr>';
 
         displayOrders.forEach(group => {
-            // คำนวณยอดสุทธิ: ยอดเต็ม - ส่วนลด
-            const finalTotal = group.totalRaw - group.totalDiscount;
-
             const tr = document.createElement('tr');
             tr.style.borderBottom = "1px solid #eee";
             tr.innerHTML = `
@@ -3034,7 +3065,7 @@ async function loadRecentOrders() {
                     ${group.totalDiscount > 0 ? `<br><small style="color:#e67e22;">(ส่วนลด ${group.totalDiscount}.-)</small>` : ''}
                 </td>
                 <td style="padding:10px; text-align:right;">
-                    <b>${finalTotal.toLocaleString()}.-</b>
+                    <b>${group.totalNet.toLocaleString()}.-</b>
                 </td>
                 <td style="padding:10px; text-align:center;">
                     <button onclick="reprintByGroupId(${group.order_id})" style="border:none; background:none; cursor:pointer; font-size:1.2rem;">🧾</button>
@@ -3102,71 +3133,84 @@ function closeReceipt() {
 // ==========================================
 // กล่องที่ 7: ระบบใบเสร็จฉลาด (Smart Receipt & QR) - เติม 2-05-2026
 // ==========================================
-
 async function showSmartReceipt(data) {
     const modal = document.getElementById('receipt-modal');
     if (!modal) return;
 
-    // --- 1. เตรียมข้อมูลราคา ---
+    // --- 1. เตรียมข้อมูลราคา (ยึดตามที่บันทึกจริง) ---
     const discountAmount = parseFloat(data.discount) || 0;
-    const rawTotal = parseFloat(data.total_price) || 0;
-    let finalTotal = rawTotal - discountAmount;
+    
+    // 🚩 หัวใจสำคัญ: ถ้าเป็นออเดอร์ย้อนหลัง ให้ดึง total_price ที่บันทึกไว้มาเลย (ไม่ต้องคำนวณใหม่ให้เสี่ยงพลาด)
+    let finalTotal = parseFloat(data.total_price) || 0;
+
+    // ถ้าบังเอิญยอดที่ดึงมามันยังไม่ได้หักส่วนลด (กรณีออเดอร์เก่ามาก) 
+    // เราจะเช็กจาก log console ของพี่ ถ้าบันทึก 50 คือจบ แต่ถ้าบันทึก 60 เราถึงค่อยสั่งลบ
+    if (data.items && data.items.length > 0) {
+        const hasDiscountInItems = data.items.some(item => (parseFloat(item.total_price) || 0) < 0);
+        // ถ้าใน items ไม่มีบรรทัดติดลบ แต่มีค่า discount ในหัวบิล ค่อยเอามาลบออก
+        if (!hasDiscountInItems && finalTotal === (data.items[0].price * data.items[0].qty)) {
+             finalTotal = finalTotal - discountAmount;
+        }
+    }
+
     if (finalTotal < 0) finalTotal = 0;
 
-    // ดึงค่าคงที่จาก Dexie
     const storeData = await db.settings.get('store_name');
     const ppData = await db.settings.get('promptpay');
-
-    // 🔥 [จุดพิสูจน์ที่ 1] เช็กว่าดึงข้อมูลจาก Database (Dexie) สำเร็จไหม 2-05-2026
-    console.log("1. ข้อมูล PromptPay จาก Database:", ppData); // <--- เพิ่มบรรทัดนี้
-
     const shopName = storeData ? storeData.value : (localStorage.getItem('shopName') || "ร้านยายขายทุกอย่าง");
     
-    // 2. ใส่หัวใบเสร็จและรายการ
+    // --- 2. ใส่หัวใบเสร็จ ---
     document.getElementById('r-shop-name').innerText = shopName;
     document.getElementById('r-date').innerText = "วันที่: " + new Date(data.created_at).toLocaleString('th-TH');
     
+    // --- 3. รายการอาหาร (กรองเอาเฉพาะของกิน ไม่เอาบรรทัดส่วนลดมาโชว์ซ้ำ) ---
     const itemsContainer = document.getElementById('r-items');
-    itemsContainer.innerHTML = data.items.map(item => `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
-            <span>${item.name} ${item.options ? '<br><small style="color:gray;">('+item.options+')</small>' : ''}</span>
-            <span>x${item.qty} ${(item.price * item.qty).toLocaleString()}.-</span>
-        </div>
-    `).join('');
+    const foodItems = data.items.filter(item => {
+        const p = parseFloat(item.total_price) || parseFloat(item.price) || 0;
+        return p > 0; // เอาเฉพาะรายการที่ราคาเป็นบวก
+    });
+
+    itemsContainer.innerHTML = foodItems.map(item => {
+        const displayName = item.menu_name || item.name || "รายการอาหาร";
+        const displayPrice = parseFloat(item.total_price) || (parseFloat(item.price) * (item.qty || 1)) || 0;
+        return `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
+                <span>${displayName} ${item.options ? '<br><small style="color:gray;">('+item.options+')</small>' : ''}</span>
+                <span>x${item.qty || 1} ${displayPrice.toLocaleString()}.-</span>
+            </div>
+        `;
+    }).join('');
     
+    // ยอดรวมสุทธิต้องเด่นและถูกต้อง
     document.getElementById('r-total').innerText = `รวมทั้งสิ้น: ${finalTotal.toLocaleString()}.-`;
     
-    // --- 3. [จุดแก้ไข] เช็กเงื่อนไขวิธีชำระเงิน (กันพลาดเรื่องตัวพิมพ์เล็ก-ใหญ่) ---
-    const method = String(data.payment_method).toLowerCase(); // แปลงเป็นตัวเล็กทั้งหมดเพื่อให้เช็กง่าย
+    // --- 4. วิธีชำระเงินและส่วนลด (โชว์เพื่อให้รู้ว่าหักอะไรไป) ---
+    const method = String(data.payment_method || "").toLowerCase();
     let isQR = (method === 'qr' || method === 'transfer'); 
-
     let paymentHTML = "วิธีชำระ: " + (isQR ? '📱 เงินโอน/QR' : '💵 เงินสด');
+    
     if (discountAmount > 0) {
         paymentHTML = `<div style="color:#e67e22; font-weight:bold; margin-bottom:4px;">🔥 ส่วนลดท้ายบิล: -${discountAmount.toLocaleString()}.-</div>` + paymentHTML;
     }
     document.getElementById('r-payment').innerHTML = paymentHTML;
     
-    // --- 4. จัดการส่วน QR Code ---
+    // --- 5. จัดการส่วน QR Code (รองรับโหมด Offline แบบสมบูรณ์) ---
     const qrContainer = document.getElementById('qrcode');
     qrContainer.innerHTML = ""; 
-    
+
     if (isQR) {
         const promptpayNumber = ppData ? ppData.value : null;
 
-        // 🔥 [จุดพิสูจน์ที่ 2] เช็กค่าที่ตัวแปรนำไปใช้จริง 2-05-2026
-        console.log("2. ค่าเลข PromptPay ที่จะนำไปวาด QR:", promptpayNumber); // <--- เพิ่มบรรทัดนี้
-
         if (promptpayNumber) {
             const cleanNumber = promptpayNumber.replace(/[^0-9]/g, "").trim();
-            const qrAmount = finalTotal; 
+            const qrAmount = finalTotal;
 
             if (navigator.onLine) {
-                // --- [MODE: ONLINE] ---
+                // --- [โหมดออนไลน์] ดึงรูปจาก PromptPay.io ---
                 qrContainer.innerHTML = `
                     <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block; border: 1px solid #eee;">
                         <img src="https://promptpay.io/${cleanNumber}/${qrAmount}.png" 
-                             style="width:200px; height:200px; display:block;"
-                             onerror="this.style.display='none'; alert('โหลด QR ไม่สำเร็จ เช็กอินเทอร์เน็ตครับ');">
+                             style="width:200px; height:200px; display:block;">
                         <p style="margin-top:8px; font-size:0.85rem; color:#1a237e; font-weight:bold;">
                             ${cleanNumber}<br>
                             <span style="color:#27ae60;">ยอดเงิน: ${qrAmount.toLocaleString()} บาท</span>
@@ -3174,9 +3218,11 @@ async function showSmartReceipt(data) {
                     </div>
                 `;
             } else {
-                // --- [MODE: OFFLINE] ---
+                // --- [โหมดออฟไลน์] ---
                 const generateQR = window.promptpayQr ? window.promptpayQr.generatePayload : null;
+
                 if (typeof generateQR === 'function' && window.QRCode) {
+                    // 1. ถ้ามี Library สำหรับวาด QR ออฟไลน์ ให้วาดออกมา
                     try {
                         const payload = generateQR(cleanNumber, qrAmount);
                         const qrBox = document.createElement('div');
@@ -3189,23 +3235,36 @@ async function showSmartReceipt(data) {
                             height: 180,
                             correctLevel: QRCode.CorrectLevel.M
                         });
+                        
+                        qrContainer.innerHTML += `<p style="color:#f39c12; font-weight:bold; margin-top:8px;">⚠️ โหมดออฟไลน์ (QR ทำงานปกติ)</p>`;
                     } catch (err) {
-                        qrContainer.innerHTML = `<p style="color:red;">สร้าง QR ออฟไลน์พลาด</p>`;
+                        showOfflineText(qrContainer, cleanNumber, qrAmount);
                     }
                 } else {
-                    qrContainer.innerHTML = `<p style="color:orange;">กรุณาต่อเน็ตเพื่อโหลด QR</p>`;
+                    // 2. ถ้าไม่มี Library หรือวาดไม่สำเร็จ ให้โชว์เป็นข้อความเลขบัญชี (ตามที่พี่ต้องการ)
+                    showOfflineText(qrContainer, cleanNumber, qrAmount);
                 }
             }
         } else {
             qrContainer.innerHTML = "<p style='color:red;'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
         }
     } else {
-        // กรณีเงินสด
-        qrContainer.innerHTML = `<div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div><p style="font-size: 0.9rem;">ขอบคุณที่ชำระเงินสดครับ</p>`;
+        qrContainer.innerHTML = `<div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div><p>ขอบคุณที่ชำระเงินสดครับ</p>`;
     }
     
-    // 5. เปิด Modal
     modal.style.display = 'flex';
+}
+
+// 🚩 อย่าลืมก๊อปปี้ฟังก์ชันเสริมนี้ไปวางไว้ "นอก" ฟังก์ชันหลักด้วยนะครับ 04-05-2026
+function showOfflineText(container, number, amount) {
+    container.innerHTML = `
+        <div style="background: #fff9f0; padding: 15px; border: 2px dashed #e67e22; border-radius: 10px;">
+            <p style="color: #d35400; font-weight: bold; margin-bottom: 10px;">⚠️ ตอนนี้ระบบ Offline</p>
+            <p style="font-size: 0.9rem; margin-bottom: 5px;">โอนเงิน PromptPay ตามเลขนี้ได้เลยครับ:</p>
+            <h2 style="color: #1a237e; letter-spacing: 2px; margin: 10px 0;">${number}</h2>
+            <p style="font-size: 1.1rem; color: #27ae60; font-weight: bold;">ยอดโอน: ${amount.toLocaleString()} บาท</p>
+        </div>
+    `;
 }
 
 function closeReceipt() {
