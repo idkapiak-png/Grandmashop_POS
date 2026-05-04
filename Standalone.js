@@ -3194,66 +3194,76 @@ async function showSmartReceipt(data) {
     }
     document.getElementById('r-payment').innerHTML = paymentHTML;
     
-    // --- 5. จัดการส่วน QR Code (รองรับโหมด Offline แบบสมบูรณ์) ---
+    // --- 5. จัดการส่วน QR Code (รองรับโหมด Offline แบบสมบูรณ์ 05-05-2026) ---
     const qrContainer = document.getElementById('qrcode');
-    qrContainer.innerHTML = ""; 
+    qrContainer.innerHTML = ""; // ล้างหน้าจอดก่อนวาดใหม่
 
     if (isQR) {
         const promptpayNumber = ppData ? ppData.value : null;
-
         if (promptpayNumber) {
             const cleanNumber = promptpayNumber.replace(/[^0-9]/g, "").trim();
             const qrAmount = finalTotal;
 
+            // 🚩 ตรวจสอบสถานะ Online/Offline
             if (navigator.onLine) {
-                // --- [โหมดออนไลน์] ดึงรูปจาก PromptPay.io ---
+                // [โหมดออนไลน์] ดึงรูปจาก API (เร็วและชัวร์ถ้ามีเน็ต)
                 qrContainer.innerHTML = `
-                    <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block; border: 1px solid #eee;">
-                        <img src="https://promptpay.io/${cleanNumber}/${qrAmount}.png" 
-                             style="width:200px; height:200px; display:block;">
-                        <p style="margin-top:8px; font-size:0.85rem; color:#1a237e; font-weight:bold;">
-                            ${cleanNumber}<br>
-                            <span style="color:#27ae60;">ยอดเงิน: ${qrAmount.toLocaleString()} บาท</span>
-                        </p>
-                    </div>
-                `;
+                <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block; border: 1px solid #eee;">
+                    <img src="https://promptpay.io/${cleanNumber}/${qrAmount}.png"
+                        style="width:200px; height:200px; display:block;">
+                    <p style="margin-top:8px; font-size:0.85rem; color:#1a237e; font-weight:bold;">
+                    ${cleanNumber}<br>
+                    <span style="color:#27ae60;">ยอดเงิน: ${qrAmount.toLocaleString()}บาท</span>
+                    </p>    
+                </div>`;
             } else {
-                // --- [โหมดออฟไลน์] ---
-                const generateQR = window.promptpayQr ? window.promptpayQr.generatePayload : null;
-
-                if (typeof generateQR === 'function' && window.QRCode) {
-                    // 1. ถ้ามี Library สำหรับวาด QR ออฟไลน์ ให้วาดออกมา
+                // [โหมดออฟไลน์] 🚩 เรียกใช้ไฟล์ Local ที่พี่เตรียมไว้
+                // ตรวจสอบว่าไฟล์ qrcode.min.js (QRCode) และ promptpay-qr-local.js (promptpayQr) โหลดมาหรือยัง
+                if (typeof QRCode !== 'undefined' && window.promptpayQr) {
                     try {
-                        const payload = generateQR(cleanNumber, qrAmount);
+                        // 1. ใช้ promptpay-qr-local.js สร้างรหัส Payload
+                        const payload = window.promptpayQr.generatePayload(cleanNumber,{ amount: qrAmount });
+
+                        // 2. สร้าง Element สำหรับวาง QR
                         const qrBox = document.createElement('div');
                         qrBox.style.cssText = "background: white; padding: 10px; border-radius: 10px; display: inline-block;";
                         qrContainer.appendChild(qrBox);
 
+                        // 3. ใช้ qrcode.min.js วาดรูป QR Code จาก Payload
                         new QRCode(qrBox, {
                             text: payload,
-                            width: 180,
-                            height: 180,
-                            correctLevel: QRCode.CorrectLevel.M
+                            width: 200,
+                            height: 200,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.correctLevel.M 
                         });
-                        
-                        qrContainer.innerHTML += `<p style="color:#f39c12; font-weight:bold; margin-top:8px;">⚠️ โหมดออฟไลน์ (QR ทำงานปกติ)</p>`;
+
+                        // เพิ่มคำแนะนำใต้ QR
+                        qrContainer.innerHTML += `
+                        <p style="margin-top:8px; font-size:0.85rem; color:#e67e22; font-weight:bold;">
+                            ⚠️ โหมด Offline (สแกนได้ปกติ)<br>
+                            <span style="color:#1a237e;">${cleanNumber}</span>
+                        </p>`;
                     } catch (err) {
+                        console.error("QR Local Error:", err);
                         showOfflineText(qrContainer, cleanNumber, qrAmount);
                     }
                 } else {
-                    // 2. ถ้าไม่มี Library หรือวาดไม่สำเร็จ ให้โชว์เป็นข้อความเลขบัญชี (ตามที่พี่ต้องการ)
+                    // 🚩 ถ้าไฟล์ .js ไม่โหลด หรือไม่มี Library ให้โชว์ข้อความกรอบส้มที่พี่ต้องการ
                     showOfflineText(qrContainer, cleanNumber, qrAmount);
                 }
             }
         } else {
-            qrContainer.innerHTML = "<p style='color:red;'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
+                qrContainer.innerHTML = "<p style='color:red;'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
+            }
+        } else {
+            qrContainer.innerHTML = `<div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div><p>ขอบคุณที่ชำระเงินสดครับ</p>`;
         }
-    } else {
-        qrContainer.innerHTML = `<div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div><p>ขอบคุณที่ชำระเงินสดครับ</p>`;
-    }
+
+     modal.style.display = 'flex';
+ }
     
-    modal.style.display = 'flex';
-}
 
 // 🚩 อย่าลืมก๊อปปี้ฟังก์ชันเสริมนี้ไปวางไว้ "นอก" ฟังก์ชันหลักด้วยนะครับ 04-05-2026
 function showOfflineText(container, number, amount) {
@@ -3263,6 +3273,7 @@ function showOfflineText(container, number, amount) {
             <p style="font-size: 0.9rem; margin-bottom: 5px;">โอนเงิน PromptPay ตามเลขนี้ได้เลยครับ:</p>
             <h2 style="color: #1a237e; letter-spacing: 2px; margin: 10px 0;">${number}</h2>
             <p style="font-size: 1.1rem; color: #27ae60; font-weight: bold;">ยอดโอน: ${amount.toLocaleString()} บาท</p>
+            <p style="font-size: 0.7rem; color: #999; margin-top: 10px;">*สแกน QR ไม่ได้เนื่องจากไม่ได้โหลดไฟล์เสริม</p>
         </div>
     `;
 }
