@@ -1277,7 +1277,7 @@ async function checkoutTable() {
 }
 
 // ==========================================
-// ฟังก์ชันกลาง: สำหรับบันทึกยอดขายและเคลียร์ข้อมูล 29-04-2026
+// ฟังก์ชันกลาง: สำหรับบันทึกยอดขายและเคลียร์ข้อมูล 05-05-2026 เชื่อมระบบ P2P
 // paymentMethod: 'cash' หรือ 'transfer'
 // ==========================================
 async function finalizeOrder(paymentMethod) {
@@ -1290,7 +1290,7 @@ async function finalizeOrder(paymentMethod) {
         const orderId = Date.now();
         const createdAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-        // 1. บันทึกรายการลงตาราง orders (ยอดขายจริง)
+        // 1. บันทึกรายการลงตาราง orders (ยอดขายจริง) - คงเดิม
         for (const item of cart) {
             await db.orders.add({
                 order_id: orderId,
@@ -1303,37 +1303,50 @@ async function finalizeOrder(paymentMethod) {
             });
         }
 
-        // 2. 🔥 ล้างข้อมูลระบบโต๊ะ (ส่วนสำคัญที่ทำให้โต๊ะหายส้ม)
+        // 2. 🔥 ล้างข้อมูลระบบโต๊ะ (ส่วนสำคัญที่ทำให้โต๊ะหายส้ม) - คงเดิม
         if (selectedTable) {
-            // ลบจากฐานข้อมูล Offline (Dexie)
             await db.active_tables.delete(selectedTable);
             console.log(`🧹 เคลียร์ข้อมูลโต๊ะ ${selectedTable} เรียบร้อย`);
-            
-            // รีเซ็ตตัวแปรคุมสถานะให้เป็นค่าว่าง
             selectedTable = null; 
         }
 
-        // 3. 🧹 กวาดล้าง UI (ป้องกันปุ่มเก่าโผล่ซ้อน)
-        cart = []; // ล้างข้อมูลในตะกร้าหน้าจอ
+        // 🌟 [จุดเพิ่มเติม: ระบบ P2P] 🌟
+        // เราส่งข้อมูล "ก่อน" ล้างตะกร้า เพื่อให้เครื่องแม่ได้รับข้อมูลที่ครบถ้วน
+        if (typeof sendP2PData === "function") {
+            const orderPayload = {
+                type: 'ORDER_INCOMING',
+                orderId: orderId,
+                table: selectedTable || "หน้าร้าน", // บอกเครื่องแม่ว่ามาจากโต๊ะไหน
+                items: cart, // ส่งรายการอาหารทั้งหมด
+                // คำนวณยอดสุทธิรวมส่วนลดส่งไปด้วย
+                totalNet: cart.reduce((sum, item) => sum + (item.price - (item.discount || 0)), 0),
+                time: createdAt
+            };
+            sendP2PData(orderPayload); 
+            console.log("📡 ส่งข้อมูลออเดอร์ไปยังเครื่องแม่ผ่าน P2P แล้ว");
+        }
 
-        // รีเซ็ตตัวหนังสือบอกเลขโต๊ะให้กลับเป็น "หน้าร้าน"
+        // 3. 🧹 กวาดล้าง UI (ป้องกันปุ่มเก่าโผล่ซ้อน) - คงเดิม
+        cart = []; // ข้อมูลในเครื่องลูกถูกล้างหลังจากส่ง P2P เสร็จ
+
+        // รีเซ็ตตัวหนังสือบอกเลขโต๊ะ - คงเดิม
         const display = document.getElementById('current-table-display');
         if (display) {
             display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
-            display.style.background = "#34495e"; // กลับเป็นสีเข้มปกติ
+            display.style.background = "#34495e"; 
         }
 
-        // ซ่อนปุ่ม "ฝากลงโต๊ะ" ทันที เพราะเราจบงานแล้ว
+        // ซ่อนปุ่ม "ฝากลงโต๊ะ" - คงเดิม
         const btnToTable = document.getElementById('btn-to-table');
         if (btnToTable) {
             btnToTable.style.display = 'none';
         }
 
-        // 4. สั่งวาดหน้าจอใหม่ทั้งหมด
-        updateOrderPreview();    // ล้างรายการอาหารในตะกร้าที่โชว์อยู่
-        renderTableSelection(); // 🌟 สำคัญมาก: เพื่อให้ปุ่มโต๊ะกลับเป็นสีเทา (ว่าง)
+        // 4. สั่งวาดหน้าจอใหม่ทั้งหมด - คงเดิม
+        updateOrderPreview();    
+        renderTableSelection(); 
 
-        // 5. แสดงผลลัพธ์การชำระเงิน
+        // 5. แสดงผลลัพธ์การชำระเงิน - คงเดิม
         if (paymentMethod === 'transfer') {
             if (typeof generateQRCode === 'function') generateQRCode();
         } else {
