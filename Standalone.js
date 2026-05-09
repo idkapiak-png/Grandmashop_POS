@@ -1412,30 +1412,33 @@ async function finalizeOrder(paymentMethod) {
 // วางระบบ P2P 07-05-2026
 // ==========================================
 
-//คำสั่ง "ส่งเมนูอาหารเข้าครัว" 09-05-2026
+//คำสั่ง "ส่งเมนูอาหารเข้าครัว" 10-05-2026
 function executeOrderSent() {
-    // 1. เช็คก่อนว่าในตะกร้ามีของไหม (ถ้าว่าง ไม่ต้องส่ง)
-    if (!cart || cart.length === 0) {
-        console.log("⚠️ ตะกร้าว่างเปล่า ไม่มีการส่งข้อมูล");
-        return;
-    }
+    // 1. เช็คตะกร้าก่อน (เหมือนเดิม)
+    if (!cart || cart.length === 0) return;
 
-    // 2. รวบรวมข้อมูลออเดอร์ (สร้างก้อนข้อมูล Payload)
+    // 2. รวบรวมข้อมูล (ใช้ชื่อ selectedTable ตามบรรทัดที่ 7 เป๊ะๆ)
     const orderData = {
         type: 'ORDER_INCOMING',
-        table: typeof selectedTable !== 'undefined' ? selectTable : 'กลับบ้าน', // เปลี่ยนตัวแปร 10-05-2026
-        // ใช้ JSON.parse(JSON.stringify()) เพื่อก๊อปปี้ข้อมูลให้ขาดจากกัน
+        // ✅ ใช้ selectedTable (มี ed) ทั้งสองจุดครับ
+        table: (typeof selectedTable !== 'undefined' && selectedTable) ? selectedTable : 'กลับบ้าน', 
+        
+        // ✅ ล้างฟังก์ชันทิ้งด้วยวิธีเดิม เพื่อป้องกัน Error ในรูป 189.png
         items: JSON.parse(JSON.stringify(cart)), 
+        
         orderId: 'ORD-' + Date.now(),
-        time: new Date().toLocaleTimeString('th-TH') // เพิ่มเวลาที่สั่ง
+        time: new Date().toLocaleTimeString('th-TH'),
+        totalPrice: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
     };
 
-    // 3. ตรวจสอบการเชื่อมต่อ P2P ก่อนส่ง
-    if (typeof submitOrderP2P === 'function') {
+    // 3. ส่งข้อมูล P2P (เช็คความพร้อมของท่อเชื่อมต่อ)
+    if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
         submitOrderP2P(orderData); 
         console.log("🚀 วาร์ปออเดอร์เข้าครัวแล้ว:", orderData);
+        alert("✅ ส่งออเดอร์ไปที่ครัวเรียบร้อย!");
     } else {
-        console.error("❌ ไม่พบฟังก์ชัน submitOrderP2P ในระบบ");
+        console.error("❌ การเชื่อมต่อ P2P ไม่พร้อม");
+        alert("❌ เชื่อมต่อเครื่องแม่ไม่ได้ กรุณากดเชื่อมต่อใหม่ครับ");
     }
 }
 
