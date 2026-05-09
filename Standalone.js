@@ -1,57 +1,36 @@
 // ==========================================
-// กล่องที่ 1: หัวใจระบบ (ฐานข้อมูล Dexie) - อัปเกรดเตรียมทำ Dashboard 03-05-2026
+// 1. ประกาศตัวแปร Global (ลบ require ออกแล้วเพื่อให้ Browser ทำงานได้)
+// ==========================================
+let cart = []; // ตะกร้าสินค้าหลัก
+let menus = []; // รายการเมนูหลักที่ดึงจากฐานข้อมูล
+let selectedTable = null; // เก็บเลขโต๊ะที่เลือก
+let currentOrder = { name: "", price: 0, qty: 1 };
+let currentEditId = null; 
+let currentShoppingItem = { name: "", price: 0 };
+
+// ==========================================
+// 2. หัวใจระบบ: ฐานข้อมูล Dexie (ย้ายมาบนสุดเพื่อแก้ปัญหา Error)
 // ==========================================
 const db = new Dexie("StandaloneDatabase");
 
-// 🚀 อัปเกรดเป็น version(11) เพื่อรองรับระบบ "ประวัติการซื้อย้อนหลัง"
-// การขยับเลขเวอร์ชันจะทำให้ Dexie อัปเดตโครงสร้างตารางโดยไม่ลบข้อมูลเก่าครับ
 db.version(11).stores({
-    // 1: ตารางตั้งค่า (ห้ามลบ)
     settings: 'key', 
-
-    // 2: ตารางคำสั่งซื้อ
     orders: '++id, order_id, menu_name, total_price, discount, created_at, options, payment_method',
-
-    // 3: ระบบโต๊ะ
     active_tables: 'table_id, last_update', 
-
-    // 4: ตารางสรุปรายวัน (ใช้ทำกราฟเส้นหัวใจ)
     dailysummary: 'summary_date, total_sales, egg_count, daily_investment, net_profit',
-
-    // 5-6: เมนูและตัวเลือกเสริม
     menus: '++id, name, price',
     extra_options: '++id, name, price',
-
-    // 7: บันทึกความปลอดภัย
     security_logs: '++id, dateOnly, event',
-
-    // 8: [จุดที่แก้ไข ✨] ตารางรายการซื้อของ (Shopping List)
-    // เพิ่ม 'confirmed_date' เพื่อบันทึกวันที่ซื้อจริง และทำให้ค้นหา 'status' ได้เร็วขึ้น
     shopping_list: '++id, name, price, status, date, confirmed_date',
-
-    // 9: [จุดที่แก้ไข ✨] คลังประวัติราคา (Price Insight)
-    // เพิ่ม 'last_updated' เพื่อใช้จัดลำดับราคาล่าสุดที่เคยบันทึกไว้
     price_history: 'name, last_price, best_price, last_updated' 
 });
 
-// เปิดการเชื่อมต่อฐานข้อมูล
 db.open().then(() => {
     console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 11: เปิดระบบประวัติการซื้อย้อนหลังให้คุณยาย)");
 }).catch(err => {
     console.error("❌ เปิดฐานข้อมูลไม่ได้: " + err.stack);
 });
 
-// --- [ตัวแปรสถานะระบบ] ---
-let currentOrder = { name: "", price: 0, qty: 1 };
-let selectedTable = null;
-
-// สำหรับระบบจดของ
-let currentEditId = null; // บันทึกเสร็จแล้ว เคลียร์ค่า ID ทิ้ง
-let currentShoppingItem = { name: "", price: 0 };
-
-
-// ✨ เพิ่มบรรทัดนี้เข้าไปครับ เพื่อแก้ Error: menus is not defined
-let menus = [];
 
 // ฟังก์ชันบันทึกรายการ (จดปากกาเขียนลงสมุด)
 async function saveShoppingItem() { 
@@ -433,8 +412,6 @@ async function updateExtra(id, field, value) {
 // กล่องที่ 4: ระบบการขาย (Order & Preview)
 // ==========================================
 
-let cart = []; // ใช้เก็บรายการอาหารทั้งหมดที่เลือก
-
 function orderMenu(name, price) {
     // 1. เพิ่มวัตถุใหม่ลงใน Array cart ทันที (เริ่มจากราคาปกติก่อน)
     cart.push({
@@ -714,6 +691,9 @@ async function confirmOrder(paymentType) {
         if (typeof showSmartReceipt === "function") {
             showSmartReceipt(receiptData); 
         }
+
+        //ระบบ P2P 09-05-2026
+        executeOrderSent()
 
         // เคลียร์ตะกร้าและอัปเดตหน้าจอ
         cart = []; 
@@ -1112,6 +1092,9 @@ async function confirmToTable() {
         console.log(`✅ หย่อนบิลลงโต๊ะ ${selectedTable} สำเร็จ!`);
         alert(`เพิ่มรายการลงโต๊ะ ${selectedTable} เรียบร้อยแล้วครับ`);
 
+        //ระบบ P2P 09-05-2026
+        executeOrderSent();
+
     } catch (err) {
         console.error("เกิดข้อผิดพลาดในการหย่อนบิล:", err);
         alert("อุ้ย! บันทึกลงโต๊ะไม่ได้ ตรวจสอบฐานข้อมูลทีครับ");
@@ -1184,51 +1167,51 @@ async function refreshBillingBox(tableId) {
     }
 }
 
-//หย่อนบิลสั่งอาหาร 30-04-2026
+//หย่อนบิลสั่งอาหาร 09-05-2026
 async function saveOrderToTable() {
+    // เช็กความพร้อมเบื้องต้น
     if (cart.length === 0) return alert("เลือกเมนูก่อนฝากลงโต๊ะครับ!");
     if (!selectedTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
 
     try {
-        // --- 1. [ส่วนสำคัญ] ระบบดึงข้อมูลเดิมมาต่อยอด ---
-        // เช็กก่อนว่าโต๊ะนี้มีออเดอร์ค้างอยู่แล้วหรือเปล่า
+        // --- 1. ระบบดึงข้อมูลเดิมมาต่อยอด (คงเดิมไว้เพื่อความเสถียร) ---
         const existingOrder = await db.active_tables.get(selectedTable);
-        
         let finalItems = [];
         
         if (existingOrder && existingOrder.order_items) {
-            // กรณีมีของเก่า: เอา "ของเก่า" มากางออก แล้วเติม "ของใหม่จากตะกร้า" ต่อท้ายเข้าไป
             finalItems = [...existingOrder.order_items, ...cart];
             console.log(`➕ โต๊ะ ${selectedTable} สั่งเพิ่ม: รวมเป็น ${finalItems.length} รายการ`);
         } else {
-            // กรณีโต๊ะว่าง: ใช้ข้อมูลจากตะกร้าได้เลย
             finalItems = [...cart];
             console.log(`📥 โต๊ะ ${selectedTable} สั่งครั้งแรก: ${finalItems.length} รายการ`);
         }
 
-        // --- 2. บันทึกข้อมูลลงในตาราง active_tables ---
-        // ใช้ชื่อ 'order_items' ตามที่เพื่อนกำหนด เพื่อให้ refreshBillingBox ทำงานได้
+        // --- 2. บันทึกข้อมูลลงในฐานข้อมูล Dexie (คงเดิม) ---
         await db.active_tables.put({
             table_id: selectedTable,
-            order_items: finalItems, // 🔥 ใช้รายการที่รวมกันแล้ว (Array ที่สะสมของเก่า+ใหม่)
-            updated_at: new Date().toLocaleString('sv-SE') // รูปแบบ YYYY-MM-DD HH:mm:ss
+            order_items: finalItems, 
+            updated_at: new Date().toLocaleString('sv-SE') 
         });
 
-        alert(`📥 ฝากรายการลงโต๊ะ ${selectedTable} เรียบร้อย!`);
-        
-        // --- 3. ล้างข้อมูลเพื่อเริ่มออเดอร์ถัดไป ---
-        const lastTable = selectedTable; // จำเลขโต๊ะไว้เพื่ออัปเดต UI ก่อนรีเซ็ต
-        cart = [];
-        selectedTable = null; // รีเซ็ตสถานะกลับเป็น Walk-in (หน้าร้าน)
-        
-        // --- 4. อัปเดตหน้าจอ (UI) ---
-        // วาดปุ่มโต๊ะใหม่ เพื่อให้ปุ่มกลายเป็นสีส้ม (สถานะมีบิลค้าง)
-        if (typeof renderTableSelection === "function") await renderTableSelection();
-        
-        // ล้าง Preview ตะกร้าสินค้าหน้าจอหลัก
-        if (typeof updateOrderPreview === "function") updateOrderPreview();
+        // ==========================================
+        // ⭐ [จุดที่เพิ่มใหม่] ระบบวาร์ปออเดอร์เข้าครัว (P2P)
+        // ต้องวางไว้ "ก่อน" ล้างตะกร้า (cart = []) เพื่อให้มีข้อมูลส่งไปเครื่องแม่
+        // ==========================================
+        if (typeof executeOrderSent === "function") {
+            executeOrderSent(); 
+            console.log("🚀 P2P: ส่งรายการใหม่เข้าครัวเรียบร้อย");
+        }
 
-        // อัปเดตกล่องสรุปยอดเงินข้างๆ (ถ้ามี)
+        alert(`📥 ฝากรายการลงโต๊ะ ${selectedTable} และแจ้งครัวเรียบร้อย!`);
+        
+        // --- 3. ล้างข้อมูลเพื่อเริ่มออเดอร์ถัดไป (คงเดิม) ---
+        const lastTable = selectedTable; 
+        cart = []; // ล้างตะกร้าหลังจากส่งข้อมูล P2P แล้ว (ปลอดภัย)
+        selectedTable = null; 
+        
+        // --- 4. อัปเดตหน้าจอ UI (คงเดิม) ---
+        if (typeof renderTableSelection === "function") await renderTableSelection();
+        if (typeof updateOrderPreview === "function") updateOrderPreview();
         if (typeof refreshBillingBox === "function") {
             refreshBillingBox(lastTable);
         }
@@ -1423,6 +1406,38 @@ async function finalizeOrder(paymentMethod) {
         alert("เกิดข้อผิดพลาดในการบันทึกยอดขาย!");
     }
 }
+
+// ==========================================
+// วางระบบ P2P 07-05-2026
+// ==========================================
+
+//คำสั่ง "ส่งเมนูอาหารเข้าครัว" 09-05-2026
+function executeOrderSent() {
+    // 1. เช็คก่อนว่าในตะกร้ามีของไหม (ถ้าว่าง ไม่ต้องส่ง)
+    if (!cart || cart.length === 0) {
+        console.log("⚠️ ตะกร้าว่างเปล่า ไม่มีการส่งข้อมูล");
+        return;
+    }
+
+    // 2. รวบรวมข้อมูลออเดอร์ (สร้างก้อนข้อมูล Payload)
+    const orderData = {
+        type: 'ORDER_INCOMING',
+        table: currentTable || 'กลับบ้าน',
+        // ใช้ JSON.parse(JSON.stringify()) เพื่อก๊อปปี้ข้อมูลให้ขาดจากกัน
+        items: JSON.parse(JSON.stringify(cart)), 
+        orderId: 'ORD-' + Date.now(),
+        time: new Date().toLocaleTimeString('th-TH') // เพิ่มเวลาที่สั่ง
+    };
+
+    // 3. ตรวจสอบการเชื่อมต่อ P2P ก่อนส่ง
+    if (typeof submitOrderP2P === 'function') {
+        submitOrderP2P(orderData); 
+        console.log("🚀 วาร์ปออเดอร์เข้าครัวแล้ว:", orderData);
+    } else {
+        console.error("❌ ไม่พบฟังก์ชัน submitOrderP2P ในระบบ");
+    }
+}
+
 
 // วิธีเรียกใช้ในปุ่มเดิมของเพื่อน:
 // <button onclick="finalizeOrder('cash')">เงินสด</button>

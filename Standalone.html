@@ -6,16 +6,19 @@
 
     <!--<script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>-->
 
-    <!--สำหรับ iphone เพิ่มเติม 23-04-2026-->
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <!--สำหรับ iphone เพิ่มเติม 09-05-2026-->
+   <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="กะเพรานับยอด">
     <link rel="apple-touch-icon" href="icon-192.png">
 
+    <!--05-05-2026 เชื่อมระบบ P2P-->
+    <script src="peerjs.min.js"></script>
+
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=11.7"></script>
+    <script src="qrcode.min.js?v=11.9"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -30,11 +33,12 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=11.7"></script>
+    <script src="Standalone.js?v=11.9"></script>
+
 
     <!--05-05-2026 เชื่อมระบบ P2P-->
     <script src="p2p-network.js"></script> 
-    <script src="peerjs.min.js"></script>
+    
 
 </head>
 
@@ -314,12 +318,20 @@
             <span class="slider"></span> เปิดใช้งานระบบเครือข่าย
         </label>
 
-        <div id="p2p-settings" style="display: none; margin-top: 10px;">
+        <div id="p2p-settings" style="margin-top: 10px;"> <!-- ลบ display: none ออก -->
             <input type="text" id="shop-id-input" placeholder="ระบุชื่อร้าน (เช่น Grandma01)">
             <button onclick="setupAsHub()" style="background: #27ae60; color: white;">เป็นเครื่องแม่ (Hub)</button>
             <button onclick="setupAsClient()" style="background: #2980b9; color: white;">เป็นเครื่องลูก (Client)</button>
         </div>
     </div>
+
+    <!--ที่ปุ่มสั่งอาหา 09-05-2026-->
+    <button onclick="submitOrderP2P()">สั่งอาหาร</button>
+    
+     <!--โชว์ตั๋วอาหาร-09-05-2026->
+    <div id="kitchen-ticket-container">ทดสอบโชว์ตรงนี้</div>
+
+    < !--AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-->
 
     <!-- Modal สำหรับตั้งค่า PromptPay 30-04-2026 -->
     <div id="ppModal" style="display:none; position:fixed; z-index:999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
