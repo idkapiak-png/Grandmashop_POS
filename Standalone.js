@@ -1,5 +1,6 @@
 // ==========================================
 // 1. ประกาศตัวแปร Global (ลบ require ออกแล้วเพื่อให้ Browser ทำงานได้)
+
 // ==========================================
 let cart = []; // ตะกร้าสินค้าหลัก
 let menus = []; // รายการเมนูหลักที่ดึงจากฐานข้อมูล
@@ -1422,7 +1423,7 @@ function executeOrderSent() {
     // 2. รวบรวมข้อมูลออเดอร์ (สร้างก้อนข้อมูล Payload)
     const orderData = {
         type: 'ORDER_INCOMING',
-        table: currentTable || 'กลับบ้าน',
+        table: typeof selectedTable !== 'undefined' ? selectTable : 'กลับบ้าน', // เปลี่ยนตัวแปร 10-05-2026
         // ใช้ JSON.parse(JSON.stringify()) เพื่อก๊อปปี้ข้อมูลให้ขาดจากกัน
         items: JSON.parse(JSON.stringify(cart)), 
         orderId: 'ORD-' + Date.now(),
