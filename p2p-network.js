@@ -32,18 +32,64 @@ function setupPeerListeners() {
     });
 }
 
+/**
+ * ฟังก์ชันจัดการข้อมูลเข้า (Universal Handler)
+ * อัปเดตล่าสุด: 10-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
+ */
 function handleIncomingData(data) {
-    console.log('🔔 ได้รับข้อมูล:', data);
+    console.log('🔔 ได้รับข้อมูลวาร์ป:', data);
     
+    if (!data || !data.type) return;
+
+    // --- 1. เครื่องแม่: รับออเดอร์ (เหมือนเดิม) ---
     if (data.type === 'ORDER_INCOMING') {
-        console.log('👨‍🍳 ออเดอร์ใหม่วาร์ปเข้าครัว!');
         if (typeof addKitchenTicket === 'function') {
             addKitchenTicket(data);
+
+            if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
+                currentConn.send({
+                    type: 'ACK_ORDER',
+                    orderId: data.orderId,
+                    receivedAt: new Date().toLocaleTimeString('th-TH')
+                });
+            }
+            if (navigator.vibrate) navigator.vibrate(200); 
         }
     }
     
-    if (data.type === 'ORDER_DONE') {
-        alert(`✅ อาหารเสร็จแล้ว: ${data.itemName}`);
+    // --- 2. เครื่องลูก: รับการยืนยัน (โหมดไฟสัญญาณ ✅) ---
+    if (data.type === 'ACK_ORDER') {
+        console.log('✅ ครัวได้รับออเดอร์แล้ว:', data.orderId);
+        
+        // ค้นหาแถบสถานะ และ วงกลมไฟ
+        const statusContainer = document.getElementById('warp-status-bar');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+
+        if (statusContainer && statusDot && statusText) {
+            // จังหวะที่ 1: เปลี่ยนเป็นสถานะ "สำเร็จ"
+            statusDot.style.backgroundColor = '#2ecc71'; // ไฟเขียวสด
+            statusDot.style.boxShadow = '0 0 10px #2ecc71'; // เพิ่มแสงฟุ้งให้ดูมีพลัง
+            statusText.innerText = 'วาร์ปสำเร็จ! ครัวได้รับแล้ว';
+            statusText.style.color = '#27ae60';
+            
+            if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+
+            // จังหวะที่ 2: คืนค่ากลับเป็นสถานะ "พร้อม" (Standby) หลังจาก 2 วินาที
+            setTimeout(() => {
+                statusDot.style.backgroundColor = '#bdc3c7'; // กลับเป็นสีเทา
+                statusDot.style.boxShadow = 'none';
+                statusText.innerText = 'ระบบวาร์ป: พร้อมส่งออเดอร์';
+                statusText.style.color = '#6c757d';
+            }, 2000);
+        }
+    }
+
+    // --- 3. แจ้งเตือนเมื่ออาหารเสร็จ (เหมือนเดิม) ---
+    if (data.type === 'ORDER_DONE' || data.type === 'ORDER_READY') {
+        const tableInfo = data.table || 'ไม่ระบุโต๊ะ';
+        alert(`✅ อาหารโต๊ะ [ ${tableInfo} ] เสร็จเรียบร้อยแล้วครับ!`);
+        if (navigator.vibrate) navigator.vibrate(500); 
     }
 }
 
@@ -204,53 +250,116 @@ function submitOrderP2P(data) {
     }
 }
 
-// ฟังก์ชันสร้างตั๋วอาหารในครัว (KDS) 07-05-2026
+/**
+ * 1. ฟังก์ชันสำหรับเปิดโหมดห้องครัว (สลับหน้าจอ)
+ * ปรับปรุง: 10-05-2026
+ */
+function showKitchen() {
+    console.log("👨‍🍳 ระบบกำลังเตรียมหน้าจอ KDS...");
+    
+    // สิ่งที่จะเกิดขึ้น: สลับการแสดงผล (Toggle)
+    // พี่ต้องมี ID เหล่านี้ใน HTML เพื่อให้มันสลับหน้ากันได้จริงๆ
+    const posInterface = document.getElementById('pos-interface'); // หน้าขาย
+    const kitchenInterface = document.getElementById('kitchen-display'); // หน้าครัว
+
+    if (posInterface && kitchenInterface) {
+        posInterface.style.display = 'none';      // ซ่อนหน้าขาย
+        kitchenInterface.style.display = 'block'; // โชว์หน้าครัว
+        console.log("✅ เปลี่ยนหน้าจอเป็นโหมดห้องครัวเรียบร้อย");
+    } else {
+        // ถ้าหา Element ไม่เจอ จะแจ้งเตือนกันพลาด
+        alert("⚠️ ไม่พบ Element สำหรับหน้าจอครัว กรุณาตรวจสอบ ID ใน HTML ครับ");
+    }
+}
+
+/**
+ * 2. ฟังก์ชันสร้างตั๋วอาหารในครัว (KDS)
+ * ปรับปรุง: 10-05-2026 (รองรับข้อมูลจากการวาร์ป P2P)
+ */
 function addKitchenTicket(data) {
+    // สิ่งที่จะเกิดขึ้น: ตรวจสอบพื้นที่วางตั๋ว
     const container = document.getElementById('kitchen-ticket-container');
-    if (!container) return;
+    if (!container) {
+        console.error("❌ ไม่พบพื้นที่ kitchen-ticket-container สำหรับวางตั๋วอาหาร");
+        return;
+    }
+
+    // สิ่งที่จะเกิดขึ้น: ป้องกันการรับข้อมูลที่ไม่มีเมนูอาหาร
+    if (!data.items || data.items.length === 0) {
+        console.warn("⚠️ ข้อมูลออเดอร์ไม่มีรายการอาหาร");
+        return;
+    }
 
     const ticketId = `ticket-${data.orderId}`;
+    
+    // ตรวจสอบว่ามีตั๋ว ID นี้อยู่แล้วหรือยัง (ป้องกันการส่งซ้ำ)
+    if (document.getElementById(ticketId)) return;
+
     const ticketHtml = `
-        <div class="kitchen-ticket" id="${ticketId}" style="background: #fff; border-left: 8px solid #e67e22; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-                <strong style="font-size: 1.2em;">📍 โต๊ะ: ${data.table}</strong>
-                <span style="color: #888;">${data.time}</span>
+        <div class="kitchen-ticket" id="${ticketId}" 
+             style="background: #fff; border-left: 8px solid #e67e22; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: sans-serif;">
+            
+            <div style="display: flex; justify-content: space-between; border-bottom: 2px dashed #eee; padding-bottom: 8px;">
+                <strong style="font-size: 1.2em; color: #2c3e50;">📍 โต๊ะ: ${data.table}</strong>
+                <span style="color: #888;">🕒 ${data.time}</span>
             </div>
-            <div style="padding: 10px 0;">
+
+            <div style="padding: 10px 0; min-height: 50px;">
                 ${data.items.map(item => `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <span>- ${item.name}</span>
-                        <strong>x${item.quantity || 1}</strong>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.1em;">
+                        <span>🍴 ${item.name}</span>
+                        <strong style="color: #e67e22;">x${item.quantity || 1}</strong>
                     </div>
                 `).join('')}
             </div>
-            <button onclick="markAsDoneP2P('${data.orderId}', '${data.items[0]?.name || 'รายการอาหาร'}')" 
-                    style="width: 100%; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">
+
+            <button onclick="markAsDoneP2P('${data.orderId}', '${data.table}')" 
+                    style="width: 100%; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.3s;">
                 ✅ ทำเสร็จแล้ว (แจ้งพนักงาน)
             </button>
         </div>
     `;
-    container.insertAdjacentHTML('afterbegin', ticketHtml); // ออเดอร์ใหม่ขึ้นบนสุด
+
+    // สิ่งที่จะเกิดขึ้น: ออเดอร์ใหม่จะเด้งไปอยู่บนสุดของหน้าจอครัว
+    container.insertAdjacentHTML('afterbegin', ticketHtml);
+    
+    // แถม: เสียงแจ้งเตือนออเดอร์ใหม่ (ถ้ามีไฟล์เสียง)
+    // playNotificationSound(); 
 }
 
 // ฟังก์ชันแจ้งเตือนเครื่องลูก (เรียกใช้เมื่อครัวกดปุ่มทำเสร็จ) 07-05-2026
-function markAsDoneP2P(orderId, itemName) {
+/**
+ * ฟังก์ชันเมื่อพ่อครัวกด "ทำเสร็จแล้ว" (เครื่องแม่ -> เครื่องลูก)
+ * อัปเดต: 10-05-2026
+ */
+function markAsDoneP2P(orderId, table) {
+    // 1. เตรียมข้อมูลส่งกลับ (Payload)
+    // เปลี่ยนจาก itemName เป็น table เพื่อให้พนักงานรู้ว่าต้องไปเสิร์ฟที่ "โต๊ะไหน"
     const donePayload = {
-        type: 'ORDER_DONE',
+        type: 'ORDER_DONE', // หรือ 'ORDER_READY' ตามที่เราดักไว้ใน handleIncomingData
         orderId: orderId,
-        itemName: itemName
+        table: table // ส่งเลขโต๊ะกลับไป
     };
 
-    // ส่งข้อมูลกลับไปหาเครื่องลูก
-    if (currentConn && currentConn.open) {
+    // 2. ตรวจสอบท่อวาร์ปก่อนส่ง
+    if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
+        // ส่งข้อมูลวาร์ปกลับไปหาเครื่องลูก
         currentConn.send(donePayload);
-        
-        // ลบตั๋วออกจากหน้าจอครัว
+        console.log(`📤 แจ้งพนักงานแล้ว: อาหารโต๊ะ ${table} เสร็จแล้ว`);
+
+        // 3. เอฟเฟกต์ลบตั๋วออกจากหน้าจอครัว (ทำตามที่พี่เขียนมาเลย สวยมาก!)
         const ticket = document.getElementById(`ticket-${orderId}`);
         if (ticket) {
+            ticket.style.transition = "all 0.3s ease"; // เพิ่ม transition เพื่อความนุ่มนวล
             ticket.style.transform = "scale(0.8)";
             ticket.style.opacity = "0";
-            setTimeout(() => ticket.remove(), 300);
+            setTimeout(() => {
+                ticket.remove();
+                console.log(`🗑️ ลบตั๋ว ${orderId} ออกจากหน้าจอแล้ว`);
+            }, 300);
         }
+    } else {
+        // กรณีท่อหลุด ส่งไม่ได้ ให้แจ้งเตือนพ่อครัว
+        alert("❌ ส่งข้อมูลหาพนักงานไม่ได้: กรุณาตรวจสอบการเชื่อมต่อ");
     }
 }

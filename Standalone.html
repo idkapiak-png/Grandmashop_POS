@@ -18,7 +18,7 @@
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=12.1"></script>
+    <script src="qrcode.min.js?v=12.2"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -33,7 +33,7 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=12.1"></script>
+    <script src="Standalone.js?v=12.2"></script>
 
 
     <!--05-05-2026 เชื่อมระบบ P2P-->
@@ -283,6 +283,12 @@
                 </div>
             </div>
 
+            <!--โชว์สถานะการส่ง P2P 10-05-2026-->
+            <div id="warp-status-bar" style="display: flex; align-items: center; justify-content: center; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; margin-top: 10px;">
+                    <div id="status-dot" style="width: 12px; height: 12px; background-color: #bdc3c7; border-radius: 50%; margin-right: 10px; transition: all 0.3s ease;"></div>
+                    <span id="status-text" style="font-weight: bold; color: #6c757d; font-size: 0.9em;">ระบบวาร์ป: พร้อมส่งออเดอร์</span>
+            </div>                   
+
             <div style="margin-top: 30px; padding: 0 15px;">
                 <button id="btn-close-day" onclick="handleCloseDay()" 
                         style="background-color: #e74c3c; color: white; padding: 15px; border: none; border-radius: 10px; font-size: 18px; cursor: pointer; width: 100%;">
@@ -298,7 +304,7 @@
     <h2>⚙️ ตั้งค่าระบบ</h2>
 
     <!--ตั้งค่าเลขบัญชี QR Code 30-04-2026-->
-    <button onclick="openPromptPayModal()" style="width: 100%; padding: 15px; background: #FF9800; color: white; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 20px; font-size: 1rem;">
+    <button onclick="openPromptPayModal()" style="width: 100%; padding: 15px; background: #23508c; color: white; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 20px; font-size: 1rem;">
     📱 ตั้งค่าเลข PromptPay รับเงินโอน
     </button>
 
