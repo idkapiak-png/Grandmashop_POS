@@ -37,78 +37,109 @@ function setupPeerListeners() {
  * อัปเดตล่าสุด: 10-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
  */
 function handleIncomingData(data) {
-    console.log('🔔 ได้รับข้อมูลวาร์ป:', data);
+    console.log('🔔 ระบบประมวลผลข้อมูลวาร์ป:', data);
     
     if (!data || !data.type) return;
 
-    // --- 1. เครื่องแม่: รับออเดอร์ (เพิ่มระบบจดบันทึกยอดขาย) ---
+    // ดึง Element ไฟสถานะ (สำหรับเครื่องลูก)
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    // --- 1. [ฝั่งเครื่องแม่]: รับออเดอร์ และ บันทึกบัญชีแยกประเภทตามเงื่อนไข ---
     if (data.type === 'ORDER_INCOMING') {
         if (typeof addKitchenTicket === 'function') {
-            // สั่งวาดตั๋วในห้องครัว
-            addKitchenTicket(data);
+            addKitchenTicket(data); // 1. วาดตั๋วเข้าครัว
 
-            // 🔥 [ส่วนที่เพิ่มใหม่]: บังคับเครื่องแม่บันทึกบิลลงระบบ "รายงานวันนี้"
-            if (typeof saveOrderToTable === 'function') {
-                console.log("💾 ระบบกำลังบันทึกออเดอร์ลงเครื่องแม่...");
-                
-                // แก้ปัญหา NaN: คำนวณราคาสุทธิใหม่ที่เครื่องแม่เลย (ชัวร์ที่สุด)
-                // ดักจับทั้งชื่อ qty และ quantity เพื่อป้องกันเลข 1
-                let freshTotal = 0;
-                if (data.items && Array.isArray(data.items)) {
-                    freshTotal = data.items.reduce((sum, item) => {
-                        const amount = item.qty || item.quantity || 1; // ดักทั้งสองชื่อ
-                        const price = parseFloat(item.price) || 0;
-                        return sum + (price * amount);
-                    }, 0);
-                }
+            // 2. 🔥 ระบบบันทึกบัญชีอัจฉริยะ (แยก "กินที่ร้าน" vs "กลับบ้าน")
+            console.log("💾 ตรวจสอบประเภทออเดอร์เพื่อลงบันทึก...");
 
-                // สั่งบันทึกยอด (อ้างอิงตามฟังก์ชันบันทึกเดิมของพี่)
-                // สิ่งที่จะเกิดขึ้น: บิลนี้จะไปโผล่ใน "รายการออเดอร์วันนี้" ของเครื่องแม่ทันที
-                saveOrderToTable(data.table, data.items, freshTotal);
+            // คำนวณราคาใหม่ป้องกัน NaN และดักจับ qty/quantity ให้ตรงเป๊ะ
+            let freshTotal = 0;
+            if (data.items && Array.isArray(data.items)) {
+                freshTotal = data.items.reduce((sum, item) => {
+                    const amount = item.qty || item.quantity || 1;
+                    const price = parseFloat(item.price) || 0;
+                    return sum + (price * amount);
+                }, 0);
             }
 
-            // ส่งสัญญาณตอบกลับ (ACK) ให้เครื่องลูกรู้ว่า "ได้รับแล้ว"
+            // 🚩 จุดตัดสินใจ: ตรวจสอบว่าเป็น "กลับบ้าน" หรือ "กินที่ร้าน"
+            // เงื่อนไข: ถ้าไม่มีเลขโต๊ะ หรือเป็นค่าว่าง/กลับบ้าน/ทั่วไป ให้ใช้ confirmOrder
+            const isTakeAway = !data.table || 
+                               data.table === 'กลับบ้าน' || 
+                               data.table === 'ทั่วไป' || 
+                               data.table.trim() === '';
+
+            if (isTakeAway) {
+                // 🥡 กรณีสั่งกลับบ้าน: เรียกใช้ฟังก์ชัน confirmOrder (ส่งรายการ และ ยอดรวม)
+                if (typeof confirmOrder === 'function') {
+                    console.log("🥡 บันทึกรายการ: สั่งกลับบ้าน (confirmOrder)");
+                    confirmOrder(data.items, freshTotal);
+                }
+            } else {
+                // 🏠 กรณีกินที่ร้าน: เรียกใช้ฟังก์ชัน saveOrderToTable (ส่งเลขโต๊ะ, รายการ, และ ยอดรวม)
+                if (typeof saveOrderToTable === 'function') {
+                    console.log(`🏠 บันทึกรายการ: กินที่ร้าน โต๊ะ ${data.table} (saveOrderToTable)`);
+                    saveOrderToTable(data.table, data.items, freshTotal);
+                }
+            }
+
+            // 🔄 บังคับอัปเดตหน้าจอรายงานทันที (ถ้ามีฟังก์ชัน Render รายการ)
+            if (typeof updateOrderList === 'function') updateOrderList();
+            if (typeof renderOrders === 'function') renderOrders();
+
+            // 3. ส่งสัญญาณ ACK ตอบกลับเครื่องลูก
             if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
                 currentConn.send({
                     type: 'ACK_ORDER',
-                    orderId: data.orderId,
-                    receivedAt: new Date().toLocaleTimeString('th-TH')
+                    orderId: data.orderId
                 });
             }
             if (navigator.vibrate) navigator.vibrate(200); 
         }
     }
     
-    // --- 2. เครื่องลูก: รับการยืนยัน (โหมดไฟสัญญาณ ✅) ---
+    // --- 2. [ฝั่งเครื่องลูก]: รับการยืนยัน (ไฟเขียว ✅) ---
     if (data.type === 'ACK_ORDER') {
-        console.log('✅ ครัวได้รับออเดอร์แล้ว:', data.orderId);
-        
-        const statusContainer = document.getElementById('warp-status-bar');
-        const statusDot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
-
-        if (statusContainer && statusDot && statusText) {
+        if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
             statusDot.style.boxShadow = '0 0 10px #2ecc71'; 
             statusText.innerText = 'วาร์ปสำเร็จ! ครัวได้รับแล้ว';
             statusText.style.color = '#27ae60';
             
-            if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-
             setTimeout(() => {
-                statusDot.style.backgroundColor = '#bdc3c7'; 
-                statusDot.style.boxShadow = 'none';
-                statusText.innerText = 'ระบบวาร์ป: พร้อมส่งออเดอร์';
-                statusText.style.color = '#6c757d';
-            }, 2000);
+                resetWarpStatus(statusDot, statusText);
+            }, 3000);
         }
     }
 
-    // --- 3. เครื่องลูก: แจ้งเตือนเมื่ออาหารเสร็จ (พนักงานเดินไปเสิร์ฟ) ---
+    // --- 3. [ฝั่งเครื่องลูก]: แจ้งเตือนเมื่อครัวทำเสร็จ (ไฟน้ำเงิน 🔵) ---
     if (data.type === 'ORDER_DONE' || data.type === 'ORDER_READY') {
         const tableInfo = data.table || 'ไม่ระบุโต๊ะ';
         alert(`✅ อาหารโต๊ะ [ ${tableInfo} ] เสร็จเรียบร้อยแล้วครับ!`);
+
+        if (statusDot && statusText) {
+            statusDot.style.backgroundColor = '#3498db'; 
+            statusDot.style.boxShadow = '0 0 10px #3498db';
+            statusText.innerText = `โต๊ะ ${tableInfo}: อาหารเสร็จแล้ว!`;
+            statusText.style.color = '#2980b9';
+
+            setTimeout(() => {
+                resetWarpStatus(statusDot, statusText);
+            }, 5000);
+        }
+
         if (navigator.vibrate) navigator.vibrate(500); 
+    }
+}
+
+// ฟังก์ชันเสริม: คืนค่าสถานะไฟเป็นปกติ
+function resetWarpStatus(dot, text) {
+    if (dot && text) {
+        dot.style.backgroundColor = '#bdc3c7'; 
+        dot.style.boxShadow = 'none';
+        text.innerText = 'ระบบวาร์ป: พร้อมส่งออเดอร์';
+        text.style.color = '#6c757d';
     }
 }
 
@@ -313,24 +344,23 @@ function addKitchenTicket(data) {
     const container = document.getElementById('kitchen-ticket-container');
     if (!container) {
         console.error("❌ ไม่พบพื้นที่ kitchen-ticket-container ใน HTML");
-        // ถ้าหาไม่เจอ แนะนำให้พนักงานเช็คว่าเปิด "โหมดห้องครัว" หรือยัง
         return;
     }
 
-    // 2. ป้องกันข้อมูลขยะ หรือข้อมูลที่ไม่สมบูรณ์
+    // 2. ป้องกันข้อมูลขยะ
     if (!data || !data.items || data.items.length === 0) {
-        console.warn("⚠️ ข้อมูลออเดอร์ไม่ถูกต้อง หรือไม่มีรายการอาหาร");
+        console.warn("⚠️ ข้อมูลออเดอร์ไม่ถูกต้อง");
         return;
     }
 
-    // 3. ป้องกันตั๋วซ้ำ (ถ้ามี ID นี้อยู่แล้ว ไม่ต้องสร้างใหม่)
+    // 3. ป้องกันตั๋วซ้ำ
     const ticketId = `ticket-${data.orderId}`;
     if (document.getElementById(ticketId)) {
         console.log(`📌 ตั๋วเลขที่ ${data.orderId} มีอยู่ในหน้าจอแล้ว`);
         return;
     }
 
-    // 4. สร้างโครงสร้าง HTML ของตั๋ว (เพิ่มแอนิเมชั่นเด้งเข้า)
+    // 4. สร้างโครงสร้าง HTML ของตั๋ว
     const ticketHtml = `
         <div class="kitchen-ticket" id="${ticketId}" 
              style="background: #fff; border-left: 8px solid #e67e22; border-radius: 12px; padding: 18px; margin-bottom: 15px; 
@@ -343,19 +373,33 @@ function addKitchenTicket(data) {
             </div>
 
             <div style="padding: 5px 0; min-height: 40px;">
-                ${data.items.map(item => `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.15em; border-bottom: 1px solid #f9f9f9;">
-                        <span style="color: #34495e;">🍳 ${item.name}</span>
-                        <strong style="color: #d35400; background: #fff5eb; padding: 2px 8px; border-radius: 4px;">x${item.qty || 1}</strong>
-                    </div>
-                `).join('')}
+                ${data.items.map(item => {
+                    // 🔥 [จุดที่เพิ่มใหม่]: ดึงข้อมูล "พิเศษ" (options)
+                    // ถ้ามีข้อมูลจะแสดงเป็นตัวหนาสีแดงเพื่อให้พ่อครัวสะดุดตา
+                    const optionDisplay = item.options 
+                        ? `<div style="color: #e74c3c; font-size: 0.9em; font-weight: bold; margin-top: 2px;">✨ ${item.options}</div>` 
+                        : '';
+
+                    return `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid #f1f1f1; padding-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <div style="color: #34495e; font-size: 1.15em; font-weight: 500;">🍳 ${item.name}</div>
+                                ${optionDisplay} </div>
+                            <div style="margin-left: 10px;">
+                                <strong style="color: #d35400; background: #fff5eb; padding: 4px 10px; border-radius: 6px; font-size: 1.2em; border: 1px solid #ffe0c1;">
+                                    x${item.qty || item.quantity || 1}
+                                </strong>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
             </div>
 
-            ${data.note ? `<div style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 10px;">📝 หมายเหตุ: ${data.note}</div>` : ''}
+            ${data.note ? `<div style="font-size: 0.95em; color: #e67e22; background: #fff9f4; padding: 8px; border-radius: 6px; margin-top: 5px; border: 1px solid #ffefe0;">📝 หมายเหตุ: ${data.note}</div>` : ''}
 
             <button onclick="markAsDoneP2P('${data.orderId}', '${data.table}')" 
                     style="width: 100%; background: #27ae60; color: white; border: none; padding: 14px; border-radius: 8px; 
-                           font-weight: bold; cursor: pointer; font-size: 1.1em; transition: 0.2s; margin-top: 5px;
+                           font-weight: bold; cursor: pointer; font-size: 1.1em; transition: 0.2s; margin-top: 15px;
                            box-shadow: 0 4px 0 #1e8449;"
                     onmousedown="this.style.transform='translateY(2px)'; this.style.boxShadow='0 2px 0 #1e8449'"
                     onmouseup="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 0 #1e8449'">
@@ -364,13 +408,13 @@ function addKitchenTicket(data) {
         </div>
     `;
 
-    // 5. สั่งวาดตั๋ว: ออเดอร์ใหม่จะเด้งไปอยู่บนสุดเสมอ
+    // 5. สั่งวาดตั๋ว: ออเดอร์ใหม่เด้งขึ้นบนสุด
     container.insertAdjacentHTML('afterbegin', ticketHtml);
     
-    // 6. เพิ่มลูกเล่น: สั่นแจ้งเตือนเครื่องแม่ (ถ้าเบราว์เซอร์รองรับ)
+    // 6. แจ้งเตือนด้วยการสั่น
     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
     
-    console.log(`🎯 วาดตั๋วโต๊ะ ${data.table} สำเร็จ!`);
+    console.log(`🎯 วาดตั๋วโต๊ะ ${data.table} พร้อมรายละเอียดพิเศษสำเร็จ!`);
 }
 
 // 2. ฟังก์ชัน "ปิด" หน้าครัว (ใส่ไว้ทั้ง 2 ชื่อเพื่อความชัวร์) 10-05-2026
