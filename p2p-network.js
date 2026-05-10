@@ -191,31 +191,6 @@ function markAsDone(orderId, itemName) {
     });
 }
 
-function addKitchenTicket(orderData) {
-    const container = document.getElementById('kitchen-ticket-container');
-    if (!container) return;
-
-    const ticketHtml = `
-        <div class="kitchen-ticket" id="ticket-${orderData.orderId}" style="background: white; width: 250px; border-radius: 10px; padding: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); color: #333; margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 5px;">
-                <strong style="font-size: 1.2em;">📍 โต๊ะ: ${orderData.table || '-'}</strong>
-            </div>
-            <div style="margin: 10px 0;">
-                ${orderData.items ? orderData.items.map(item => `
-                    <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #eee;">
-                        <span>- ${item.name}</span>
-                        <strong>x ${item.quantity || 1}</strong>
-                    </div>
-                `).join('') : 'ไม่มีรายการ'}
-            </div>
-            <button onclick="completeTicket('${orderData.orderId}')" style="width: 100%; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 5px;">
-                ✅ ทำเสร็จแล้ว
-            </button>
-        </div>
-    `;
-    container.innerHTML += ticketHtml;
-}
-
 function completeTicket(orderId) {
     const ticket = document.getElementById(`ticket-${orderId}`);
     if (ticket) {
@@ -257,74 +232,111 @@ function submitOrderP2P(data) {
 function showKitchen() {
     console.log("👨‍🍳 ระบบกำลังเตรียมหน้าจอ KDS...");
     
-    // สิ่งที่จะเกิดขึ้น: สลับการแสดงผล (Toggle)
-    // พี่ต้องมี ID เหล่านี้ใน HTML เพื่อให้มันสลับหน้ากันได้จริงๆ
-    const posInterface = document.getElementById('pos-interface'); // หน้าขาย
-    const kitchenInterface = document.getElementById('kitchen-display'); // หน้าครัว
+    // 1. ดึงหน้าจอหลัก (ถ้าพี่ห่อหน้าขายทั้งหมดไว้ใน id นี้)
+    const posInterface = document.getElementById('pos-interface'); 
+    
+    // 2. ดึงหน้าจอครัว (ใช้ ID ให้ตรงกับใน HTML ของพี่คือ kitchen-screen)
+    const kitchenInterface = document.getElementById('kitchen-screen'); 
 
-    if (posInterface && kitchenInterface) {
-        posInterface.style.display = 'none';      // ซ่อนหน้าขาย
-        kitchenInterface.style.display = 'block'; // โชว์หน้าครัว
+    if (kitchenInterface) {
+        // ✅ ถ้ามีหน้าขาย ให้ซ่อนหน้าขายก่อน
+        if (posInterface) posInterface.style.display = 'none';
+        
+        // ✅ โชว์หน้าครัว
+        kitchenInterface.style.display = 'block'; 
+        
+        // ล็อกหน้าจอไม่ให้เลื่อนไปมา (ช่วยให้คนทำครัวใช้งานง่ายขึ้น)
+        document.body.style.overflow = 'hidden';
+        
         console.log("✅ เปลี่ยนหน้าจอเป็นโหมดห้องครัวเรียบร้อย");
     } else {
-        // ถ้าหา Element ไม่เจอ จะแจ้งเตือนกันพลาด
-        alert("⚠️ ไม่พบ Element สำหรับหน้าจอครัว กรุณาตรวจสอบ ID ใน HTML ครับ");
+        // แจ้งเตือนกรณีหา ID 'kitchen-screen' ไม่เจอ
+        alert("⚠️ ไม่พบหน้าจอครัว (kitchen-screen) กรุณาตรวจสอบ ID ใน HTML ครับ");
     }
 }
 
 /**
- * 2. ฟังก์ชันสร้างตั๋วอาหารในครัว (KDS)
- * ปรับปรุง: 10-05-2026 (รองรับข้อมูลจากการวาร์ป P2P)
+ * ฟังก์ชันสร้างและวางตั๋วอาหารลงในหน้าจอครัว
+ * อัปเดตล่าสุด: 10-05-2026 | รองรับระบบแจ้งเตือนและแอนิเมชั่น
  */
 function addKitchenTicket(data) {
-    // สิ่งที่จะเกิดขึ้น: ตรวจสอบพื้นที่วางตั๋ว
+    // 1. ตรวจสอบพื้นที่วางตั๋ว (Container)
     const container = document.getElementById('kitchen-ticket-container');
     if (!container) {
-        console.error("❌ ไม่พบพื้นที่ kitchen-ticket-container สำหรับวางตั๋วอาหาร");
+        console.error("❌ ไม่พบพื้นที่ kitchen-ticket-container ใน HTML");
+        // ถ้าหาไม่เจอ แนะนำให้พนักงานเช็คว่าเปิด "โหมดห้องครัว" หรือยัง
         return;
     }
 
-    // สิ่งที่จะเกิดขึ้น: ป้องกันการรับข้อมูลที่ไม่มีเมนูอาหาร
-    if (!data.items || data.items.length === 0) {
-        console.warn("⚠️ ข้อมูลออเดอร์ไม่มีรายการอาหาร");
+    // 2. ป้องกันข้อมูลขยะ หรือข้อมูลที่ไม่สมบูรณ์
+    if (!data || !data.items || data.items.length === 0) {
+        console.warn("⚠️ ข้อมูลออเดอร์ไม่ถูกต้อง หรือไม่มีรายการอาหาร");
         return;
     }
 
+    // 3. ป้องกันตั๋วซ้ำ (ถ้ามี ID นี้อยู่แล้ว ไม่ต้องสร้างใหม่)
     const ticketId = `ticket-${data.orderId}`;
-    
-    // ตรวจสอบว่ามีตั๋ว ID นี้อยู่แล้วหรือยัง (ป้องกันการส่งซ้ำ)
-    if (document.getElementById(ticketId)) return;
+    if (document.getElementById(ticketId)) {
+        console.log(`📌 ตั๋วเลขที่ ${data.orderId} มีอยู่ในหน้าจอแล้ว`);
+        return;
+    }
 
+    // 4. สร้างโครงสร้าง HTML ของตั๋ว (เพิ่มแอนิเมชั่นเด้งเข้า)
     const ticketHtml = `
         <div class="kitchen-ticket" id="${ticketId}" 
-             style="background: #fff; border-left: 8px solid #e67e22; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: sans-serif;">
+             style="background: #fff; border-left: 8px solid #e67e22; border-radius: 12px; padding: 18px; margin-bottom: 15px; 
+                    box-shadow: 0 6px 12px rgba(0,0,0,0.1); font-family: 'Kanit', sans-serif; 
+                    animation: slideIn 0.4s ease-out;">
             
-            <div style="display: flex; justify-content: space-between; border-bottom: 2px dashed #eee; padding-bottom: 8px;">
-                <strong style="font-size: 1.2em; color: #2c3e50;">📍 โต๊ะ: ${data.table}</strong>
-                <span style="color: #888;">🕒 ${data.time}</span>
+            <div style="display: flex; justify-content: space-between; border-bottom: 2px dashed #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                <strong style="font-size: 1.3em; color: #2c3e50;">📍 โต๊ะ: ${data.table || 'ไม่ระบุ'}</strong>
+                <span style="color: #e67e22; font-weight: bold;">🕒 ${data.time || new Date().toLocaleTimeString()}</span>
             </div>
 
-            <div style="padding: 10px 0; min-height: 50px;">
+            <div style="padding: 5px 0; min-height: 40px;">
                 ${data.items.map(item => `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.1em;">
-                        <span>🍴 ${item.name}</span>
-                        <strong style="color: #e67e22;">x${item.quantity || 1}</strong>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.15em; border-bottom: 1px solid #f9f9f9;">
+                        <span style="color: #34495e;">🍳 ${item.name}</span>
+                        <strong style="color: #d35400; background: #fff5eb; padding: 2px 8px; border-radius: 4px;">x${item.quantity || 1}</strong>
                     </div>
                 `).join('')}
             </div>
 
+            ${data.note ? `<div style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 10px;">📝 หมายเหตุ: ${data.note}</div>` : ''}
+
             <button onclick="markAsDoneP2P('${data.orderId}', '${data.table}')" 
-                    style="width: 100%; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.3s;">
-                ✅ ทำเสร็จแล้ว (แจ้งพนักงาน)
+                    style="width: 100%; background: #27ae60; color: white; border: none; padding: 14px; border-radius: 8px; 
+                           font-weight: bold; cursor: pointer; font-size: 1.1em; transition: 0.2s; margin-top: 5px;
+                           box-shadow: 0 4px 0 #1e8449;"
+                    onmousedown="this.style.transform='translateY(2px)'; this.style.boxShadow='0 2px 0 #1e8449'"
+                    onmouseup="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 0 #1e8449'">
+                ✅ ทำเสร็จแล้ว (วาร์ปบอกพนักงาน)
             </button>
         </div>
     `;
 
-    // สิ่งที่จะเกิดขึ้น: ออเดอร์ใหม่จะเด้งไปอยู่บนสุดของหน้าจอครัว
+    // 5. สั่งวาดตั๋ว: ออเดอร์ใหม่จะเด้งไปอยู่บนสุดเสมอ
     container.insertAdjacentHTML('afterbegin', ticketHtml);
     
-    // แถม: เสียงแจ้งเตือนออเดอร์ใหม่ (ถ้ามีไฟล์เสียง)
-    // playNotificationSound(); 
+    // 6. เพิ่มลูกเล่น: สั่นแจ้งเตือนเครื่องแม่ (ถ้าเบราว์เซอร์รองรับ)
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    
+    console.log(`🎯 วาดตั๋วโต๊ะ ${data.table} สำเร็จ!`);
+}
+
+// 2. ฟังก์ชัน "ปิด" หน้าครัว (ใส่ไว้ทั้ง 2 ชื่อเพื่อความชัวร์) 10-05-2026
+function hideKitchen() {
+    const screen = document.getElementById('kitchen-screen');
+    if (screen) {
+        screen.style.display = 'none'; // สั่งซ่อน
+        document.body.style.overflow = 'auto'; // คืนค่าการเลื่อนหน้าจอ
+        console.log('🏠 กลับสู่หน้าขายปกติ');
+    }
+}
+
+// สร้างชื่อสำรองไว้ เผื่อในอนาคตพี่เผลอไปเรียกใช้ชื่อนี้ 10-05-2026
+function closeKitchen() {
+    hideKitchen(); 
 }
 
 // ฟังก์ชันแจ้งเตือนเครื่องลูก (เรียกใช้เมื่อครัวกดปุ่มทำเสร็จ) 07-05-2026
