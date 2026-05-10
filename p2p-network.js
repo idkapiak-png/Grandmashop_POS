@@ -36,25 +36,24 @@ function setupPeerListeners() {
  * ฟังก์ชันจัดการข้อมูลเข้า (Universal Handler)
  * อัปเดตล่าสุด: 10-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
  */
-function handleIncomingData(data) {
+// เปลี่ยนเป็น async function เพื่อให้สามารถใช้คำสั่ง await (รอ) ได้
+async function handleIncomingData(data) {
     console.log('🔔 ระบบประมวลผลข้อมูลวาร์ป:', data);
     
     if (!data || !data.type) return;
 
-    // ดึง Element ไฟสถานะ (สำหรับเครื่องลูก)
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
 
-    // --- 1. [ฝั่งเครื่องแม่]: รับออเดอร์ และ บันทึกบัญชีแยกประเภทตามเงื่อนไข ---
+    // --- 1. [ฝั่งเครื่องแม่]: รับออเดอร์ และ บันทึกบัญชี ---
     if (data.type === 'ORDER_INCOMING') {
         if (typeof addKitchenTicket === 'function') {
-            // 1. วาดตั๋วเข้าครัว (พ่อครัวเห็นออเดอร์ทันที)
+            // 1. วาดตั๋วเข้าครัว (แสดงผลหน้าจอทันที ไม่ต้องรอฐานข้อมูล)
             addKitchenTicket(data); 
 
-            // 2. 🔥 ระบบบันทึกบัญชีอัจฉริยะ (แยก "กินที่ร้าน" vs "กลับบ้าน")
-            console.log("💾 ตรวจสอบประเภทออเดอร์เพื่อลงบันทึก...");
+            // 2. 🔥 ระบบบันทึกบัญชี (ต้องรอให้บันทึกเสร็จชัวร์ๆ)
+            console.log("💾 เริ่มกระบวนการบันทึกฐานข้อมูล StandaloneDatabase...");
 
-            // คำนวณราคาใหม่ป้องกัน NaN และดักจับ qty/quantity ให้ตรงเป๊ะ
             let freshTotal = 0;
             if (data.items && Array.isArray(data.items)) {
                 freshTotal = data.items.reduce((sum, item) => {
@@ -64,38 +63,40 @@ function handleIncomingData(data) {
                 }, 0);
             }
 
-            // 🚩 จุดตัดสินใจ: ถ้าไม่มีเลขโต๊ะ หรือเป็นค่าว่าง/กลับบ้าน/ทั่วไป ให้ใช้ confirmOrder
             const isTakeAway = !data.table || 
                                data.table === 'กลับบ้าน' || 
                                data.table === 'ทั่วไป' || 
                                data.table.trim() === '';
 
-            if (isTakeAway) {
-                // 🥡 บันทึกรายการ: สั่งกลับบ้าน
-                if (typeof confirmOrder === 'function') {
-                    console.log("🥡 บันทึกรายการ: สั่งกลับบ้าน (confirmOrder)");
-                    confirmOrder(data.items, freshTotal);
+            try {
+                // ใช้ await เพื่อหยุดรอให้ Dexie บันทึกข้อมูลลง Disk ให้เสร็จก่อนไปบรรทัดถัดไป
+                if (isTakeAway) {
+                    if (typeof confirmOrder === 'function') {
+                        console.log("🥡 กำลังบันทึก: สั่งกลับบ้าน...");
+                        await confirmOrder(data.items, freshTotal);
+                    }
+                } else {
+                    if (typeof saveOrderToTable === 'function') {
+                        console.log(`🏠 กำลังบันทึก: โต๊ะ ${data.table}...`);
+                        await saveOrderToTable(data.table, data.items, freshTotal);
+                    }
                 }
-            } else {
-                // 🏠 บันทึกรายการ: กินที่ร้าน
-                if (typeof saveOrderToTable === 'function') {
-                    console.log(`🏠 บันทึกรายการ: กินที่ร้าน โต๊ะ ${data.table} (saveOrderToTable)`);
-                    saveOrderToTable(data.table, data.items, freshTotal);
-                }
+
+                // 🔄 3. [จุดสำคัญ]: สั่งโหลดตาราง Dashboard ใหม่หลังจากบันทึกเสร็จแล้ว
+                // เพิ่ม setTimeout เล็กน้อย (200ms) เพื่อให้ IndexedDB เคลียร์สถานะ Transaction ให้เรียบร้อย
+                setTimeout(async () => {
+                    console.log("🔄 ฐานข้อมูลนิ่งแล้ว -> กำลังสั่งวาดตารางรายการออเดอร์ใหม่...");
+                    if (typeof loadRecentOrders === 'function') {
+                        await loadRecentOrders(); 
+                    }
+                    if (typeof updateOrderList === 'function') updateOrderList();
+                }, 200);
+
+            } catch (error) {
+                console.error("❌ เกิดข้อผิดพลาดขณะบันทึกข้อมูลวาร์ป:", error);
             }
 
-            // 🔄 3. [หัวใจสำคัญ]: บังคับอัปเดตหน้าจอ Dashboard ทันที
-            // สั่งให้ฟังก์ชันโหลดรายการวันนี้ (loadRecentOrders) ทำงานใหม่เพื่อดึงข้อมูลที่เพิ่งบันทึกตะกี้มาโชว์
-            console.log("🔄 กำลังวาดรายการออเดอร์วันนี้ใหม่...");
-            if (typeof loadRecentOrders === 'function') {
-                loadRecentOrders(); 
-            }
-            
-            // เผื่อไว้สำหรับฟังก์ชัน Render ชื่ออื่น (ถ้ามี)
-            if (typeof updateOrderList === 'function') updateOrderList();
-            if (typeof renderOrders === 'function') renderOrders();
-
-            // 4. ส่งสัญญาณ ACK ตอบกลับเครื่องลูก เพื่อยืนยันว่าได้รับแล้ว
+            // 4. ส่งสัญญาณ ACK ตอบกลับเครื่องลูก
             if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
                 currentConn.send({
                     type: 'ACK_ORDER',
@@ -106,7 +107,7 @@ function handleIncomingData(data) {
         }
     }
     
-    // --- 2. [ฝั่งเครื่องลูก]: รับการยืนยันวาร์ปสำเร็จ (ไฟเขียว ✅) ---
+    // --- 2. [ฝั่งเครื่องลูก]: รับการยืนยันวาร์ปสำเร็จ ---
     if (data.type === 'ACK_ORDER') {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
@@ -120,7 +121,7 @@ function handleIncomingData(data) {
         }
     }
 
-    // --- 3. [ฝั่งเครื่องลูก]: แจ้งเตือนเมื่อครัวทำเสร็จ (ไฟน้ำเงิน 🔵) ---
+    // --- 3. [ฝั่งเครื่องลูก]: แจ้งเตือนเมื่อครัวทำเสร็จ ---
     if (data.type === 'ORDER_DONE' || data.type === 'ORDER_READY') {
         const tableInfo = data.table || 'ไม่ระบุโต๊ะ';
         alert(`✅ อาหารโต๊ะ [ ${tableInfo} ] เสร็จเรียบร้อยแล้วครับ!`);
@@ -135,7 +136,6 @@ function handleIncomingData(data) {
                 if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText);
             }, 5000);
         }
-
         if (navigator.vibrate) navigator.vibrate(500); 
     }
 }
