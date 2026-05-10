@@ -41,11 +41,33 @@ function handleIncomingData(data) {
     
     if (!data || !data.type) return;
 
-    // --- 1. เครื่องแม่: รับออเดอร์ (เหมือนเดิม) ---
+    // --- 1. เครื่องแม่: รับออเดอร์ (เพิ่มระบบจดบันทึกยอดขาย) ---
     if (data.type === 'ORDER_INCOMING') {
         if (typeof addKitchenTicket === 'function') {
+            // สั่งวาดตั๋วในห้องครัว
             addKitchenTicket(data);
 
+            // 🔥 [ส่วนที่เพิ่มใหม่]: บังคับเครื่องแม่บันทึกบิลลงระบบ "รายงานวันนี้"
+            if (typeof saveOrderToTable === 'function') {
+                console.log("💾 ระบบกำลังบันทึกออเดอร์ลงเครื่องแม่...");
+                
+                // แก้ปัญหา NaN: คำนวณราคาสุทธิใหม่ที่เครื่องแม่เลย (ชัวร์ที่สุด)
+                // ดักจับทั้งชื่อ qty และ quantity เพื่อป้องกันเลข 1
+                let freshTotal = 0;
+                if (data.items && Array.isArray(data.items)) {
+                    freshTotal = data.items.reduce((sum, item) => {
+                        const amount = item.qty || item.quantity || 1; // ดักทั้งสองชื่อ
+                        const price = parseFloat(item.price) || 0;
+                        return sum + (price * amount);
+                    }, 0);
+                }
+
+                // สั่งบันทึกยอด (อ้างอิงตามฟังก์ชันบันทึกเดิมของพี่)
+                // สิ่งที่จะเกิดขึ้น: บิลนี้จะไปโผล่ใน "รายการออเดอร์วันนี้" ของเครื่องแม่ทันที
+                saveOrderToTable(data.table, data.items, freshTotal);
+            }
+
+            // ส่งสัญญาณตอบกลับ (ACK) ให้เครื่องลูกรู้ว่า "ได้รับแล้ว"
             if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
                 currentConn.send({
                     type: 'ACK_ORDER',
@@ -61,23 +83,20 @@ function handleIncomingData(data) {
     if (data.type === 'ACK_ORDER') {
         console.log('✅ ครัวได้รับออเดอร์แล้ว:', data.orderId);
         
-        // ค้นหาแถบสถานะ และ วงกลมไฟ
         const statusContainer = document.getElementById('warp-status-bar');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
 
         if (statusContainer && statusDot && statusText) {
-            // จังหวะที่ 1: เปลี่ยนเป็นสถานะ "สำเร็จ"
-            statusDot.style.backgroundColor = '#2ecc71'; // ไฟเขียวสด
-            statusDot.style.boxShadow = '0 0 10px #2ecc71'; // เพิ่มแสงฟุ้งให้ดูมีพลัง
+            statusDot.style.backgroundColor = '#2ecc71'; 
+            statusDot.style.boxShadow = '0 0 10px #2ecc71'; 
             statusText.innerText = 'วาร์ปสำเร็จ! ครัวได้รับแล้ว';
             statusText.style.color = '#27ae60';
             
             if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
 
-            // จังหวะที่ 2: คืนค่ากลับเป็นสถานะ "พร้อม" (Standby) หลังจาก 2 วินาที
             setTimeout(() => {
-                statusDot.style.backgroundColor = '#bdc3c7'; // กลับเป็นสีเทา
+                statusDot.style.backgroundColor = '#bdc3c7'; 
                 statusDot.style.boxShadow = 'none';
                 statusText.innerText = 'ระบบวาร์ป: พร้อมส่งออเดอร์';
                 statusText.style.color = '#6c757d';
@@ -85,7 +104,7 @@ function handleIncomingData(data) {
         }
     }
 
-    // --- 3. แจ้งเตือนเมื่ออาหารเสร็จ (เหมือนเดิม) ---
+    // --- 3. เครื่องลูก: แจ้งเตือนเมื่ออาหารเสร็จ (พนักงานเดินไปเสิร์ฟ) ---
     if (data.type === 'ORDER_DONE' || data.type === 'ORDER_READY') {
         const tableInfo = data.table || 'ไม่ระบุโต๊ะ';
         alert(`✅ อาหารโต๊ะ [ ${tableInfo} ] เสร็จเรียบร้อยแล้วครับ!`);
@@ -115,6 +134,7 @@ function toggleP2P() {
     }
 }
 
+//เครื่องแม่
 function setupAsHub() {
     const name = document.getElementById('shop-id-input').value;
     if (!name) return alert("กรุณาใส่ชื่อร้านก่อนครับ");
@@ -127,11 +147,12 @@ function setupAsHub() {
     alert("ตอนนี้เครื่องนี้คือ 'เครื่องแม่' แล้วครับ");
 }
 
+//เครื่องลูก 10-05-2026
 function setupAsClient() {
     const name = document.getElementById('shop-id-input').value;
     if (!name) return alert("กรุณาใส่ชื่อร้านแม่เพื่อเชื่อมต่อครับ");
 
-    // 🚩 จุดสำคัญ: ถ้าเคยมี Peer ค้างอยู่ ให้ทำลายทิ้งก่อนสร้างใหม่
+    // 🚩 1. ล้างระบบเก่า (Clean Up)
     if (peer) {
         console.log("♻️ ล้างระบบเชื่อมต่อเก่า...");
         peer.destroy(); 
@@ -140,34 +161,48 @@ function setupAsClient() {
 
     console.log("⏳ กำลังเริ่มระบบใหม่เพื่อเชื่อมต่อกับ: " + name);
 
-    // สร้าง Peer ใหม่ทุกครั้งที่กด เพื่อป้องกัน ID ค้าง
+    // 🚩 2. สร้าง Peer และเซตหูฟังระดับระบบ
     peer = new Peer(); 
-    setupPeerListeners();
+    setupPeerListeners(); 
 
-    // รอให้ Peer ของเครื่องลูกจดทะเบียนกับ Server สำเร็จก่อน (Event 'open')
+    // 🚩 3. เมื่อเครื่องลูกออนไลน์สำเร็จ (Register กับ Server สำเร็จ)
     peer.on('open', (id) => {
         console.log("✅ เครื่องลูกออนไลน์แล้ว (ID: " + id + ")");
         
-        // เมื่อตัวเองพร้อมค่อยไป "เคาะประตู" เรียกเครื่องแม่
+        // ส่งสัญญาณ "เคาะประตู" ไปหาเครื่องแม่
         currentConn = peer.connect(name, {
             reliable: true
         });
 
+        // จังหวะที่ท่อเชื่อมต่อ (Connection) เปิดใช้งานได้
         currentConn.on('open', () => {
-            alert("✅ เชื่อมต่อสำเร็จ! ร้าน " + name + " รับออเดอร์ได้เลย");
+            alert("✅ เชื่อมต่อสำเร็จ! ร้าน " + name + " พร้อมวาร์ปออเดอร์");
             localStorage.setItem('p2p_mode', 'client');
+
+            // ✨ [จุดที่เพิ่มใหม่]: ติดตั้งหูฟังดักรับข้อมูลขากลับจากเครื่องแม่
+            // สิ่งที่จะเกิดขึ้น: เมื่อแม่กด "ทำเสร็จแล้ว" ข้อมูลจะวิ่งเข้าบรรทัดนี้ทันที
+            currentConn.on('data', (data) => {
+                console.log("📥 ได้รับสัญญาณวาร์ปขากลับ:", data);
+                
+                // ตรวจสอบว่ามีฟังก์ชันจัดการข้อมูลไหม ถ้ามีให้สั่งทำงานทันที
+                if (typeof handleIncomingData === 'function') {
+                    handleIncomingData(data); 
+                    // ข้อมูลจะถูกส่งไปเปลี่ยนสีไฟ หรือ Alert แจ้งเตือนพนักงานตามที่เราเขียนไว้
+                }
+            });
         });
 
+        // ดัก Error กรณีท่อส่งข้อมูลระหว่างเครื่องมีปัญหา
         currentConn.on('error', (err) => {
             console.error("❌ เชื่อมต่อล้มเหลว:", err);
-            alert("❌ หาเครื่องแม่ชื่อ '" + name + "' ไม่เจอ ลองเช็คชื่ออีกครั้งครับ");
+            alert("❌ ติดต่อเครื่องแม่ไม่ได้ ลองตรวจสอบว่าเครื่องแม่ยังออนไลน์อยู่ไหม");
         });
     });
 
-    // ดัก Error ระดับระบบ (เช่น เน็ตหลุด)
+    // 🚩 4. ดัก Error ระดับ Peer System
     peer.on('error', (err) => {
         if (err.type === 'peer-unavailable') {
-            alert("❌ ไม่พบชื่อร้าน '" + name + "' ในระบบ (เครื่องแม่อาจจะยังไม่ได้เปิด)");
+            alert("❌ ไม่พบชื่อร้าน '" + name + "' (เครื่องแม่อาจยังไม่ได้เปิดโหมด P2P)");
         } else {
             console.error("Peer System Error:", err);
         }
@@ -203,26 +238,40 @@ function completeTicket(orderId) {
 // ฟังก์ชันส่งออเดอร์ (เรียกใช้เมื่อกดปุ่ม "สั่งอาหาร") 09-05-2026
 // ปรับให้รับค่า data เพื่อรับช่วงต่อจาก executeOrderSent()
 function submitOrderP2P(data) {
-    // 1. ตรวจสอบว่ามีข้อมูลส่งมาไหม ถ้าไม่มีให้ดึงเอง (สำรองไว้)
+    // 1. ตรวจสอบข้อมูลออเดอร์ (Payload)
     const orderPayload = data || {
         type: 'ORDER_INCOMING',
         orderId: 'ORD-' + Date.now(),
         table: document.getElementById('table-number')?.value || 'ทั่วไป',
-        items: cart, 
-        time: new Date().toLocaleTimeString('th-TH')
+        items: [...cart], // ใช้การกระจายค่าเพื่อป้องกันปัญหา Reference ของอาเรย์
+        time: new Date().toLocaleTimeString('th-TH'),
+        // แถม: ดึงหมายเหตุมาด้วย (ถ้ามีช่อง input ชื่อ order-note)
+        note: document.getElementById('order-note')?.value || '' 
     };
 
-    // 2. ส่งข้อมูลผ่านท่อ P2P (ใช้ชื่อฟังก์ชันส่งของพี่ที่มีอยู่จริง)
-    // หมายเหตุ: พี่ต้องเช็คว่าในไฟล์ p2p-network.js พี่ใช้ชื่อ sendP2PData หรือ currentConn.send
+    // 2. ส่งข้อมูลวาร์ปไปที่เครื่องแม่ (ครัว)
+    // ตรวจสอบท่อเชื่อมต่อ P2P ก่อนส่ง
     if (typeof sendP2PData === 'function') {
         sendP2PData(orderPayload);
-        // alert("👨‍🍳 ส่งออเดอร์เข้าครัวสำเร็จ!"); // (เอาออกได้ถ้าพี่ใส่ alert ใน saveOrderToTable แล้ว)
     } else if (currentConn && currentConn.open) {
         currentConn.send(orderPayload);
-        console.log("✅ ส่งข้อมูลผ่าน currentConn.send สำเร็จ");
+        console.log("✅ วาร์ปข้อมูลไปเครื่องแม่สำเร็จ");
     } else {
-        console.error("ระบบ P2P ยังไม่พร้อม");
+        console.error("❌ ระบบ P2P ยังไม่พร้อม ข้อมูลไม่ถูกส่ง");
+        return; // ถ้าส่งไม่สำเร็จ ไม่ต้องวาดตั๋วในเครื่องตัวเอง
     }
+
+    // 🚩 3. [ส่วนที่เพิ่มใหม่]: วาดตั๋วที่ "กระดานห้องครัว" ของเครื่องลูกทันที
+    // สิ่งที่จะเกิดขึ้น: พนักงานจะเห็นออเดอร์ที่เพิ่งส่งไป โผล่ขึ้นมาในหน้าจอตัวเองด้วย
+    if (typeof addKitchenTicket === 'function') {
+        console.log("🎨 กำลังวาดตั๋วลงกระดานห้องครัวเครื่องลูก...");
+        addKitchenTicket(orderPayload);
+    } else {
+        console.warn("⚠️ ไม่พบฟังก์ชัน addKitchenTicket ในเครื่องลูก (ตรวจสอบว่าก๊อปโค้ดมาวางหรือยัง)");
+    }
+
+    // 4. ล้างตะกร้าสินค้าหลังจากส่งสำเร็จ (ถ้าพี่ต้องการให้เคลียร์จอขายทันที)
+    // if (typeof clearCart === 'function') clearCart(); 
 }
 
 /**
@@ -297,7 +346,7 @@ function addKitchenTicket(data) {
                 ${data.items.map(item => `
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.15em; border-bottom: 1px solid #f9f9f9;">
                         <span style="color: #34495e;">🍳 ${item.name}</span>
-                        <strong style="color: #d35400; background: #fff5eb; padding: 2px 8px; border-radius: 4px;">x${item.quantity || 1}</strong>
+                        <strong style="color: #d35400; background: #fff5eb; padding: 2px 8px; border-radius: 4px;">x${item.qty || 1}</strong>
                     </div>
                 `).join('')}
             </div>
