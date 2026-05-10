@@ -48,7 +48,8 @@ function handleIncomingData(data) {
     // --- 1. [ฝั่งเครื่องแม่]: รับออเดอร์ และ บันทึกบัญชีแยกประเภทตามเงื่อนไข ---
     if (data.type === 'ORDER_INCOMING') {
         if (typeof addKitchenTicket === 'function') {
-            addKitchenTicket(data); // 1. วาดตั๋วเข้าครัว
+            // 1. วาดตั๋วเข้าครัว (พ่อครัวเห็นออเดอร์ทันที)
+            addKitchenTicket(data); 
 
             // 2. 🔥 ระบบบันทึกบัญชีอัจฉริยะ (แยก "กินที่ร้าน" vs "กลับบ้าน")
             console.log("💾 ตรวจสอบประเภทออเดอร์เพื่อลงบันทึก...");
@@ -63,32 +64,38 @@ function handleIncomingData(data) {
                 }, 0);
             }
 
-            // 🚩 จุดตัดสินใจ: ตรวจสอบว่าเป็น "กลับบ้าน" หรือ "กินที่ร้าน"
-            // เงื่อนไข: ถ้าไม่มีเลขโต๊ะ หรือเป็นค่าว่าง/กลับบ้าน/ทั่วไป ให้ใช้ confirmOrder
+            // 🚩 จุดตัดสินใจ: ถ้าไม่มีเลขโต๊ะ หรือเป็นค่าว่าง/กลับบ้าน/ทั่วไป ให้ใช้ confirmOrder
             const isTakeAway = !data.table || 
                                data.table === 'กลับบ้าน' || 
                                data.table === 'ทั่วไป' || 
                                data.table.trim() === '';
 
             if (isTakeAway) {
-                // 🥡 กรณีสั่งกลับบ้าน: เรียกใช้ฟังก์ชัน confirmOrder (ส่งรายการ และ ยอดรวม)
+                // 🥡 บันทึกรายการ: สั่งกลับบ้าน
                 if (typeof confirmOrder === 'function') {
                     console.log("🥡 บันทึกรายการ: สั่งกลับบ้าน (confirmOrder)");
                     confirmOrder(data.items, freshTotal);
                 }
             } else {
-                // 🏠 กรณีกินที่ร้าน: เรียกใช้ฟังก์ชัน saveOrderToTable (ส่งเลขโต๊ะ, รายการ, และ ยอดรวม)
+                // 🏠 บันทึกรายการ: กินที่ร้าน
                 if (typeof saveOrderToTable === 'function') {
                     console.log(`🏠 บันทึกรายการ: กินที่ร้าน โต๊ะ ${data.table} (saveOrderToTable)`);
                     saveOrderToTable(data.table, data.items, freshTotal);
                 }
             }
 
-            // 🔄 บังคับอัปเดตหน้าจอรายงานทันที (ถ้ามีฟังก์ชัน Render รายการ)
+            // 🔄 3. [หัวใจสำคัญ]: บังคับอัปเดตหน้าจอ Dashboard ทันที
+            // สั่งให้ฟังก์ชันโหลดรายการวันนี้ (loadRecentOrders) ทำงานใหม่เพื่อดึงข้อมูลที่เพิ่งบันทึกตะกี้มาโชว์
+            console.log("🔄 กำลังวาดรายการออเดอร์วันนี้ใหม่...");
+            if (typeof loadRecentOrders === 'function') {
+                loadRecentOrders(); 
+            }
+            
+            // เผื่อไว้สำหรับฟังก์ชัน Render ชื่ออื่น (ถ้ามี)
             if (typeof updateOrderList === 'function') updateOrderList();
             if (typeof renderOrders === 'function') renderOrders();
 
-            // 3. ส่งสัญญาณ ACK ตอบกลับเครื่องลูก
+            // 4. ส่งสัญญาณ ACK ตอบกลับเครื่องลูก เพื่อยืนยันว่าได้รับแล้ว
             if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
                 currentConn.send({
                     type: 'ACK_ORDER',
@@ -99,7 +106,7 @@ function handleIncomingData(data) {
         }
     }
     
-    // --- 2. [ฝั่งเครื่องลูก]: รับการยืนยัน (ไฟเขียว ✅) ---
+    // --- 2. [ฝั่งเครื่องลูก]: รับการยืนยันวาร์ปสำเร็จ (ไฟเขียว ✅) ---
     if (data.type === 'ACK_ORDER') {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
@@ -108,7 +115,7 @@ function handleIncomingData(data) {
             statusText.style.color = '#27ae60';
             
             setTimeout(() => {
-                resetWarpStatus(statusDot, statusText);
+                if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText);
             }, 3000);
         }
     }
@@ -125,7 +132,7 @@ function handleIncomingData(data) {
             statusText.style.color = '#2980b9';
 
             setTimeout(() => {
-                resetWarpStatus(statusDot, statusText);
+                if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText);
             }, 5000);
         }
 
