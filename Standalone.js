@@ -1169,88 +1169,82 @@ async function refreshBillingBox(tableId) {
 // 🚩 เพิ่มพารามิเตอร์ warpData (ข้อมูลออเดอร์) และ isFromWarp (เช็คว่ามาจากวาร์ปไหม)
 /**
  * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ปรับปรุงเพื่อระบบ P2P ที่แม่นยำ)
+/**
+ * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ฉบับปราบผีสิง - ปรับปรุงลำดับ UI ใหม่)
  * @param {Object} warpData - ข้อมูลที่วาร์ปมา (ถ้ามี)
- * @param {Boolean} isFromWarp - true ถ้าเครื่องนี้เป็นคนรับของ, false ถ้าเป็นคนกดเอง
+ * @param {Boolean} isFromWarp - true ถ้าเป็นเครื่องแม่รับของ, false ถ้าเป็นคนกดเอง
  */
 async function saveOrderToTable(warpData = null, isFromWarp = false) {
     
-    // --- 1. การเตรียมข้อมูล (Data Preparation) ---
-    // บังคับให้เลขโต๊ะเป็น String เสมอเพื่อป้องกัน Error .trim() ที่เครื่องแม่
+    // --- 1. เตรียมข้อมูลพื้นฐาน ---
+    // บังคับ String เพื่อความแม่นยำในการ Query (แก้ปัญหาโต๊ะสีขาว)
     const targetTable = isFromWarp ? String(warpData.table) : String(selectedTable);
     const targetItems = isFromWarp ? (warpData.items || []) : [...cart];
 
-    // เช็คสิทธิ์: ถ้ากดเองที่หน้าจอแต่ข้อมูลไม่ครบ ให้เด้งเตือน
     if (!isFromWarp) {
         if (cart.length === 0) return alert("เลือกเมนูก่อนฝากลงโต๊ะครับ!");
-        if (!selectedTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
+        if (targetTable === "null" || !targetTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
     }
 
-    console.log(`🚀 [System] ประมวลผลโต๊ะ: ${targetTable} (สถานะวาร์ป: ${isFromWarp})`);
-
     try {
-        // --- 2. จัดการฐานข้อมูล (Dexie DB) ---
+        // --- 2. จัดการฐานข้อมูล (บันทึกก่อนเสมอ) ---
         const existingOrder = await db.active_tables.get(targetTable);
-        let finalItems = [];
-        
-        if (existingOrder && Array.isArray(existingOrder.order_items)) {
-            // กรณีมีของเก่าอยู่แล้ว ให้บวกของใหม่เพิ่มเข้าไป
-            finalItems = [...existingOrder.order_items, ...targetItems];
-            console.log(`➕ โต๊ะ ${targetTable}: สั่งเพิ่ม รวมเป็น ${finalItems.length} รายการ`);
-        } else {
-            // กรณีเปิดโต๊ะใหม่
-            finalItems = [...targetItems];
-            console.log(`📥 โต๊ะ ${targetTable}: เริ่มสั่งครั้งแรก ${finalItems.length} รายการ`);
-        }
+        let finalItems = existingOrder && Array.isArray(existingOrder.order_items) 
+            ? [...existingOrder.order_items, ...targetItems] 
+            : [...targetItems];
 
-        // บันทึกลงฐานข้อมูลเครื่องตัวเอง (ทั้งแม่และลูกจะทำเหมือนกันในขั้นตอนนี้)
+        // บันทึกและต้องใช้ await เพื่อให้ DB เขียนเสร็จชัวร์ๆ
         await db.active_tables.put({
             table_id: targetTable,
             order_items: finalItems, 
             updated_at: new Date().toLocaleString('sv-SE') 
         });
 
-        // --- 3. การกระจายข้อมูล (P2P Strategy) ---
-        
+        console.log(`✅ [DB] บันทึกโต๊ะ ${targetTable} สำเร็จ (วาร์ป: ${isFromWarp})`);
+
+        // --- 3. การจัดการฝั่งคนส่ง (เครื่องลูก) ---
         if (!isFromWarp) {
-            // 📤 [ฝั่งเครื่องลูก]: เมื่อบันทึกเสร็จ ต้องวาร์ปไปบอกเครื่องแม่ด้วย
+            // 📤 ส่งวาร์ปไปหาแม่
             if (typeof executeOrderSent === "function") {
-                // สร้างก้อนข้อมูลที่สมบูรณ์ส่งไปหาแม่
-                const payload = {
-                    table: targetTable,
-                    items: targetItems, // ส่งไปเฉพาะรายการใหม่ที่เพิ่งสั่ง
-                    type: 'ORDER_INCOMING',
-                    isPayment: false // ระบุว่าเป็นการสั่งอาหาร (ไม่ใช่การจ่ายเงิน)
-                };
-                
-                console.log("📤 เครื่องลูก: กำลังส่งวาร์ปออเดอร์เข้าครัวแม่...");
-                executeOrderSent(false); // เรียกใช้ฟังก์ชันหลักที่เตรียมไว้
+                // หมายเหตุ: payload ถูกสร้างข้างใน executeOrderSent อยู่แล้วตามโครงสร้างเดิมของพี่
+                executeOrderSent(false); 
+                console.log("🚀 [P2P] ส่งสัญญาณวาร์ปเรียบร้อย");
             }
-            
-            // เคลียร์หน้าจอเครื่องลูกหลังส่งสำเร็จ
+
+            // 🚩 [จุดเปลี่ยนชีวิต]: ห้ามล้าง selectedTable ทันที! 
+            // ให้ล้างแค่ตะกร้า (Cart) เพื่อให้ระบบยังรู้ว่าเราทำงานกับโต๊ะไหนอยู่
             cart = []; 
-            selectedTable = null; 
             if (typeof updateOrderPreview === "function") updateOrderPreview();
-            alert(`✅ ส่งรายการโต๊ะ ${targetTable} เข้าครัวแล้ว!`);
+            
+            // สั่ง Refresh หน้าจอเพื่อให้ปุ่มโต๊ะเปลี่ยนสี (จากเขียว -> แดง/ส้ม)
+            if (typeof renderTableSelection === "function") {
+                await renderTableSelection(); 
+            }
+
+            alert(`📥 ฝากรายการลงโต๊ะ ${targetTable} และแจ้งครัวเรียบร้อย!`);
+            
+            // เมื่อทุกอย่างนิ่งแล้ว ค่อยล้างสถานะการเลือกโต๊ะ (ป้องกันบั๊กปุ่มขาวแวบ)
+            selectedTable = null;
+            if (typeof renderTableSelection === "function") await renderTableSelection();
 
         } else {
-            // 📥 [ฝั่งเครื่องแม่]: เมื่อได้รับวาร์ปมาบันทึกเสร็จแล้ว
-            console.log(`✅ เครื่องแม่: บันทึกข้อมูลโต๊ะ ${targetTable} ลงฐานข้อมูลแล้ว`);
+            // --- 4. การจัดการฝั่งคนรับ (เครื่องแม่) ---
+            console.log(`✅ [Master] รับออเดอร์วาร์ปโต๊ะ ${targetTable} เรียบร้อย`);
             
-            // บังคับเปลี่ยนสีปุ่มโต๊ะที่หน้าจอเครื่องแม่ทันที
+            // เครื่องแม่ต้องอัปเดตสีปุ่มทันทีที่ได้รับของ
             if (typeof renderTableSelection === "function") {
                 await renderTableSelection(); 
             }
         }
 
-        // --- 4. อัปเดต UI ส่วนกลาง (อัปเดตทุกครั้งไม่ว่าเครื่องไหน) ---
+        // --- 5. รีเฟรชหน้าจอสรุปยอด (ถ้าเปิดค้างไว้) ---
         if (typeof refreshBillingBox === "function") {
-            // ถ้าหน้าจอกำลังเปิดโต๊ะนี้อยู่ ให้รีเฟรชยอดเงินให้เห็นทันที
             refreshBillingBox(targetTable);
         }
         
     } catch (err) {
-        console.error("❌ Error ใน saveOrderToTable:", err);
-        if (!isFromWarp) alert("เกิดข้อผิดพลาดในการบันทึก!");
+        console.error("❌ เกิดข้อผิดพลาดร้ายแรงที่ saveOrderToTable:", err);
+        if (!isFromWarp) alert("เกิดข้อผิดพลาดในการบันทึก! เช็ค Console ครับ");
     }
 }
  

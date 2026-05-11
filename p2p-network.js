@@ -54,70 +54,70 @@ async function handleIncomingData(data) {
     // =========================================================
     if (data.type === 'ORDER_INCOMING') {
         
-        // 1. แยกประเภทข้อมูล
-        const isPayment = data.isPayment === true; // ลูกกดเช็คบิลมาใช่ไหม?
+        // 1. เตรียมข้อมูลพื้นฐาน (บังคับให้เลขโต๊ะเป็น String เพื่อป้องกันบั๊กสีขาว)
+        const isPayment = data.isPayment === true; 
         const tableStr = data.table ? String(data.table).trim() : "";
-        const isTakeAway = !tableStr || ['กลับบ้าน', 'ทั่วไป', ''].includes(tableStr);
+        
+        // เช็คว่าต้องส่งเข้าครัวไหม? 
+        // (ส่งเข้าครัวเสมอถ้าไม่ใช่แค่การ "แจ้งจ่ายเงิน" และมีรายการอาหาร)
+        const hasItems = data.items && data.items.length > 0;
+        const shouldGoToKitchen = !isPayment && hasItems;
 
-        console.log(`📊 ข้อมูลที่ได้รับ: โต๊ะ[${tableStr}] | ประเภท[${isTakeAway ? 'กลับบ้าน' : 'ลงโต๊ะ'}] | จ่ายเงิน[${isPayment}]`);
+        console.log(`📊 ระบบประมวลผล: โต๊ะ[${tableStr}] | ครัว[${shouldGoToKitchen}] | จ่ายเงิน[${isPayment}]`);
 
-        // 2. จัดการตั๋วครัว (Kitchen Ticket)
-        if (typeof addKitchenTicket === 'function') {
-            if (!isPayment) {
-                // ถ้าไม่ใช่การจ่ายเงิน (คือการสั่งอาหารเพิ่ม) -> ต้องออกตั๋วครัวเสมอ!
-                console.log("👨‍🍳 [Kitchen] สั่งอาหารเพิ่ม -> กำลังพิมพ์ตั๋วครัว...");
-                addKitchenTicket(data); 
-            } else {
-                console.log("💰 [Account] แจ้งยอดชำระเงิน -> ไม่ต้องพิมพ์ตั๋วครัว");
-            }
+        // 2. จัดการตั๋วครัว (Kitchen Ticket) - **ย้ายมาลำดับแรกสุด**
+        if (shouldGoToKitchen && typeof addKitchenTicket === 'function') {
+            console.log("👨‍🍳 [Kitchen] มีออเดอร์วาร์ป -> กำลังส่งตั๋วให้ครัว...");
+            addKitchenTicket(data); 
         }
 
-        // 3. จัดการฐานข้อมูล (Database)
+        // 3. จัดการฐานข้อมูล (Database Management)
         try {
+            // เช็คว่าเป็นประเภท "กลับบ้าน / จ่ายเงิน" หรือไม่
+            const isTakeAway = !tableStr || ['กลับบ้าน', 'ทั่วไป', ''].includes(tableStr);
+
             if (isPayment || isTakeAway) {
-                // 🥡 กรณี "เช็คบิลโต๊ะ" หรือ "สั่งกลับบ้าน" -> ต้องปิดยอดและลงบัญชีขาย
+                // 🥡 กรณี "เช็คบิล" หรือ "สั่งกลับบ้าน" -> ปิดยอดลงบัญชีขาย
                 if (typeof confirmOrder === 'function') {
-                    console.log("🥡 [Action] กำลังบันทึกยอดขายและปิดบิล...");
-                    // 🚩 ส่ง data เข้าไปด้วยเพื่อให้ confirmOrder ดึงรายการอาหารมาบันทึกได้ถูก
+                    console.log("🥡 [Action] บันทึกยอดขายและปิดบิล...");
+                    // 🚩 ส่ง data ไปด้วยเพื่อให้ดึงรายการอาหารบันทึกประวัติออเดอร์วันนี้
                     await confirmOrder(data.payment_method || 'Cash', true, data); 
                 }
             } else {
-                // 🏠 กรณี "สั่งลงโต๊ะ" -> พักข้อมูลไว้ที่โต๊ะ (ปุ่มจะเป็นสีแดง)
+                // 🏠 กรณี "สั่งลงโต๊ะ" -> พักข้อมูลไว้ที่โต๊ะ (ให้ปุ่มเป็นสีส้ม/แดง)
                 if (typeof saveOrderToTable === 'function') {
-                    console.log(`🏠 [Action] กำลังพักข้อมูลลงโต๊ะ: ${tableStr}`);
+                    console.log(`🏠 [Action] บันทึกลงโต๊ะ: ${tableStr}`);
+                    // 🚩 บันทึกข้อมูลและอัปเดตสถานะปุ่มโต๊ะทันที
                     await saveOrderToTable(data, true);
                 }
             }
 
             // 4. สั่งรีเฟรชหน้าจอ (UI Refresh)
-            // ใช้ setTimeout เพื่อรอให้ Dexie DB เขียนไฟล์เสร็จชัวร์ๆ ก่อนดึงมาโชว์
+            // เพิ่มเวลาเป็น 800ms เพื่อให้แน่ใจว่า Dexie DB เขียนทุกตารางเสร็จสนิท
             setTimeout(async () => {
-                console.log("🔄 [UI] กำลังอัปเดตหน้าจอเครื่องแม่...");
+                console.log("🔄 [UI] กำลังสั่งรีเฟรชหน้าจอตามข้อมูลใหม่...");
                 
                 if (typeof loadRecentOrders === 'function') await loadRecentOrders(); 
                 if (typeof fetchTodaySales === 'function') fetchTodaySales(); 
                 if (typeof renderTableSelection === 'function') await renderTableSelection(); 
                 if (typeof updateOrderList === 'function') updateOrderList();
 
-                console.log("✅ [Success] หน้าจอเครื่องแม่อัปเดตล่าสุดแล้ว");
-            }, 600); 
+                console.log("✅ [Success] หน้าจอปัจจุบันเป็นข้อมูลล่าสุดแล้ว");
+            }, 800); 
 
         } catch (error) {
-            console.error("❌ [Error] เครื่องแม่บันทึกวาร์ปพลาด:", error);
-            alert("แม่จ๋า! บันทึกข้อมูลวาร์ปพลาด: " + error.message);
+            console.error("❌ [Error] บันทึกข้อมูลวาร์ปล้มเหลว:", error);
+            alert("แจ้งเตือน: เครื่องแม่บันทึกข้อมูลพลาด - " + error.message);
         }
 
-        // 5. ส่งสัญญาณ ACK ตอบกลับลูก (ยืนยันว่าได้รับของแล้ว)
+        // 5. ส่งสัญญาณ ACK กลับไปให้เครื่องลูก
         if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
             currentConn.send({ type: 'ACK_ORDER', orderId: data.orderId });
-            console.log("📡 [ACK] ยืนยันเครื่องลูกเรียบร้อย");
         }
         if (navigator.vibrate) navigator.vibrate(200); 
     }
     
-    // =========================================================
-    // 🚩 [โหมดรับสัญญาณตอบกลับ]: เครื่องลูกรับข้อมูลจากเครื่องแม่
-    // =========================================================
+    // [ ส่วนดัก ACK และ ORDER_DONE คงเดิม ]
     if (data.type === 'ACK_ORDER') {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
