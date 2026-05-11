@@ -596,125 +596,115 @@ function deleteSpecificItem(index) {
 
 // ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 11-05-2026
 // 🚩 เพิ่มพารามิเตอร์ isFromWarp (ค่าเริ่มต้นคือ false)
-async function confirmOrder(paymentType, isFromWarp = false) {
-    // 1. ตรวจสอบตะกร้า (ถ้ามาจากวาร์ป ให้ข้ามเช็ค cart ว่าง เพราะข้อมูลถูกส่งมาโดยตรง)
-    if (!isFromWarp && cart.length === 0) return alert("เลือกเมนูก่อนครับคุณยาย!");
+/**
+ * ฟังก์ชันปิดยอดขาย / เช็คบิล (ฉบับสมบูรณ์ รองรับวาร์ป P2P)
+ * @param {String} paymentType - ประเภทการจ่ายเงิน ('Cash' หรือ 'QR')
+ * @param {Boolean} isFromWarp - true ถ้าเป็นเครื่องแม่รับของวาร์ปมา
+ * @param {Object} warpData - ก้อนข้อมูลจากเครื่องลูก (ส่งมาเฉพาะตอนวาร์ป)
+ */
+async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
+    
+    // --- 1. เตรียมข้อมูลพื้นฐาน (Data Preparation) ---
+    // ถ้ามาจากวาร์ป ให้ใช้รายการอาหารจากก้อนข้อมูล (warpData) ถ้ากดเองใช้ cart ในเครื่อง
+    const targetItems = isFromWarp ? (warpData.items || []) : [...cart];
+    const targetTable = isFromWarp ? (warpData.table || null) : (selectedTable || null);
+
+    // เช็คความพร้อม (เฉพาะคนกดเอง)
+    if (!isFromWarp && targetItems.length === 0) return alert("เลือกเมนูก่อนครับ!");
     
     const thailandTime = new Date().toLocaleString('sv-SE'); 
     const orderId = Date.now(); 
 
-    // --- 1. วิเคราะห์ส่วนลด (คงเดิม) ---
+    // --- 2. คำนวณส่วนลดและยอดสุทธิ ---
     const rawDiscount = localStorage.getItem('default_discount') || "0";
     const isPercent = rawDiscount.toString().includes('%'); 
-    const discountConfigValue = parseFloat(rawDiscount) || 0; 
+    const discountValue = parseFloat(rawDiscount) || 0; 
     
-    // คำนวณยอดรวม: ถ้ามาจากวาร์ป เราจะใช้ข้อมูลที่วาร์ปมา (data.items) แทน cart ในหน้าจอ
-    const rawTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-
-    let actualDiscountBath = isPercent 
-        ? (rawTotal * discountConfigValue) / 100 
-        : discountConfigValue;
-
+    // คำนวณยอดรวมจากรายการอาหารที่เลือกมา
+    const rawTotal = targetItems.reduce((sum, item) => sum + (item.price * (item.qty || 1)), 0);
+    const actualDiscountBath = isPercent ? (rawTotal * discountValue) / 100 : discountValue;
     const netTotal = Math.max(0, rawTotal - actualDiscountBath); 
     const finalPaymentMethod = (paymentType === 'transfer' || paymentType === 'QR') ? 'QR' : 'Cash';
 
-    const receiptData = {
-        order_id: orderId,
-        items: [...cart], 
-        total_price: rawTotal,
-        discount: actualDiscountBath,
-        net_total: netTotal,
-        payment_method: finalPaymentMethod, 
-        created_at: thailandTime
-    };
-
     try {
-        // --- 2. บันทึกลงฐานข้อมูล Dexie (คงเดิม) ---
-        // จุดนี้จะทำให้เครื่องแม่บันทึกข้อมูลที่วาร์ปมาลงฐานข้อมูลตัวเองได้สำเร็จ
-        for (let i = 0; i < cart.length; i++) {
-            let itemTotal = cart[i].price * cart[i].qty; 
+        // --- 3. บันทึกลงฐานข้อมูล Dexie (Daily Sales) ---
+        // วนลูปบันทึกรายการอาหารทีละอย่างลงตาราง orders
+        for (let item of targetItems) {
             await db.orders.add({
                 order_id: orderId,
-                menu_name: cart[i].name,
-                qty: cart[i].qty,
-                options: cart[i].options || "", 
-                total_price: itemTotal,
-                discount: 0,            
+                menu_name: item.name,
+                qty: item.qty || 1,
+                options: item.options || "", 
+                total_price: item.price * (item.qty || 1),
                 payment_method: finalPaymentMethod,
                 created_at: thailandTime
             });
         }
 
+        // บันทึกรายการส่วนลด (ถ้ามี)
         if (actualDiscountBath > 0) { 
             await db.orders.add({
                 order_id: orderId,
-                menu_name: `🔻 ส่วนลด (${isPercent ? discountConfigValue + '%' : 'บาท'})`, 
+                menu_name: `🔻 ส่วนลด (${isPercent ? discountValue + '%' : 'บาท'})`, 
                 qty: 1,
-                options: "โปรโมชั่น/ส่วนลดพื้นฐาน",
                 total_price: -actualDiscountBath,
-                discount: actualDiscountBath,
                 payment_method: finalPaymentMethod,
                 created_at: thailandTime
             });
         }
 
-        // --- 3. จัดการสถานะโต๊ะ ---
-        let isThisAPayment = false;
-        if (window.isCheckingOutTable) {
-            isThisAPayment = true; 
-        }
-
-        if (typeof selectedTable !== 'undefined' && selectedTable !== null) {
-            await db.active_tables.delete(selectedTable);
-            selectedTable = null; 
-
-            const display = document.getElementById('current-table-display');
-            if (display) {
-                display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
-                display.style.background = "#34495e";
+        // --- 4. [จุดสำคัญ] เคลียร์สถานะโต๊ะ (เพื่อให้ปุ่มกลับเป็นสีเขียว) ---
+        // ไม่ว่าจะเป็นเครื่องแม่หรือลูก ถ้ามีการระบุโต๊ะมา ต้องลบทิ้งจากตาราง active_tables
+        if (targetTable && targetTable !== 'กลับบ้าน' && targetTable !== 'ทั่วไป') {
+            await db.active_tables.delete(String(targetTable));
+            console.log(`🧹 ล้างสถานะโต๊ะ [ ${targetTable} ] เรียบร้อย`);
+            
+            // ถ้าเป็นเครื่องที่กำลังเปิดหน้าจอนั้นอยู่ ให้รีเซ็ตการเลือกโต๊ะด้วย
+            if (selectedTable === targetTable) {
+                selectedTable = null;
+                const display = document.getElementById('current-table-display');
+                if (display) {
+                    display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
+                    display.style.background = "#34495e";
+                }
             }
         }
 
-        // --- 4. แสดงใบเสร็จ ---
-        // ถ้ามาจากวาร์ป (เครื่องแม่รับของ) เราจะไม่เด้งใบเสร็จขึ้นมาบังหน้าจอเครื่องแม่
-        if (!isFromWarp && typeof showSmartReceipt === "function") {
-            showSmartReceipt(receiptData); 
-        }
-
-        // =========================================================
-        // 🚩 [จุดแก้ไขสำคัญ]: ระบบวาร์ป P2P
-        // =========================================================
-        // ✅ ถ้าไม่ได้มาจากวาร์ป (คือเครื่องลูกกดขายเอง) ให้ส่งข้อมูลไปเครื่องแม่
-        // ❌ ถ้ามาจากวาร์ปแล้ว (เครื่องแม่รับมา) ห้ามส่งวาร์ปซ้อนเด็ดขาด!
-        if (!isFromWarp && typeof executeOrderSent === "function") {
-            executeOrderSent(isThisAPayment); 
-            console.log(`🚀 P2P: ส่งข้อมูลสำเร็จ`);
-        } else if (isFromWarp) {
-            console.log("📥 เครื่องแม่: บันทึกข้อมูลวาร์ปลงฐานข้อมูลแล้ว (งดส่งวาร์ปซ้อน)");
-        }
-
-        // --- 5. เคลียร์ข้อมูลและรีเซ็ตค่า ---
-        window.isCheckingOutTable = null; 
-        
-        // 🚩 เคลียร์ตะกร้าเฉพาะคนที่กดขายจริงๆ (หน้าจอเครื่องแม่ที่รับวาร์ปมาจะไม่โดนล้างตะกร้าที่ค้างอยู่)
+        // --- 5. การสื่อสาร P2P ---
         if (!isFromWarp) {
+            // 📤 [ฝั่งคนกด]: วาร์ปบอกอีกเครื่องว่า "จ่ายเงินแล้วนะ"
+            if (typeof executeOrderSent === "function") {
+                // ส่งค่า true เข้าไปในพารามิเตอร์ที่ 2 เพื่อบอกว่าเป็นโหมด Payment
+                executeOrderSent(true); 
+                console.log("🚀 วาร์ปคำสั่งจ่ายเงินไปเครื่องแม่แล้ว");
+            }
+            
+            // แสดงใบเสร็จ (เฉพาะคนกดจ่าย)
+            if (typeof showSmartReceipt === "function") {
+                showSmartReceipt({
+                    order_id: orderId, items: targetItems, 
+                    total_price: rawTotal, discount: actualDiscountBath, 
+                    net_total: netTotal, payment_method: finalPaymentMethod, 
+                    created_at: thailandTime
+                }); 
+            }
+
+            // เคลียร์ตะกร้าคนกด
             cart = []; 
-            updateOrderPreview(); 
+            if (typeof updateOrderPreview === "function") updateOrderPreview();
         }
-        
-        if (typeof renderTableSelection === "function") await renderTableSelection(); 
-        
-        // --- 6. อัปเดตตารางให้เห็นผลทันที ---
-        // จุดนี้แหละครับที่จะทำให้ "รายการออเดอร์วันนี้" บนเครื่องแม่ขยับ!
+
+        // --- 6. รีเฟรชหน้าจอ (ทั้งแม่และลูก) ---
+        // บังคับให้ Dashboard และตารางยอดขายอัปเดตทันที
         if (typeof fetchTodaySales === "function") fetchTodaySales();
-        if (typeof loadRecentOrders === "function") {
-            console.log("🔄 กำลังรีเฟรชตารางออเดอร์วันนี้...");
-            await loadRecentOrders(); 
-        }
+        if (typeof renderTableSelection === "function") await renderTableSelection(); 
+        if (typeof loadRecentOrders === "function") await loadRecentOrders();
+
+        console.log("✅ ปิดยอดขายสำเร็จ!");
 
     } catch (err) {
         console.error("❌ บันทึกล้มเหลว:", err);
-        if (!isFromWarp) alert("มีปัญหาตอนบันทึกข้อมูลครับ");
+        if (!isFromWarp) alert("มีปัญหาตอนบันทึกยอดขายครับ");
     }
 }
 
@@ -1177,77 +1167,90 @@ async function refreshBillingBox(tableId) {
 
 //หย่อนบิลสั่งอาหาร 11-05-2026
 // 🚩 เพิ่มพารามิเตอร์ warpData (ข้อมูลออเดอร์) และ isFromWarp (เช็คว่ามาจากวาร์ปไหม)
+/**
+ * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ปรับปรุงเพื่อระบบ P2P ที่แม่นยำ)
+ * @param {Object} warpData - ข้อมูลที่วาร์ปมา (ถ้ามี)
+ * @param {Boolean} isFromWarp - true ถ้าเครื่องนี้เป็นคนรับของ, false ถ้าเป็นคนกดเอง
+ */
 async function saveOrderToTable(warpData = null, isFromWarp = false) {
     
-    // --- 1. ตรวจสอบความพร้อม ---
-    // ✅ ถ้าไม่ใช่การวาร์ป (คนกดเอง) -> เช็ค cart และ โต๊ะ ในหน้าจอปกติ
-    // ❌ ถ้าเป็นการวาร์ป (เครื่องแม่รับของ) -> ข้ามการเช็คนี้ไปเลย เพราะข้อมูลอยู่ใน warpData แล้ว
+    // --- 1. การเตรียมข้อมูล (Data Preparation) ---
+    // บังคับให้เลขโต๊ะเป็น String เสมอเพื่อป้องกัน Error .trim() ที่เครื่องแม่
+    const targetTable = isFromWarp ? String(warpData.table) : String(selectedTable);
+    const targetItems = isFromWarp ? (warpData.items || []) : [...cart];
+
+    // เช็คสิทธิ์: ถ้ากดเองที่หน้าจอแต่ข้อมูลไม่ครบ ให้เด้งเตือน
     if (!isFromWarp) {
         if (cart.length === 0) return alert("เลือกเมนูก่อนฝากลงโต๊ะครับ!");
         if (!selectedTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
     }
 
-    // 🚩 [กำหนดเป้าหมาย]: เลือกว่าจะเอาข้อมูลจากไหนมาบันทึก
-    const targetTable = isFromWarp ? warpData.table : selectedTable;
-    const targetItems = isFromWarp ? warpData.items : [...cart];
+    console.log(`🚀 [System] ประมวลผลโต๊ะ: ${targetTable} (สถานะวาร์ป: ${isFromWarp})`);
 
     try {
-        // --- 2. ระบบดึงข้อมูลเดิมมาต่อยอด ---
+        // --- 2. จัดการฐานข้อมูล (Dexie DB) ---
         const existingOrder = await db.active_tables.get(targetTable);
         let finalItems = [];
         
-        if (existingOrder && existingOrder.order_items) {
+        if (existingOrder && Array.isArray(existingOrder.order_items)) {
+            // กรณีมีของเก่าอยู่แล้ว ให้บวกของใหม่เพิ่มเข้าไป
             finalItems = [...existingOrder.order_items, ...targetItems];
-            console.log(`➕ โต๊ะ ${targetTable} สั่งเพิ่ม: รวมเป็น ${finalItems.length} รายการ`);
+            console.log(`➕ โต๊ะ ${targetTable}: สั่งเพิ่ม รวมเป็น ${finalItems.length} รายการ`);
         } else {
+            // กรณีเปิดโต๊ะใหม่
             finalItems = [...targetItems];
-            console.log(`📥 โต๊ะ ${targetTable} สั่งครั้งแรก: ${finalItems.length} รายการ`);
+            console.log(`📥 โต๊ะ ${targetTable}: เริ่มสั่งครั้งแรก ${finalItems.length} รายการ`);
         }
 
-        // --- 3. บันทึกข้อมูลลงในฐานข้อมูล Dexie ---
+        // บันทึกลงฐานข้อมูลเครื่องตัวเอง (ทั้งแม่และลูกจะทำเหมือนกันในขั้นตอนนี้)
         await db.active_tables.put({
             table_id: targetTable,
             order_items: finalItems, 
             updated_at: new Date().toLocaleString('sv-SE') 
         });
 
-        // ==========================================
-        // ⭐ [จุดสำคัญ] การจัดการระบบวาร์ป P2P
-        // ==========================================
-        // ✅ ถ้าไม่ได้มาจากวาร์ป (เครื่องลูกกดสั่งเอง) -> ให้ส่งวาร์ปไปเครื่องแม่/ครัว
-        if (!isFromWarp && typeof executeOrderSent === "function") {
-            const payload = {
-                table: targetTable,
-                items: targetItems, 
-                type: 'ORDER_INCOMING'
-            };
-            executeOrderSent(payload, false); 
-            console.log("🚀 P2P: ส่งรายการใหม่เข้าครัวเรียบร้อย (isPayment: false)");
-            alert(`📥 ฝากรายการลงโต๊ะ ${targetTable} และแจ้งครัวเรียบร้อย!`);
-        } 
-        // ❌ ถ้ามาจากวาร์ปแล้ว (เครื่องแม่รับของ) -> บันทึกเงียบๆ ห้ามวาร์ปซ้อน
-        else if (isFromWarp) {
-            console.log(`✅ เครื่องแม่: บันทึกออเดอร์โต๊ะ ${targetTable} ลงฐานข้อมูลสำเร็จ`);
-        }
-
-        // --- 4. ล้างข้อมูลและรีเซ็ตหน้าจอ (เฉพาะคนที่กดขายหน้าเครื่อง) ---
+        // --- 3. การกระจายข้อมูล (P2P Strategy) ---
+        
         if (!isFromWarp) {
+            // 📤 [ฝั่งเครื่องลูก]: เมื่อบันทึกเสร็จ ต้องวาร์ปไปบอกเครื่องแม่ด้วย
+            if (typeof executeOrderSent === "function") {
+                // สร้างก้อนข้อมูลที่สมบูรณ์ส่งไปหาแม่
+                const payload = {
+                    table: targetTable,
+                    items: targetItems, // ส่งไปเฉพาะรายการใหม่ที่เพิ่งสั่ง
+                    type: 'ORDER_INCOMING',
+                    isPayment: false // ระบุว่าเป็นการสั่งอาหาร (ไม่ใช่การจ่ายเงิน)
+                };
+                
+                console.log("📤 เครื่องลูก: กำลังส่งวาร์ปออเดอร์เข้าครัวแม่...");
+                executeOrderSent(false); // เรียกใช้ฟังก์ชันหลักที่เตรียมไว้
+            }
+            
+            // เคลียร์หน้าจอเครื่องลูกหลังส่งสำเร็จ
             cart = []; 
             selectedTable = null; 
             if (typeof updateOrderPreview === "function") updateOrderPreview();
+            alert(`✅ ส่งรายการโต๊ะ ${targetTable} เข้าครัวแล้ว!`);
+
+        } else {
+            // 📥 [ฝั่งเครื่องแม่]: เมื่อได้รับวาร์ปมาบันทึกเสร็จแล้ว
+            console.log(`✅ เครื่องแม่: บันทึกข้อมูลโต๊ะ ${targetTable} ลงฐานข้อมูลแล้ว`);
+            
+            // บังคับเปลี่ยนสีปุ่มโต๊ะที่หน้าจอเครื่องแม่ทันที
+            if (typeof renderTableSelection === "function") {
+                await renderTableSelection(); 
+            }
         }
-        
-        // --- 5. อัปเดต UI (ทำทั้งคู่เพื่อให้ปุ่มโต๊ะเปลี่ยนสีทันที) ---
-        if (typeof renderTableSelection === "function") await renderTableSelection();
-        
-        // ถ้าเป็นคนกดเองที่หน้าเครื่อง ให้เปิดกล่องเช็คบิลรอไว้เลย
-        if (!isFromWarp && typeof refreshBillingBox === "function") {
+
+        // --- 4. อัปเดต UI ส่วนกลาง (อัปเดตทุกครั้งไม่ว่าเครื่องไหน) ---
+        if (typeof refreshBillingBox === "function") {
+            // ถ้าหน้าจอกำลังเปิดโต๊ะนี้อยู่ ให้รีเฟรชยอดเงินให้เห็นทันที
             refreshBillingBox(targetTable);
         }
         
     } catch (err) {
-        console.error("❌ ฝากลงโต๊ะพลาด:", err);
-        if (!isFromWarp) alert("เกิดข้อผิดพลาด! เช็กชื่อตารางใน Dexie อีกครั้งครับ");
+        console.error("❌ Error ใน saveOrderToTable:", err);
+        if (!isFromWarp) alert("เกิดข้อผิดพลาดในการบันทึก!");
     }
 }
  
@@ -1429,51 +1432,79 @@ async function finalizeOrder(paymentMethod) {
 // วางระบบ P2P 07-05-2026
 // ==========================================
 
-//คำสั่ง "ส่งเมนูอาหารเข้าครัว" 11-05-2026
-// 🚩 เพิ่ม parameter: isPaymentMode เพื่อรับค่าว่านี่คือการจ่ายเงินหรือไม่
+/**
+ * ฟังก์ชันหลักในการปล่อยวาร์ปข้อมูล (เครื่องลูก -> เครื่องแม่)
+ * ปรับปรุง: ตรวจสอบข้อมูลให้ "สะอาด" และ "ครบถ้วน" ก่อนส่งลงท่อ
+ */
 function executeOrderSent(isPaymentMode = false) {
-    // 1. เช็คตะกร้าก่อน (เหมือนเดิม)
-    if (!cart || cart.length === 0) return;
+    console.log(`📡 [P2P System] เริ่มเตรียมวาร์ป (โหมด: ${isPaymentMode ? 'ชำระเงิน' : 'สั่งอาหาร'})`);
 
-    // 2. รวบรวมข้อมูล
+    // --- 1. เช็คความพร้อมของข้อมูล ---
+    if (!cart || cart.length === 0) {
+        console.warn("⚠️ ตะกร้าว่างเปล่า ยกเลิกการวาร์ป");
+        return;
+    }
+
+    // --- 2. รวบรวมและจัดรูปแบบข้อมูล (Data Packing) ---
     const orderData = {
         type: 'ORDER_INCOMING',
-        // ✅ ใช้ selectedTable (มี ed) ตามเดิม
-        table: (typeof selectedTable !== 'undefined' && selectedTable) ? selectedTable : 'กลับบ้าน', 
         
-        // ✅ ล้างฟังก์ชันทิ้งป้องกัน Error JSON (วิธีเดิมที่พี่ใช้)
+        // 🚩 บังคับให้เป็น String ตั้งแต่ต้นทาง เพื่อความปลอดภัยสูงสุดของเครื่องแม่
+        table: (typeof selectedTable !== 'undefined' && selectedTable) ? String(selectedTable) : 'กลับบ้าน', 
+        
+        // 🚩 ล้างฟังก์ชันทิ้ง เพื่อให้เป็น JSON แท้ๆ ส่งข้ามเครื่องได้ไม่พัง
         items: JSON.parse(JSON.stringify(cart)), 
         
         orderId: 'ORD-' + Date.now(),
         time: new Date().toLocaleTimeString('th-TH'),
-        // คำนวณยอดรวม (ใช้ qty หรือ quantity ตามโครงสร้าง cart ของพี่)
-        totalPrice: cart.reduce((sum, item) => sum + (item.price * (item.qty || item.quantity || 1)), 0)
+        
+        // 🚩 คำนวณยอดรวม (สรุปยอดให้เครื่องแม่พร้อมใช้)
+        total: cart.reduce((sum, item) => {
+            const amount = item.qty || item.quantity || 1;
+            return sum + (parseFloat(item.price) * amount);
+        }, 0),
+
+        // 🚩 แปะป้ายบอกสถานะ: เครื่องแม่จะดูที่ฟิลด์นี้ว่าต้องออกตั๋วครัวหรือไม่
+        isPayment: isPaymentMode,
+        
+        // 🚩 เพิ่มเติม: เก็บวิธีชำระเงิน (ถ้ามี)
+        payment_method: (typeof currentPaymentMethod !== 'undefined') ? currentPaymentMethod : 'Cash'
     };
 
-    // 3. ส่งข้อมูล P2P (เช็คความพร้อมของท่อเชื่อมต่อ)
+    // --- 3. ตรวจสอบสถานะท่อเชื่อมต่อ ---
     if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
         
+        console.log(`📤 กำลังส่งออเดอร์โต๊ะ [ ${orderData.table} ]...`);
+
         // =========================================================
-        // 🚩 [จุดตัดสินใจสำคัญ]: แยกท่อส่งตามประเภทรายการ
+        // 🚩 ส่งผ่านท่อหลัก Direct Send 
+        // (เพื่อให้ handleIncomingData ที่เครื่องแม่ประมวลผลได้ทันที)
         // =========================================================
-        if (isPaymentMode) {
-            // 💰 กรณีจ่ายเงิน: เรียกใช้ฟังก์ชันที่แปะป้าย isPayment: true
-            if (typeof sendPaymentToHub === 'function') {
-                sendPaymentToHub(orderData);
-                console.log("💰 วาร์ปยอดชำระเงินสำเร็จ (เครื่องแม่จะไม่เด้งครัว)");
+        try {
+            currentConn.send(orderData);
+            console.log("✅ [P2P] ส่งข้อมูลออกไปในอากาศเรียบร้อย!");
+
+            // แจ้งสถานะหน้าจอ (เปลี่ยนจุดเป็นสีส้มเพื่อรอ ACK)
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            if (statusDot && statusText) {
+                statusDot.style.backgroundColor = '#f39c12';
+                statusText.innerText = 'วาร์ปไปเครื่องแม่แล้ว...';
             }
-        } else {
-            // 👨‍🍳 กรณีสั่งอาหารปกติ: ส่งเข้าครัวตามปกติ
-            if (typeof submitOrderP2P === 'function') {
-                submitOrderP2P(orderData); 
-                console.log("🚀 วาร์ปออเดอร์เข้าครัวแล้ว:", orderData);
-                alert("✅ ส่งออเดอร์ไปที่ครัวเรียบร้อย!");
+
+            // ถ้าไม่ใช่การชำระเงิน (สั่งอาหารปกติ) ให้บอกคนสั่งด้วย
+            if (!isPaymentMode) {
+                alert(`✅ ส่งออเดอร์โต๊ะ ${orderData.table} เข้าครัวเรียบร้อย!`);
             }
+
+        } catch (err) {
+            console.error("❌ ส่งข้อมูลล้มเหลว:", err);
+            alert("❌ วาร์ปข้อมูลล้มเหลว! กรุณาลองใหม่อีกครั้ง");
         }
         
     } else {
         console.error("❌ การเชื่อมต่อ P2P ไม่พร้อม");
-        alert("❌ เชื่อมต่อเครื่องแม่ไม่ได้ กรุณากดเชื่อมต่อใหม่ครับ");
+        alert("❌ เชื่อมต่อเครื่องแม่ไม่ได้! กรุณาเช็คว่าเครื่องแม่เปิดโปรแกรมอยู่หรือไม่");
     }
 }
 

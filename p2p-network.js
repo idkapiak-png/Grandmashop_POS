@@ -37,129 +37,103 @@ function setupPeerListeners() {
  * อัปเดตล่าสุด: 11-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
  */
 // เปลี่ยนเป็น async function เพื่อให้สามารถใช้คำสั่ง await (รอ) ได้
+/**
+ * ฟังก์ชันจัดการข้อมูลวาร์ปขาเข้า (สมองส่วนกลางของเครื่องแม่)
+ * ปรับปรุง: รองรับการปิดยอดขาย และแยกแยะออเดอร์ลงโต๊ะได้แม่นยำ 100%
+ */
 async function handleIncomingData(data) {
-    console.log('🔔 ระบบประมวลผลข้อมูลวาร์ป:', data);
+    console.log('🔔 [P2P] ได้รับข้อมูลวาร์ปใหม่:', data);
     
     if (!data || !data.type) return;
 
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
 
-    // --- 1. [ฝั่งเครื่องแม่]: รับออเดอร์ และ บันทึกบัญชี ---
+    // =========================================================
+    // 🚩 [โหมดรับออเดอร์]: เครื่องแม่ประมวลผลข้อมูลที่ลูกส่งมา
+    // =========================================================
     if (data.type === 'ORDER_INCOMING') {
         
-        // 🚩 [จุดตรวจสอบสำคัญ]: เช็คว่าเป็น "ยอดชำระเงิน" (Payment) หรือไม่?
-        const isPayment = data.isPayment === true;
+        // 1. แยกประเภทข้อมูล
+        const isPayment = data.isPayment === true; // ลูกกดเช็คบิลมาใช่ไหม?
+        const tableStr = data.table ? String(data.table).trim() : "";
+        const isTakeAway = !tableStr || ['กลับบ้าน', 'ทั่วไป', ''].includes(tableStr);
 
+        console.log(`📊 ข้อมูลที่ได้รับ: โต๊ะ[${tableStr}] | ประเภท[${isTakeAway ? 'กลับบ้าน' : 'ลงโต๊ะ'}] | จ่ายเงิน[${isPayment}]`);
+
+        // 2. จัดการตั๋วครัว (Kitchen Ticket)
         if (typeof addKitchenTicket === 'function') {
             if (!isPayment) {
-                // ✅ เป็นออเดอร์ใหม่ -> วาดตั๋วเข้าครัว
-                console.log("👨‍🍳 ออเดอร์ใหม่: กำลังส่งเข้าครัว...");
+                // ถ้าไม่ใช่การจ่ายเงิน (คือการสั่งอาหารเพิ่ม) -> ต้องออกตั๋วครัวเสมอ!
+                console.log("👨‍🍳 [Kitchen] สั่งอาหารเพิ่ม -> กำลังพิมพ์ตั๋วครัว...");
                 addKitchenTicket(data); 
             } else {
-                // 💰 เป็นยอดจ่ายเงิน -> ข้ามการออกตั๋วครัว (แก้บั๊กสั่งซ้ำ)
-                console.log("💰 รับทราบยอดชำระเงิน: บันทึกบัญชีอย่างเดียว ไม่ส่งเข้าครัว");
+                console.log("💰 [Account] แจ้งยอดชำระเงิน -> ไม่ต้องพิมพ์ตั๋วครัว");
             }
-
-            console.log("💾 เริ่มกระบวนการบันทึกฐานข้อมูล StandaloneDatabase...");
-
-            // คำนวณยอดเงิน (Fresh Total)
-            let freshTotal = 0;
-            if (data.items && Array.isArray(data.items)) {
-                freshTotal = data.items.reduce((sum, item) => {
-                    const amount = item.qty || item.quantity || 1;
-                    const price = parseFloat(item.price) || 0;
-                    return sum + (price * amount);
-                }, 0);
-            }
-
-            // ตรวจสอบว่าเป็นประเภท "กลับบ้าน" (TakeAway) หรือไม่
-            const isTakeAway = !data.table || 
-                               data.table === 'กลับบ้าน' || 
-                               data.table === 'ทั่วไป' || 
-                               data.table.trim() === '';
-
-            try {
-                // บันทึกลง IndexedDB
-                if (isTakeAway) {
-                    if (typeof confirmOrder === 'function') {
-                        console.log("🥡 กำลังบันทึกวาร์ป: สั่งกลับบ้าน/ชำระเงิน...");
-                        
-                        // 🚩 [จุดแก้ไขชีวิต]: ส่ง true เข้าไปเป็นพารามิเตอร์ตัวที่สอง (isFromWarp)
-                        // เพื่อบอก confirmOrder ว่า "นี่คือของวาร์ปนะ บันทึกเสร็จแล้วเงียบไว้ ไม่ต้องวาร์ปต่อ"
-                        await confirmOrder(data.payment_method || 'Cash', true); 
-                    }
-                } else {
-                    if (typeof saveOrderToTable === 'function') {
-                        console.log(`🏠 กำลังบันทึกวาร์ป: โต๊ะ ${data.table}...`);
-                        // สำหรับระบบโต๊ะ เราบันทึกพักไว้ที่โต๊ะนั้นๆ
-                        await saveOrderToTable(data.table, data.items, freshTotal);
-                    }
-                }
-
-                // 🔄 [จุดสำคัญ]: อัปเดตหน้าจอ Dashboard ทันที
-                // เราใช้ setTimeout เพื่อให้มั่นใจว่า IndexedDB เขียนข้อมูลลงแผ่นดิสก์เรียบร้อยแล้ว
-                setTimeout(async () => {
-                    console.log("🔄 ฐานข้อมูลนิ่งแล้ว -> กำลังอัปเดตหน้าจอ Dashboard...");
-                    
-                    if (typeof loadRecentOrders === 'function') {
-                        await loadRecentOrders(); // 🚩 ตัวนี้จะทำให้ตาราง "รายการออเดอร์วันนี้" ขยับ!
-                    }
-                    
-                    if (typeof fetchTodaySales === 'function') {
-                        fetchTodaySales(); // อัปเดตตัวเลขยอดขายรวมด้านบน
-                    }
-
-                    if (typeof updateOrderList === 'function') {
-                        updateOrderList();
-                    }
-
-                    console.log("✅ อัปเดตหน้าจอเครื่องแม่แบบ Real-time เสร็จสมบูรณ์");
-                }, 500); 
-
-            } catch (error) {
-                console.error("❌ เกิดข้อผิดพลาดขณะบันทึกข้อมูลวาร์ป:", error);
-            }
-
-            // 4. ส่งสัญญาณ ACK ยืนยันกลับไปที่เครื่องลูก (เพื่อให้เครื่องลูกรู้ว่าวาร์ปถึงแล้ว)
-            if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
-                currentConn.send({
-                    type: 'ACK_ORDER',
-                    orderId: data.orderId
-                });
-            }
-            if (navigator.vibrate) navigator.vibrate(200); 
         }
+
+        // 3. จัดการฐานข้อมูล (Database)
+        try {
+            if (isPayment || isTakeAway) {
+                // 🥡 กรณี "เช็คบิลโต๊ะ" หรือ "สั่งกลับบ้าน" -> ต้องปิดยอดและลงบัญชีขาย
+                if (typeof confirmOrder === 'function') {
+                    console.log("🥡 [Action] กำลังบันทึกยอดขายและปิดบิล...");
+                    // 🚩 ส่ง data เข้าไปด้วยเพื่อให้ confirmOrder ดึงรายการอาหารมาบันทึกได้ถูก
+                    await confirmOrder(data.payment_method || 'Cash', true, data); 
+                }
+            } else {
+                // 🏠 กรณี "สั่งลงโต๊ะ" -> พักข้อมูลไว้ที่โต๊ะ (ปุ่มจะเป็นสีแดง)
+                if (typeof saveOrderToTable === 'function') {
+                    console.log(`🏠 [Action] กำลังพักข้อมูลลงโต๊ะ: ${tableStr}`);
+                    await saveOrderToTable(data, true);
+                }
+            }
+
+            // 4. สั่งรีเฟรชหน้าจอ (UI Refresh)
+            // ใช้ setTimeout เพื่อรอให้ Dexie DB เขียนไฟล์เสร็จชัวร์ๆ ก่อนดึงมาโชว์
+            setTimeout(async () => {
+                console.log("🔄 [UI] กำลังอัปเดตหน้าจอเครื่องแม่...");
+                
+                if (typeof loadRecentOrders === 'function') await loadRecentOrders(); 
+                if (typeof fetchTodaySales === 'function') fetchTodaySales(); 
+                if (typeof renderTableSelection === 'function') await renderTableSelection(); 
+                if (typeof updateOrderList === 'function') updateOrderList();
+
+                console.log("✅ [Success] หน้าจอเครื่องแม่อัปเดตล่าสุดแล้ว");
+            }, 600); 
+
+        } catch (error) {
+            console.error("❌ [Error] เครื่องแม่บันทึกวาร์ปพลาด:", error);
+            alert("แม่จ๋า! บันทึกข้อมูลวาร์ปพลาด: " + error.message);
+        }
+
+        // 5. ส่งสัญญาณ ACK ตอบกลับลูก (ยืนยันว่าได้รับของแล้ว)
+        if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
+            currentConn.send({ type: 'ACK_ORDER', orderId: data.orderId });
+            console.log("📡 [ACK] ยืนยันเครื่องลูกเรียบร้อย");
+        }
+        if (navigator.vibrate) navigator.vibrate(200); 
     }
     
-    // --- 2. [ฝั่งเครื่องลูก]: รับการยืนยันวาร์ปสำเร็จ (คงเดิม) ---
+    // =========================================================
+    // 🚩 [โหมดรับสัญญาณตอบกลับ]: เครื่องลูกรับข้อมูลจากเครื่องแม่
+    // =========================================================
     if (data.type === 'ACK_ORDER') {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
-            statusText.innerText = 'วาร์ปสำเร็จ! ครัวได้รับแล้ว';
+            statusText.innerText = 'วาร์ปสำเร็จ! แม่ได้รับแล้ว';
             statusText.style.color = '#27ae60';
-            
-            setTimeout(() => {
-                if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText);
-            }, 3000);
+            setTimeout(() => { if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText); }, 3000);
         }
     }
 
-    // --- 3. [ฝั่งเครื่องลูก]: แจ้งเตือนเมื่อครัวทำเสร็จ (คงเดิม) ---
     if (data.type === 'ORDER_DONE' || data.type === 'ORDER_READY') {
-        const tableInfo = data.table || 'ไม่ระบุโต๊ะ';
-        alert(`✅ อาหารโต๊ะ [ ${tableInfo} ] เสร็จเรียบร้อยแล้วครับ!`);
-
+        alert(`✅ อาหารโต๊ะ [ ${data.table || 'ไม่ระบุ'} ] เสร็จแล้วครับ!`);
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#3498db'; 
-            statusText.innerText = `โต๊ะ ${tableInfo}: อาหารเสร็จแล้ว!`;
-            statusText.style.color = '#2980b9';
-
-            setTimeout(() => {
-                if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText);
-            }, 5000);
+            statusText.innerText = `โต๊ะ ${data.table}: อาหารเสร็จแล้ว!`;
+            setTimeout(() => { if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText); }, 5000);
         }
-        if (navigator.vibrate) navigator.vibrate(500); 
     }
 }
 
