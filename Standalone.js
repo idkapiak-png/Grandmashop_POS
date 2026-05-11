@@ -1,23 +1,32 @@
 // ==========================================
-// 1. ประกาศตัวแปร Global (ลบ require ออกแล้วเพื่อให้ Browser ทำงานได้)
-
+// 1. ประกาศตัวแปร Global (อัปเดต: 12-05-2026)
 // ==========================================
-let cart = []; // ตะกร้าสินค้าหลัก
-let menus = []; // รายการเมนูหลักที่ดึงจากฐานข้อมูล
-let selectedTable = null; // เก็บเลขโต๊ะที่เลือก
+let cart = [];             // ตะกร้าสินค้าหลัก
+let menus = [];            // รายการเมนูหลัก
+let selectedTable = null;  // เก็บเลขโต๊ะที่เลือก (ตัวแปรนี้ห้ามหายเด็ดขาด!)
 let currentOrder = { name: "", price: 0, qty: 1 };
 let currentEditId = null; 
 let currentShoppingItem = { name: "", price: 0 };
 
 // ==========================================
-// 2. หัวใจระบบ: ฐานข้อมูล Dexie (ย้ายมาบนสุดเพื่อแก้ปัญหา Error)
+// 2. หัวใจระบบ: ฐานข้อมูล Dexie (Version 13: ศึกนี้เราต้องชนะ)
 // ==========================================
 const db = new Dexie("StandaloneDatabase");
 
-db.version(11).stores({
+/**
+ * 🚩 การปรับปรุง Version 13:
+ * 1. ถอยกลับมาใช้ 'table_id' เป็น Primary Key เพื่อแก้ UpgradeError (รูป 210)
+ * 2. การเพิ่ม Version เป็น 13 จะช่วยให้ Dexie พยายาม Re-open ฐานข้อมูลใหม่อีกครั้ง
+ * 3. คงโครงสร้างเดิมไว้เพื่อให้ข้อมูลเมนูและออเดอร์เก่าของคุณยายไม่หาย
+ */
+db.version(13).stores({
     settings: 'key', 
     orders: '++id, order_id, menu_name, total_price, discount, created_at, options, payment_method',
+    
+    // ✅ กลับมาใช้ 'table_id' ตามที่เบราว์เซอร์เคยจดจำไว้ใน Version 11
+    // การใช้ชื่อเดิมที่เคยประกาศเป็น Primary Key จะทำให้ระบบเสถียรที่สุด
     active_tables: 'table_id, last_update', 
+    
     dailysummary: 'summary_date, total_sales, egg_count, daily_investment, net_profit',
     menus: '++id, name, price',
     extra_options: '++id, name, price',
@@ -26,10 +35,13 @@ db.version(11).stores({
     price_history: 'name, last_price, best_price, last_updated' 
 });
 
+// เปิดใช้งานฐานข้อมูล
 db.open().then(() => {
-    console.log("✅ ฐานข้อมูลพร้อมใช้งาน (Version 11: เปิดระบบประวัติการซื้อย้อนหลังให้คุณยาย)");
+    console.log("✅ [DB Ready] ระบบกลับมาใช้ Version 13 (โครงสร้าง table_id) เรียบร้อยแล้วครับพี่");
 }).catch(err => {
-    console.error("❌ เปิดฐานข้อมูลไม่ได้: " + err.stack);
+    // 🚩 หากยังขึ้น UpgradeError อีก ให้พี่ลอง Refresh หน้าจอ (F5) 1-2 ครั้ง 
+    // เพื่อให้ Browser ยอมรับการเปลี่ยนแปลงโครงสร้างล่าสุด
+    console.error("❌ [DB Error] เปิดฐานข้อมูลไม่ได้: " + err.stack);
 });
 
 
@@ -1233,19 +1245,22 @@ async function refreshBillingBox(tableId) {
 //หย่อนบิลสั่งอาหาร 12-05-2026
 // 🚩 เพิ่มพารามิเตอร์ warpData (ข้อมูลออเดอร์) และ isFromWarp (เช็คว่ามาจากวาร์ปไหม)
 
+/**
+ * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ฉบับถอยกลับมาใช้ table_id เพื่อความเสถียรสูงสุด)
+ */
 async function saveOrderToTable(warpData = null, isFromWarp = false) {
     
     // --- 1. เตรียมข้อมูลและดักจับค่าว่าง (Critical Check) ---
     let tableVal = isFromWarp ? (warpData ? warpData.table : null) : selectedTable;
     
-    // บังคับตรวจสอบ: ถ้าไม่มีเลขโต๊ะ ห้ามไปต่อเด็ดขาด!
-    if (!tableVal || tableVal === "null" || tableVal === "undefined") {
-        console.error("❌ [Abort] ไม่สามารถบันทึกได้: ไม่พบเลขโต๊ะ (tableId is missing)");
+    // 🛡️ ดักจับค่าว่าง: ถ้าไม่มีเลขโต๊ะ ห้ามบันทึกเด็ดขาด! (ป้องกัน DataError)
+    if (!tableVal || tableVal === "null" || tableVal === "undefined" || String(tableVal).trim() === "") {
+        console.error("❌ [Abort] ไม่พบเลขโต๊ะสำหรับการบันทึก");
         if (!isFromWarp) alert("ยายจ๋า! กรุณาเลือกโต๊ะก่อนฝากรายการนะจ๊ะ");
         return; 
     }
 
-    const targetTable = String(tableVal).trim(); // มั่นใจได้ว่ามีค่าแน่นอน
+    const targetTable = String(tableVal).trim(); 
     const targetItems = isFromWarp ? (warpData.items || []) : [...cart];
 
     // เช็คกรณีตะกร้าว่าง
@@ -1258,51 +1273,55 @@ async function saveOrderToTable(warpData = null, isFromWarp = false) {
         console.log(`💾 [Process] กำลังบันทึกโต๊ะ: ${targetTable} (Warp: ${isFromWarp})`);
 
         // --- 2. จัดการฐานข้อมูล (Merge Data) ---
+        // 🚩 [จุดสำคัญ]: การค้นหา (.get) ต้องใช้ Key ที่ถูกต้อง
         const existingRecord = await db.active_tables.get(targetTable);
         
         let finalItems = (existingRecord && Array.isArray(existingRecord.order_items)) 
             ? [...existingRecord.order_items, ...targetItems] 
             : [...targetItems];
 
-        // 🚩 [จุดแก้ไข]: บันทึกลง Dexie โดยระบุ ID ที่แน่นอน
+        // 🚩 [จุดพิชิตชัย]: เปลี่ยนจาก 'id' กลับเป็น 'table_id' ตาม Schema Version 13
+        // สิ่งนี้จะทำให้ Error ในรูป 208, 209, 210 หายไปพร้อมกัน
         await db.active_tables.put({
-            id: targetTable, 
-            table: targetTable, // ใส่เผื่อไว้ทั้ง id และ table ตาม Schema
-            order_items: finalItems, 
-            updated_at: new Date().toISOString() // ใช้ ISO Format เพื่อความเป็นมาตรฐาน
+            table_id: targetTable,    // ✅ ตรงตาม Schema 'active_tables: table_id, last_update'
+            order_items: finalItems,
+            last_update: new Date().toISOString() 
         });
 
-        // --- 3. การจัดการหลังบันทึก (UI & P2P) ---
+        // --- 3. การจัดการ UI หลังบันทึกสำเร็จ ---
         if (!isFromWarp) {
-            // เครื่องที่กด (ส่งวาร์ป)
+            // ฝั่งคนส่ง (เครื่องลูก หรือ เครื่องแม่ที่หน้าเตา)
             if (typeof executeOrderSent === "function") {
                 executeOrderSent(false); 
             }
 
-            // ล้างตะกร้าทันที
+            // ล้างข้อมูลในเครื่อง
             cart = []; 
             if (typeof updateOrderPreview === "function") updateOrderPreview(); 
             
-            // รีเฟรชผังโต๊ะให้เป็นสีส้ม/แดง
+            // รีเฟรชผังโต๊ะ
             if (typeof renderTableSelection === "function") await renderTableSelection(); 
 
-            console.log(`✅ บันทึกโต๊ะ ${targetTable} และส่งวาร์ปเรียบร้อย`);
+            console.log(`✅ บันทึกโต๊ะ ${targetTable} สำเร็จ (Version 13)`);
             
-            // 🚩 [ปรับปรุง]: แทนที่จะ Alert ทันที ให้ Reset สถานะเลือกโต๊ะก่อน
+            // ล้างสถานะโต๊ะที่เลือก
             selectedTable = null; 
             if (typeof renderTableSelection === "function") await renderTableSelection();
 
+            alert(`📥 ฝากรายการลงโต๊ะ ${targetTable} เรียบร้อยแล้วจ้า!`);
+
         } else {
-            // เครื่องแม่ที่รับวาร์ป
-            console.log(`✅ [Master] รับออเดอร์วาร์ปเข้าโต๊ะ ${targetTable} เรียบร้อย`);
+            // ฝั่งเครื่องแม่ที่รับวาร์ปมา
+            console.log(`✅ [Master] รับวาร์ปเข้าโต๊ะ ${targetTable} ลงฐานข้อมูลแล้ว`);
             if (typeof renderTableSelection === "function") await renderTableSelection(); 
         }
 
         // รีเฟรช Billing Box (ถ้ามี)
-        if (typeof refreshBillingBox === "function") refreshBillingBox(targetTable);
+        if (typeof refreshBillingBox === "function") {
+            await refreshBillingBox(targetTable);
+        }
         
     } catch (err) {
-        // 🚩 นี่คือจุดที่รูป 206/207 จะวิ่งมาตกถ้าพัง
         console.error("❌ บั๊กที่ saveOrderToTable:", err);
         if (!isFromWarp) alert("เกิดข้อผิดพลาดที่ฐานข้อมูล: " + err.message);
     }
