@@ -34,12 +34,13 @@ function setupPeerListeners() {
 
 /**
  * ฟังก์ชันจัดการข้อมูลเข้า (Universal Handler)
- * อัปเดตล่าสุด: 11-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
+ * อัปเดตล่าสุด: 12-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
  */
 // เปลี่ยนเป็น async function เพื่อให้สามารถใช้คำสั่ง await (รอ) ได้
+
 /**
- * ฟังก์ชันจัดการข้อมูลวาร์ปขาเข้า (สมองส่วนกลางของเครื่องแม่)
- * ปรับปรุง: รองรับการปิดยอดขาย และแยกแยะออเดอร์ลงโต๊ะได้แม่นยำ 100%
+ * ฟังก์ชันจัดการข้อมูลวาร์ป (Data Handler) - "สมอง" ของเครื่องแม่
+ * ปรับปรุง: แก้ไขบั๊กสั่งกลับบ้านแล้วครัวเงียบ + จัดลำดับ UI Refresh ใหม่
  */
 async function handleIncomingData(data) {
     console.log('🔔 [P2P] ได้รับข้อมูลวาร์ปใหม่:', data);
@@ -54,21 +55,25 @@ async function handleIncomingData(data) {
     // =========================================================
     if (data.type === 'ORDER_INCOMING') {
         
-        // 1. เตรียมข้อมูลพื้นฐาน (บังคับให้เลขโต๊ะเป็น String เพื่อป้องกันบั๊กสีขาว)
+        // 1. เตรียมข้อมูลพื้นฐาน
         const isPayment = data.isPayment === true; 
         const tableStr = data.table ? String(data.table).trim() : "";
-        
-        // เช็คว่าต้องส่งเข้าครัวไหม? 
-        // (ส่งเข้าครัวเสมอถ้าไม่ใช่แค่การ "แจ้งจ่ายเงิน" และมีรายการอาหาร)
         const hasItems = data.items && data.items.length > 0;
-        const shouldGoToKitchen = !isPayment && hasItems;
 
-        console.log(`📊 ระบบประมวลผล: โต๊ะ[${tableStr}] | ครัว[${shouldGoToKitchen}] | จ่ายเงิน[${isPayment}]`);
+        // 🚩 [จุดที่ปรับ]: ครัวต้อง "สะดุ้ง" ทุกครั้งที่มีของใหม่ ไม่ว่าลูกจะจ่ายเงินแล้วหรือยังไม่จ่าย
+        // เงื่อนไขเดิมคือ !isPayment && hasItems ทำให้คนจ่ายเงินล่วงหน้าออเดอร์ไม่เข้าครัว
+        const shouldGoToKitchen = hasItems; 
 
-        // 2. จัดการตั๋วครัว (Kitchen Ticket) - **ย้ายมาลำดับแรกสุด**
+        console.log(`📊 ประมวลผล: โต๊ะ[${tableStr}] | เข้าครัว[${shouldGoToKitchen}] | จ่ายแล้ว[${isPayment}]`);
+
+        // 2. จัดการตั๋วครัว (Kitchen Ticket) 
+        // สั่งให้ดังที่เครื่องแม่ทันที ยายจะได้เห็นออเดอร์เด้งขึ้นมา
         if (shouldGoToKitchen && typeof addKitchenTicket === 'function') {
-            console.log("👨‍🍳 [Kitchen] มีออเดอร์วาร์ป -> กำลังส่งตั๋วให้ครัว...");
+            console.log("👨‍🍳 [Kitchen] พบรายการอาหาร -> กำลังส่งตั๋วให้ครัว...");
             addKitchenTicket(data); 
+            
+            // 🚩 [สิ่งที่เพิ่ม]: ถ้าพี่มีฟังก์ชันเล่นเสียง (Bell) ใส่ตรงนี้ได้เลยครับ
+            // if (typeof playOrderSound === 'function') playOrderSound();
         }
 
         // 3. จัดการฐานข้อมูล (Database Management)
@@ -80,49 +85,47 @@ async function handleIncomingData(data) {
                 // 🥡 กรณี "เช็คบิล" หรือ "สั่งกลับบ้าน" -> ปิดยอดลงบัญชีขาย
                 if (typeof confirmOrder === 'function') {
                     console.log("🥡 [Action] บันทึกยอดขายและปิดบิล...");
-                    // 🚩 ส่ง data ไปด้วยเพื่อให้ดึงรายการอาหารบันทึกประวัติออเดอร์วันนี้
+                    // ส่งข้อมูลชุดใหญ่ไปบันทึกประวัติการขาย Real-time
                     await confirmOrder(data.payment_method || 'Cash', true, data); 
                 }
             } else {
-                // 🏠 กรณี "สั่งลงโต๊ะ" -> พักข้อมูลไว้ที่โต๊ะ (ให้ปุ่มเป็นสีส้ม/แดง)
+                // 🏠 กรณี "ฝากลงโต๊ะ" -> พักข้อมูลไว้ที่โต๊ะ (เปลี่ยนสีปุ่มโต๊ะ)
                 if (typeof saveOrderToTable === 'function') {
-                    console.log(`🏠 [Action] บันทึกลงโต๊ะ: ${tableStr}`);
-                    // 🚩 บันทึกข้อมูลและอัปเดตสถานะปุ่มโต๊ะทันที
+                    console.log(`🏠 [Action] บันทึกลลงโต๊ะ: ${tableStr}`);
                     await saveOrderToTable(data, true);
                 }
             }
 
             // 4. สั่งรีเฟรชหน้าจอ (UI Refresh)
-            // เพิ่มเวลาเป็น 800ms เพื่อให้แน่ใจว่า Dexie DB เขียนทุกตารางเสร็จสนิท
+            // ใช้ setTimeout เพื่อรอให้ฐานข้อมูล Dexie บันทึกเสร็จแบบนิ่งๆ
             setTimeout(async () => {
-                console.log("🔄 [UI] กำลังสั่งรีเฟรชหน้าจอตามข้อมูลใหม่...");
+                console.log("🔄 [UI] กำลังอัปเดตหน้าจอให้ทันสมัย...");
                 
                 if (typeof loadRecentOrders === 'function') await loadRecentOrders(); 
                 if (typeof fetchTodaySales === 'function') fetchTodaySales(); 
                 if (typeof renderTableSelection === 'function') await renderTableSelection(); 
                 if (typeof updateOrderList === 'function') updateOrderList();
 
-                console.log("✅ [Success] หน้าจอปัจจุบันเป็นข้อมูลล่าสุดแล้ว");
+                console.log("✅ [Success] ข้อมูลหน้าจอแม่ Sync กับเครื่องลูกแล้ว");
             }, 800); 
 
         } catch (error) {
             console.error("❌ [Error] บันทึกข้อมูลวาร์ปล้มเหลว:", error);
-            alert("แจ้งเตือน: เครื่องแม่บันทึกข้อมูลพลาด - " + error.message);
+            alert("เครื่องแม่บันทึกข้อมูลพลาด: " + error.message);
         }
 
-        // 5. ส่งสัญญาณ ACK กลับไปให้เครื่องลูก
+        // 5. ส่งสัญญาณ ACK (ตอบกลับ) ให้เครื่องลูกสบายใจ
         if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
             currentConn.send({ type: 'ACK_ORDER', orderId: data.orderId });
         }
         if (navigator.vibrate) navigator.vibrate(200); 
     }
     
-    // [ ส่วนดัก ACK และ ORDER_DONE คงเดิม ]
+    // --- ส่วนดักสัญญาณจากเครื่องอื่น (คงเดิมตามมาตรฐานของพี่) ---
     if (data.type === 'ACK_ORDER') {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
             statusText.innerText = 'วาร์ปสำเร็จ! แม่ได้รับแล้ว';
-            statusText.style.color = '#27ae60';
             setTimeout(() => { if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText); }, 3000);
         }
     }
