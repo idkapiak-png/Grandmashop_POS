@@ -1175,66 +1175,79 @@ async function refreshBillingBox(tableId) {
     }
 }
 
-//หย่อนบิลสั่งอาหาร 10-05-2026
-async function saveOrderToTable() {
-    // เช็กความพร้อมเบื้องต้น
-    if (cart.length === 0) return alert("เลือกเมนูก่อนฝากลงโต๊ะครับ!");
-    if (!selectedTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
+//หย่อนบิลสั่งอาหาร 11-05-2026
+// 🚩 เพิ่มพารามิเตอร์ warpData (ข้อมูลออเดอร์) และ isFromWarp (เช็คว่ามาจากวาร์ปไหม)
+async function saveOrderToTable(warpData = null, isFromWarp = false) {
+    
+    // --- 1. ตรวจสอบความพร้อม ---
+    // ✅ ถ้าไม่ใช่การวาร์ป (คนกดเอง) -> เช็ค cart และ โต๊ะ ในหน้าจอปกติ
+    // ❌ ถ้าเป็นการวาร์ป (เครื่องแม่รับของ) -> ข้ามการเช็คนี้ไปเลย เพราะข้อมูลอยู่ใน warpData แล้ว
+    if (!isFromWarp) {
+        if (cart.length === 0) return alert("เลือกเมนูก่อนฝากลงโต๊ะครับ!");
+        if (!selectedTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
+    }
+
+    // 🚩 [กำหนดเป้าหมาย]: เลือกว่าจะเอาข้อมูลจากไหนมาบันทึก
+    const targetTable = isFromWarp ? warpData.table : selectedTable;
+    const targetItems = isFromWarp ? warpData.items : [...cart];
 
     try {
-        // --- 1. ระบบดึงข้อมูลเดิมมาต่อยอด ---
-        const existingOrder = await db.active_tables.get(selectedTable);
+        // --- 2. ระบบดึงข้อมูลเดิมมาต่อยอด ---
+        const existingOrder = await db.active_tables.get(targetTable);
         let finalItems = [];
         
         if (existingOrder && existingOrder.order_items) {
-            finalItems = [...existingOrder.order_items, ...cart];
-            console.log(`➕ โต๊ะ ${selectedTable} สั่งเพิ่ม: รวมเป็น ${finalItems.length} รายการ`);
+            finalItems = [...existingOrder.order_items, ...targetItems];
+            console.log(`➕ โต๊ะ ${targetTable} สั่งเพิ่ม: รวมเป็น ${finalItems.length} รายการ`);
         } else {
-            finalItems = [...cart];
-            console.log(`📥 โต๊ะ ${selectedTable} สั่งครั้งแรก: ${finalItems.length} รายการ`);
+            finalItems = [...targetItems];
+            console.log(`📥 โต๊ะ ${targetTable} สั่งครั้งแรก: ${finalItems.length} รายการ`);
         }
 
-        // --- 2. บันทึกข้อมูลลงในฐานข้อมูล Dexie ---
+        // --- 3. บันทึกข้อมูลลงในฐานข้อมูล Dexie ---
         await db.active_tables.put({
-            table_id: selectedTable,
+            table_id: targetTable,
             order_items: finalItems, 
             updated_at: new Date().toLocaleString('sv-SE') 
         });
 
         // ==========================================
-        // ⭐ [จุดที่ปรับปรุง] ระบบวาร์ปออเดอร์เข้าครัว (P2P)
+        // ⭐ [จุดสำคัญ] การจัดการระบบวาร์ป P2P
         // ==========================================
-        if (typeof executeOrderSent === "function") {
-            // ส่งเฉพาะรายการ "ใหม่" ในตะกร้า (cart) ไปให้ครัว 
-            // และระบุว่า isPayment = false (เพื่อให้ครัวเด้งตั๋ว)
-            const warpData = {
-                table: selectedTable,
-                items: [...cart], // ส่งเฉพาะของใหม่ที่เพิ่งกด ไม่ต้องส่งทั้งหมดที่เคยสั่งไปแล้ว
+        // ✅ ถ้าไม่ได้มาจากวาร์ป (เครื่องลูกกดสั่งเอง) -> ให้ส่งวาร์ปไปเครื่องแม่/ครัว
+        if (!isFromWarp && typeof executeOrderSent === "function") {
+            const payload = {
+                table: targetTable,
+                items: targetItems, 
                 type: 'ORDER_INCOMING'
             };
-
-            // เรียกใช้ระบบวาร์ป โดยระบุว่า isPayment เป็น false (หรือปล่อยว่างไว้ก็ได้)
-            executeOrderSent(warpData, false); 
+            executeOrderSent(payload, false); 
             console.log("🚀 P2P: ส่งรายการใหม่เข้าครัวเรียบร้อย (isPayment: false)");
+            alert(`📥 ฝากรายการลงโต๊ะ ${targetTable} และแจ้งครัวเรียบร้อย!`);
+        } 
+        // ❌ ถ้ามาจากวาร์ปแล้ว (เครื่องแม่รับของ) -> บันทึกเงียบๆ ห้ามวาร์ปซ้อน
+        else if (isFromWarp) {
+            console.log(`✅ เครื่องแม่: บันทึกออเดอร์โต๊ะ ${targetTable} ลงฐานข้อมูลสำเร็จ`);
         }
 
-        alert(`📥 ฝากรายการลงโต๊ะ ${selectedTable} และแจ้งครัวเรียบร้อย!`);
+        // --- 4. ล้างข้อมูลและรีเซ็ตหน้าจอ (เฉพาะคนที่กดขายหน้าเครื่อง) ---
+        if (!isFromWarp) {
+            cart = []; 
+            selectedTable = null; 
+            if (typeof updateOrderPreview === "function") updateOrderPreview();
+        }
         
-        // --- 3. ล้างข้อมูลเพื่อเริ่มออเดอร์ถัดไป ---
-        const lastTable = selectedTable; 
-        cart = []; 
-        selectedTable = null; 
-        
-        // --- 4. อัปเดตหน้าจอ UI ---
+        // --- 5. อัปเดต UI (ทำทั้งคู่เพื่อให้ปุ่มโต๊ะเปลี่ยนสีทันที) ---
         if (typeof renderTableSelection === "function") await renderTableSelection();
-        if (typeof updateOrderPreview === "function") updateOrderPreview();
-        if (typeof refreshBillingBox === "function") {
-            refreshBillingBox(lastTable);
+        
+        // ถ้าเป็นคนกดเองที่หน้าเครื่อง ให้เปิดกล่องเช็คบิลรอไว้เลย
+        if (!isFromWarp && typeof refreshBillingBox === "function") {
+            refreshBillingBox(targetTable);
         }
         
     } catch (err) {
         console.error("❌ ฝากลงโต๊ะพลาด:", err);
-        alert("เกิดข้อผิดพลาด! เช็กชื่อตารางใน Dexie อีกครั้งครับ");
+        if (!isFromWarp) alert("เกิดข้อผิดพลาด! เช็กชื่อตารางใน Dexie อีกครั้งครับ");
     }
 }
  
