@@ -469,30 +469,34 @@ function getSelectedOptions() {
     return { extraPrice, extraNames };
 }
 
-// ฟังก์ชันแสดงผล (มีปุ่มลบรายบรรทัด) 1-05-2026
+/**
+ * ฟังก์ชันวาดหน้าจอตะกร้า (ปรับปรุงล่าสุด: 11-05-2026)
+ * หน้าที่: แสดงรายการอาหาร, คำนวณเงิน, และควบคุมการโชว์ปุ่ม "ฝากลงโต๊ะ"
+ */
 function updateOrderPreview() {
     const detailBox = document.getElementById('order-detail');
     const totalBox = document.getElementById('order-total-price');
     const qtyBox = document.getElementById('order-qty'); 
     
-    const btnToTable = document.getElementById('btn-to-table');    
+    const btnToTable = document.getElementById('btn-to-table');     
     const btnPayNow = document.getElementById('btn-pay-now');      
     const btnCash = document.getElementById('btn-pay-cash');       
     const btnTransfer = document.getElementById('btn-pay-transfer'); 
 
     if(btnPayNow) btnPayNow.style.display = 'none'; 
 
-    // --- ส่วนที่ 1: วิเคราะห์ส่วนลด ---
+    // --- ส่วนที่ 1: วิเคราะห์ส่วนลด (ดึงจากระบบตั้งค่า) ---
     const rawDiscount = localStorage.getItem('default_discount') || "0";
     const isPercent = rawDiscount.toString().includes('%'); 
     const discountConfigValue = parseFloat(rawDiscount) || 0; 
 
     // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า ---
-    if (cart.length === 0) {
+    if (!cart || cart.length === 0) {
         if(detailBox) detailBox.innerHTML = "<div style='text-align:center; color:#999; padding:20px;'>ยังไม่ได้เลือกเมนู</div>";
         if(totalBox) totalBox.innerHTML = "รวมทั้งสิ้น : 0.-";
         if(qtyBox) qtyBox.innerText = "1"; 
         
+        // ล็อกปุ่มจ่ายเงินไม่ให้กดเล่น
         [btnCash, btnTransfer].forEach(btn => {
             if(btn) {
                 btn.style.display = 'block'; 
@@ -501,6 +505,7 @@ function updateOrderPreview() {
             }
         });
 
+        // 🚩 สำคัญ: ถ้าไม่มีของในตะกร้า ต้องซ่อนปุ่ม "ฝากลงโต๊ะ" เสมอ
         if(btnToTable) btnToTable.style.display = 'none'; 
         return; 
     }
@@ -508,12 +513,18 @@ function updateOrderPreview() {
     // --- ส่วนที่ 3: คำนวณรายการอาหาร ---
     let grandTotal = 0;
     let detailHTML = cart.map((item, index) => {
-        const itemTotal = item.price * item.qty;
+        const itemTotal = item.price * (item.qty || 1);
         grandTotal += itemTotal;
+
+        // เช็คว่ารายการนี้มาจาก DB หรือเป็นรายการใหม่ (เพื่อทำสีให้ยายดูง่าย)
+        const isPersisted = item.fromDB === true; // ถ้าเรามาร์คไว้ตอนโหลดจาก selectTable
+
         return `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 8px; ${isPersisted ? 'opacity: 0.8;' : ''}">
                 <div style="flex: 1;">
-                    <div style="font-weight: bold; font-size: 1rem;">${item.name}</div>
+                    <div style="font-weight: bold; font-size: 1rem;">
+                        ${isPersisted ? '✅ ' : '🆕 '}${item.name}
+                    </div>
                     ${item.options ? `<small style="color:#7f8c8d;">${item.options}</small>` : ''}
                 </div>
                 <div style="text-align: right; min-width: 80px;">
@@ -525,20 +536,13 @@ function updateOrderPreview() {
         `;
     }).join('');
 
-    // คำนวณส่วนลดจริง
+    // คำนวณส่วนลดสุทธิ
     let actualDiscountAmount = 0;
     if (isPercent) {
         actualDiscountAmount = (grandTotal * discountConfigValue) / 100;
     } else {
         actualDiscountAmount = discountConfigValue;
     }
-
-    // 🚩 วางโค้ดตรวจสอบ (Debug) ตรงนี้ครับ
-    console.log("--- 🕵️ ตรวจสอบการคำนวณ ---");
-    console.log("1. ราคาเต็มจากตะกร้า (ก่อนลด):", grandTotal);
-    console.log("2. ยอดส่วนลดที่ดึงมาใช้:", actualDiscountAmount);
-    console.log("3. ยอดสุทธิ (ข้อ 1 ลบ ข้อ 2):", grandTotal - actualDiscountAmount);
-    console.log("-----------------------");
 
     const netTotal = Math.max(0, grandTotal - actualDiscountAmount);
     
@@ -547,7 +551,7 @@ function updateOrderPreview() {
         if (actualDiscountAmount > 0) {
             const label = isPercent ? `ส่วนลดพิเศษ (${discountConfigValue}%)` : `ส่วนลดพื้นฐาน`;
             detailHTML += `
-                <div style="display: flex; justify-content: space-between; color: #d35400; padding: 12px 0; font-weight: bold; border-top: 2px solid #f9f9f9; background: #fff5e6; margin-top: 10px; border-radius: 8px; padding: 8px;">
+                <div style="display: flex; justify-content: space-between; color: #d35400; background: #fff5e6; margin-top: 10px; border-radius: 8px; padding: 8px; font-weight: bold;">
                     <span>${label}:</span>
                     <span>-${actualDiscountAmount.toLocaleString()}.-</span>
                 </div>
@@ -556,9 +560,8 @@ function updateOrderPreview() {
         detailBox.innerHTML = detailHTML;
     }
 
-    // --- 🔥 [จุดที่ปรับแต่งใหม่] แสดงยอดรวมสุทธิแบบฉลาด ---
+    // --- ส่วนที่ 5: แสดงยอดรวมสุทธิ ---
     if(totalBox) {
-        // สร้างตัวแปรเก็บ HTML ของขีดฆ่า (ถ้าไม่มีส่วนลด จะได้ค่าว่าง)
         const strikeThroughHTML = (actualDiscountAmount > 0) 
             ? `<small style="font-size: 0.85rem; color: #95a5a6; text-decoration: line-through;">ยอดรวม: ${grandTotal.toLocaleString()}.-</small><br>` 
             : '';
@@ -572,9 +575,13 @@ function updateOrderPreview() {
         `;
     }
 
-    // --- ส่วนที่ 5: ปลดล็อกปุ่มและฟีเจอร์อื่นๆ ---
-    if(qtyBox && cart.length > 0) qtyBox.innerText = cart[cart.length - 1].qty;
+    // --- ส่วนที่ 6: ปลดล็อกปุ่มตามสถานะการเลือกโต๊ะ ---
+    if(qtyBox && cart.length > 0) {
+        const lastItem = cart[cart.length - 1];
+        qtyBox.innerText = lastItem.qty || "1";
+    }
 
+    // เปิดให้กดจ่ายเงินได้
     [btnCash, btnTransfer].forEach(btn => {
         if(btn) {
             btn.style.opacity = '1';
@@ -582,12 +589,20 @@ function updateOrderPreview() {
         }
     });
 
-    if (typeof selectedTable !== 'undefined' && selectedTable !== null) {
-        if(btnToTable) btnToTable.style.display = 'block'; 
+    // 🚩 [ไฮไลท์]: ควบคุมปุ่ม "ฝากลงโต๊ะ" (โต๊ะต้องถูกเลือก และต้องมีของในตะกร้า)
+    const hasTable = (typeof selectedTable !== 'undefined' && selectedTable !== null && selectedTable !== "null");
+    
+    if (hasTable && cart.length > 0) {
+        if(btnToTable) {
+            btnToTable.style.display = 'block';
+            // ถ้าเป็นเครื่องลูก (Client) ให้เปลี่ยนข้อความปุ่มให้ยายไม่งง
+            // btnToTable.innerText = "🚀 ส่งวาร์ปเข้าครัว"; 
+        }
     } else {
         if(btnToTable) btnToTable.style.display = 'none';
     }
 }
+
 // ฟังก์ชันลบเฉพาะบางรายการ 25-04-2026
 function deleteSpecificItem(index) {
     cart.splice(index, 1); // ลบข้อมูลใน Array ตามตำแหน่งที่กด
@@ -598,19 +613,19 @@ function deleteSpecificItem(index) {
 // 🚩 เพิ่มพารามิเตอร์ isFromWarp (ค่าเริ่มต้นคือ false)
 /**
  * ฟังก์ชันปิดยอดขาย / เช็คบิล (ฉบับสมบูรณ์ รองรับวาร์ป P2P)
- * @param {String} paymentType - ประเภทการจ่ายเงิน ('Cash' หรือ 'QR')
- * @param {Boolean} isFromWarp - true ถ้าเป็นเครื่องแม่รับของวาร์ปมา
- * @param {Object} warpData - ก้อนข้อมูลจากเครื่องลูก (ส่งมาเฉพาะตอนวาร์ป)
+ * ปรับปรุงล่าสุด: 11-05-2026
  */
 async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
     
-    // --- 1. เตรียมข้อมูลพื้นฐาน (Data Preparation) ---
-    // ถ้ามาจากวาร์ป ให้ใช้รายการอาหารจากก้อนข้อมูล (warpData) ถ้ากดเองใช้ cart ในเครื่อง
+    // --- 1. เตรียมข้อมูลพื้นฐาน ---
     const targetItems = isFromWarp ? (warpData.items || []) : [...cart];
-    const targetTable = isFromWarp ? (warpData.table || null) : (selectedTable || null);
+    // ถ้ามี window.isCheckingOutTable ให้ใช้ค่านั้นเป็นหลัก เพื่อความแม่นยำในการลบโต๊ะ
+    const targetTable = isFromWarp ? (warpData.table || null) : (window.isCheckingOutTable || selectedTable || null);
 
-    // เช็คความพร้อม (เฉพาะคนกดเอง)
-    if (!isFromWarp && targetItems.length === 0) return alert("เลือกเมนูก่อนครับ!");
+    // เช็คความพร้อม
+    if (!isFromWarp && targetItems.length === 0) {
+        return alert("เลือกเมนูก่อนครับยาย!");
+    }
     
     const thailandTime = new Date().toLocaleString('sv-SE'); 
     const orderId = Date.now(); 
@@ -620,7 +635,6 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
     const isPercent = rawDiscount.toString().includes('%'); 
     const discountValue = parseFloat(rawDiscount) || 0; 
     
-    // คำนวณยอดรวมจากรายการอาหารที่เลือกมา
     const rawTotal = targetItems.reduce((sum, item) => sum + (item.price * (item.qty || 1)), 0);
     const actualDiscountBath = isPercent ? (rawTotal * discountValue) / 100 : discountValue;
     const netTotal = Math.max(0, rawTotal - actualDiscountBath); 
@@ -628,7 +642,6 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
 
     try {
         // --- 3. บันทึกลงฐานข้อมูล Dexie (Daily Sales) ---
-        // วนลูปบันทึกรายการอาหารทีละอย่างลงตาราง orders
         for (let item of targetItems) {
             await db.orders.add({
                 order_id: orderId,
@@ -653,14 +666,18 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
             });
         }
 
-        // --- 4. [จุดสำคัญ] เคลียร์สถานะโต๊ะ (เพื่อให้ปุ่มกลับเป็นสีเขียว) ---
-        // ไม่ว่าจะเป็นเครื่องแม่หรือลูก ถ้ามีการระบุโต๊ะมา ต้องลบทิ้งจากตาราง active_tables
-        if (targetTable && targetTable !== 'กลับบ้าน' && targetTable !== 'ทั่วไป') {
-            await db.active_tables.delete(String(targetTable));
-            console.log(`🧹 ล้างสถานะโต๊ะ [ ${targetTable} ] เรียบร้อย`);
+        // --- 4. [จุดสำคัญ] เคลียร์สถานะโต๊ะใน DB ---
+        if (targetTable && !['กลับบ้าน', 'ทั่วไป'].includes(targetTable)) {
+            const tableKey = String(targetTable);
+            await db.active_tables.delete(tableKey);
+            console.log(`🧹 ล้างสถานะโต๊ะ [ ${tableKey} ] ออกจาก DB แล้ว`);
             
-            // ถ้าเป็นเครื่องที่กำลังเปิดหน้าจอนั้นอยู่ ให้รีเซ็ตการเลือกโต๊ะด้วย
-            if (selectedTable === targetTable) {
+            // 🚩 [สิ่งที่เพิ่ม]: ล้างค่าตัวแปร Global เพื่อให้ระบบพร้อมรับงานใหม่
+            if (window.isCheckingOutTable === tableKey) {
+                window.isCheckingOutTable = null;
+            }
+
+            if (selectedTable === tableKey) {
                 selectedTable = null;
                 const display = document.getElementById('current-table-display');
                 if (display) {
@@ -672,14 +689,14 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
 
         // --- 5. การสื่อสาร P2P ---
         if (!isFromWarp) {
-            // 📤 [ฝั่งคนกด]: วาร์ปบอกอีกเครื่องว่า "จ่ายเงินแล้วนะ"
+            // 📤 [ฝั่งคนกด]: ส่งวาร์ปแจ้งเครื่องอื่น
             if (typeof executeOrderSent === "function") {
-                // ส่งค่า true เข้าไปในพารามิเตอร์ที่ 2 เพื่อบอกว่าเป็นโหมด Payment
+                // ส่ง true เพื่อบอกว่าเป็นโหมดชำระเงิน (เครื่องรับจะสั่ง delete โต๊ะตาม)
                 executeOrderSent(true); 
-                console.log("🚀 วาร์ปคำสั่งจ่ายเงินไปเครื่องแม่แล้ว");
+                console.log("🚀 ส่งวาร์ปสัญญาณชำระเงินสำเร็จ");
             }
             
-            // แสดงใบเสร็จ (เฉพาะคนกดจ่าย)
+            // แสดงใบเสร็จ
             if (typeof showSmartReceipt === "function") {
                 showSmartReceipt({
                     order_id: orderId, items: targetItems, 
@@ -689,16 +706,19 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
                 }); 
             }
 
-            // เคลียร์ตะกร้าคนกด
+            // เคลียร์ตะกร้าคนจ่าย
             cart = []; 
             if (typeof updateOrderPreview === "function") updateOrderPreview();
         }
 
-        // --- 6. รีเฟรชหน้าจอ (ทั้งแม่และลูก) ---
-        // บังคับให้ Dashboard และตารางยอดขายอัปเดตทันที
-        if (typeof fetchTodaySales === "function") fetchTodaySales();
+        // --- 6. รีเฟรช UI ให้เป็นปัจจุบัน ---
         if (typeof renderTableSelection === "function") await renderTableSelection(); 
+        if (typeof fetchTodaySales === "function") fetchTodaySales();
         if (typeof loadRecentOrders === "function") await loadRecentOrders();
+
+        // ซ่อน Billing Box (ถ้ามีค้างอยู่)
+        const billingBox = document.getElementById('pending-billing-box');
+        if (billingBox) billingBox.style.display = 'none';
 
         console.log("✅ ปิดยอดขายสำเร็จ!");
 
@@ -995,58 +1015,70 @@ function selectWalkIn() {
     renderTableSelection(); // วาดปุ่มใหม่เพื่อย้ายไฮไลท์สีส้ม
 }
 
-// 3. ฟังก์ชันเมื่อกดเลือกโต๊ะ 30-04-2026
+/**
+ * ฟังก์ชันเลือกโต๊ะ (ปรับปรุงล่าสุด: 11-05-2026)
+ * แก้ปัญหา: ข้อมูลกระพริบ, ของวาร์ปหาย, และปุ่มโต๊ะกลายเป็นสีขาว
+ */
 async function selectTable(tableId) {
-    // 1. อัปเดตตัวแปรสถานะ
-    selectedTable = tableId; 
+    // 1. 🛡️ บังคับความถูกต้องของข้อมูล (ป้องกันปุ่มสีขาว)
+    const targetTable = String(tableId);
+    selectedTable = targetTable; 
 
-    // 2. ปรับแต่ง UI ส่วนหัวให้ยายรู้ว่ากำลังคุมโต๊ะไหน
+    // 2. 🎨 อัปเดต UI ส่วนหัวทันที
     const display = document.getElementById('current-table-display');
     if (display) {
-        display.innerText = "📍 กำลังจัดการ: โต๊ะ " + tableId;
-        display.style.background = "#2ecc71"; // สีเขียว (Ready)
+        display.innerText = "📍 กำลังจัดการ: โต๊ะ " + targetTable;
+        display.style.background = "#2ecc71"; 
         display.style.color = "white";
         display.style.padding = "10px";
         display.style.borderRadius = "10px";
     }
 
-    // ❌ [จุดที่ลบออก]: ลบบรรทัดที่สั่ง btnToTable.style.display = 'block' ตรงนี้ทิ้งไป
-    // เพราะเราจะให้ฟังก์ชัน updateOrderPreview เป็นคนตัดสินใจแทนว่า "ควรโชว์ปุ่มไหม" 
-
     try {
-        // 3. ดึงข้อมูลจากฐานข้อมูลมาเช็กสถานะโต๊ะ
-        const tableData = await db.active_tables.get(tableId);
-
-        // ล้างตะกร้าในมือทุกครั้งที่เปลี่ยนโต๊ะ (ป้องกันออเดอร์ปนกัน)
+        // 🚩 [จุดตายที่ 1]: ล้างตะกร้าให้เกลี้ยงก่อนเสมอ
         cart = []; 
+        const billingBox = document.getElementById('pending-billing-box');
+        if (billingBox) billingBox.style.display = 'none';
 
-        if (tableData) {
-            // ✅ กรณีโต๊ะนี้มีบิลค้าง
+        // 3. 🔍 ดึงข้อมูล "สด" จากฐานข้อมูล Dexie
+        const tableData = await db.active_tables.get(targetTable);
+
+        if (tableData && Array.isArray(tableData.order_items)) {
+            console.log(`🏠 โต๊ะ ${targetTable}: ตรวจพบออเดอร์ค้าง สั่งติดป้ายสถานะ...`);
+
+            // 🚩 [จุดแก้ไขสำคัญ]: ใช้ .map() เพื่อ "ติดป้าย" fromDB ให้ทุกรายการ
+            // ข้อมูลเดิมจะถูกก๊อปมาหมด แต่เพิ่ม properties พิเศษเข้าไปเพื่อบอกว่า "นี่ของเก่านะ"
+            cart = tableData.order_items.map(item => ({
+                ...item,
+                fromDB: true // 🏷️ ติดป้ายเพื่อให้ updateOrderPreview ใส่ ✅
+            }));
+
+            // แสดงรายการบิลค้างใน Billing Box (ด้านล่าง)
             if (typeof refreshBillingBox === 'function') {
-                await refreshBillingBox(tableId); 
+                await refreshBillingBox(targetTable); 
             }
             
-            const billingBox = document.getElementById('pending-billing-box');
             if (billingBox) billingBox.style.display = 'block';
 
         } else {
-            // ❌ กรณีโต๊ะว่าง
-            const billingBox = document.getElementById('pending-billing-box');
-            if (billingBox) billingBox.style.display = 'none';
+            console.log(`🆕 โต๊ะ ${targetTable}: เป็นโต๊ะว่าง`);
         }
 
-        // 4. 🔥 [จุดสำคัญ]: เรียกใช้ updateOrderPreview เพื่อจัดการปุ่ม "ฝากลงโต๊ะ"
-        // พอมันทำงานหลังจาก cart = []; ปุ่ม "ฝากลงโต๊ะ" จะถูกซ่อนไปโดยอัตโนมัติ (ไม่กะพริบแล้ว!)
+        // 4. 🔥 [UI Sync]: สั่งวาดหน้าจอ (ตอนนี้มันจะโชว์ ✅ ตามป้ายที่เราติดไว้)
         if (typeof updateOrderPreview === 'function') {
             updateOrderPreview(); 
         }
         
+        // อัปเดตสีปุ่มผังโต๊ะ
         if (typeof renderTableSelection === 'function') {
             await renderTableSelection();
         }
 
+        console.log(`✅ [Done] เปิดโต๊ะ ${targetTable} สำเร็จ`);
+
     } catch (err) {
-        console.error("❌ เกิดข้อผิดพลาดตอนดึงข้อมูลโต๊ะ:", err);
+        console.error("❌ บั๊กใน selectTable:", err);
+        alert("ระบบโหลดข้อมูลพลาด: " + err.message);
     }
 }
 
@@ -1170,84 +1202,93 @@ async function refreshBillingBox(tableId) {
 /**
  * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ปรับปรุงเพื่อระบบ P2P ที่แม่นยำ)
 /**
- * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ฉบับปราบผีสิง - ปรับปรุงลำดับ UI ใหม่)
- * @param {Object} warpData - ข้อมูลที่วาร์ปมา (ถ้ามี)
- * @param {Boolean} isFromWarp - true ถ้าเป็นเครื่องแม่รับของ, false ถ้าเป็นคนกดเอง
+/**
+ * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ฉบับสมบูรณ์: แยกฝั่งแม่-ลูก และจัดการสถานะ UI)
+ * ปรับปรุงล่าสุด: 11-05-2026
  */
 async function saveOrderToTable(warpData = null, isFromWarp = false) {
     
-    // --- 1. เตรียมข้อมูลพื้นฐาน ---
-    // บังคับ String เพื่อความแม่นยำในการ Query (แก้ปัญหาโต๊ะสีขาว)
+    // --- 1. เตรียมข้อมูลพื้นฐาน (Data Prep) ---
+    // บังคับ String เสมอ เพื่อให้ Dexie หาเจอ 100% ไม่หลุดไปเป็น Number
     const targetTable = isFromWarp ? String(warpData.table) : String(selectedTable);
     const targetItems = isFromWarp ? (warpData.items || []) : [...cart];
 
+    // เช็คความพร้อม (เฉพาะคนกดส่งเอง)
     if (!isFromWarp) {
-        if (cart.length === 0) return alert("เลือกเมนูก่อนฝากลงโต๊ะครับ!");
-        if (targetTable === "null" || !targetTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
+        if (targetItems.length === 0) return alert("ยายจ๋า เลือกเมนูก่อนฝากลงโต๊ะครับ!");
+        if (targetTable === "null" || !targetTable) return alert("กรุณาเลือกโต๊ะก่อนนะจ๊ะ!");
     }
 
     try {
-        // --- 2. จัดการฐานข้อมูล (บันทึกก่อนเสมอ) ---
-        const existingOrder = await db.active_tables.get(targetTable);
-        let finalItems = existingOrder && Array.isArray(existingOrder.order_items) 
-            ? [...existingOrder.order_items, ...targetItems] 
+        console.log(`💾 เริ่มการบันทึกโต๊ะ ${targetTable} (สถานะวาร์ป: ${isFromWarp})`);
+
+        // --- 2. จัดการฐานข้อมูล (Merge Data) ---
+        // ดึงของเก่าที่มีอยู่ในโต๊ะนั้นมาดู
+        const existingRecord = await db.active_tables.get(targetTable);
+        
+        // ผสมออเดอร์เก่า + ออเดอร์ใหม่เข้าด้วยกัน (ป้องกันของเก่าหาย)
+        let finalItems = (existingRecord && Array.isArray(existingRecord.order_items)) 
+            ? [...existingRecord.order_items, ...targetItems] 
             : [...targetItems];
 
-        // บันทึกและต้องใช้ await เพื่อให้ DB เขียนเสร็จชัวร์ๆ
+        // บันทึกลง Dexie (ใช้ await เพื่อให้มั่นใจว่าเขียนลงเครื่องเสร็จก่อนไปต่อ)
         await db.active_tables.put({
-            table_id: targetTable,
+            id: targetTable, // ใช้ key 'id' ให้ตรงกับ schema ของพี่
             order_items: finalItems, 
             updated_at: new Date().toLocaleString('sv-SE') 
         });
 
-        console.log(`✅ [DB] บันทึกโต๊ะ ${targetTable} สำเร็จ (วาร์ป: ${isFromWarp})`);
-
-        // --- 3. การจัดการฝั่งคนส่ง (เครื่องลูก) ---
+        // --- 3. การจัดการฝั่งคนส่ง (เครื่องลูก / หรือเครื่องแม่ที่กดเอง) ---
         if (!isFromWarp) {
-            // 📤 ส่งวาร์ปไปหาแม่
+            // 📤 [P2P] ส่งสัญญาณวาร์ปบอกเครื่องแม่
             if (typeof executeOrderSent === "function") {
-                // หมายเหตุ: payload ถูกสร้างข้างใน executeOrderSent อยู่แล้วตามโครงสร้างเดิมของพี่
+                // พารามิเตอร์ false หมายถึง "ยังไม่ชำระเงิน" (แค่ส่งออเดอร์)
                 executeOrderSent(false); 
-                console.log("🚀 [P2P] ส่งสัญญาณวาร์ปเรียบร้อย");
+                console.log("🚀 [P2P] วาร์ปออเดอร์สำเร็จ");
             }
 
-            // 🚩 [จุดเปลี่ยนชีวิต]: ห้ามล้าง selectedTable ทันที! 
-            // ให้ล้างแค่ตะกร้า (Cart) เพื่อให้ระบบยังรู้ว่าเราทำงานกับโต๊ะไหนอยู่
+            // 🚩 [ลำดับ UI ใหม่]: ล้างแค่ตะกร้า (Cart) แต่ "ยังไม่ล้าง" selectedTable ทันที
             cart = []; 
-            if (typeof updateOrderPreview === "function") updateOrderPreview();
             
-            // สั่ง Refresh หน้าจอเพื่อให้ปุ่มโต๊ะเปลี่ยนสี (จากเขียว -> แดง/ส้ม)
+            // อัปเดตหน้าจอสั่งอาหารให้ว่างเปล่า (ปุ่มฝากลงโต๊ะจะหายไปเองตามเงื่อนไข cart.length)
+            if (typeof updateOrderPreview === "function") {
+                updateOrderPreview(); 
+            }
+            
+            // สั่ง Refresh ผังโต๊ะ (ตอนนี้โต๊ะจะกลายเป็นสีแดง/ส้ม ทันทีเพราะมีของใน DB แล้ว)
             if (typeof renderTableSelection === "function") {
                 await renderTableSelection(); 
             }
 
-            alert(`📥 ฝากรายการลงโต๊ะ ${targetTable} และแจ้งครัวเรียบร้อย!`);
+            alert(`📥 ฝากรายการลงโต๊ะ ${targetTable} เรียบร้อยแล้วจ้า!`);
             
-            // เมื่อทุกอย่างนิ่งแล้ว ค่อยล้างสถานะการเลือกโต๊ะ (ป้องกันบั๊กปุ่มขาวแวบ)
+            // ✅ [จังหวะสุดท้าย]: เมื่อทุกอย่างเสร็จ ค่อยล้างสถานะการเลือกโต๊ะ
+            // วิธีนี้จะทำให้ UI ไม่กระพริบ และปุ่มโต๊ะจะไม่กลายเป็นสีขาวกลางคัน
             selectedTable = null;
-            if (typeof renderTableSelection === "function") await renderTableSelection();
+            if (typeof renderTableSelection === "function") {
+                await renderTableSelection(); 
+            }
 
         } else {
             // --- 4. การจัดการฝั่งคนรับ (เครื่องแม่) ---
-            console.log(`✅ [Master] รับออเดอร์วาร์ปโต๊ะ ${targetTable} เรียบร้อย`);
+            console.log(`✅ [Master] รับออเดอร์วาร์ปเข้าโต๊ะ ${targetTable} แล้ว`);
             
-            // เครื่องแม่ต้องอัปเดตสีปุ่มทันทีที่ได้รับของ
+            // เครื่องแม่แค่สั่ง Refresh ผังโต๊ะ เพื่อให้ปุ่มโต๊ะนั้นเปลี่ยนเป็นสีแดง/ส้ม
             if (typeof renderTableSelection === "function") {
                 await renderTableSelection(); 
             }
         }
 
-        // --- 5. รีเฟรชหน้าจอสรุปยอด (ถ้าเปิดค้างไว้) ---
+        // --- 5. รีเฟรชส่วนสรุปยอดด้านล่าง (ถ้ามีฟังก์ชันนี้) ---
         if (typeof refreshBillingBox === "function") {
             refreshBillingBox(targetTable);
         }
         
     } catch (err) {
-        console.error("❌ เกิดข้อผิดพลาดร้ายแรงที่ saveOrderToTable:", err);
-        if (!isFromWarp) alert("เกิดข้อผิดพลาดในการบันทึก! เช็ค Console ครับ");
+        console.error("❌ บั๊กที่ saveOrderToTable:", err);
+        if (!isFromWarp) alert("ยายจ๋า! บันทึกลงโต๊ะพลาด: " + err.message);
     }
 }
- 
 // ฟังก์ชันปิดกล่อง (เมื่อต้องการเคลียร์หน้าจอ) 29-04-2026
 function closeBillingBox() {
     document.getElementById('pending-billing-box').style.display = 'none';
@@ -1308,32 +1349,66 @@ async function selectTakeawayMode() {
 // ฟังก์ชัน: เช็คบิล (ดึงรายการจากโต๊ะกลับมาจ่ายเงิน)
 // ทำงานเมื่อ: กดปุ่ม "💰 เช็คบิลเก็บเงิน" ในกล่องเก็บบิล 11-05-2026
 // ==========================================
+/**
+ * ฟังก์ชันเตรียมเช็คบิล (ฉบับอัปเกรดเพื่อระบบ P2P)
+ * หน้าที่: ดึงรายการทั้งหมดจากโต๊ะใน DB กลับมาที่ตะกร้าหลักเพื่อให้ยายกดรับเงิน
+ * ปรับปรุงล่าสุด: 11-05-2026
+ */
 async function checkoutTable() {
-    if (!selectedTable) return;
-
-    const tableData = await db.active_tables.get(selectedTable);
-    if (!tableData || tableData.order_items.length === 0) {
-        alert("โต๊ะนี้ไม่มีรายการอาหารครับ");
+    // 1. ตรวจสอบว่าเลือกโต๊ะหรือยัง
+    if (!selectedTable || selectedTable === "null") {
+        alert("กรุณาเลือกโต๊ะที่ต้องการเช็คบิลก่อนจ้า");
         return;
     }
 
-    if (confirm(`เรียกเก็บเงิน โต๊ะ ${selectedTable} ใช่หรือไม่?`)) {
-        try {
-            cart = [...tableData.order_items]; 
+    try {
+        // 2. ดึงข้อมูลล่าสุดจากฐานข้อมูล active_tables
+        const tableData = await db.active_tables.get(String(selectedTable));
 
-            // ⭐ [เพิ่มจุดนี้]: สร้างตัวแปรบอกสถานะว่านี่คือออเดอร์จาก "โต๊ะ" ที่รอเช็คบิล
-            // เราจะเอาไว้ใช้ใน confirmOrder เพื่อส่งสัญญาณวาร์ปแบบ 'true'
-            window.isCheckingOutTable = selectedTable; 
-
-            if (typeof updateOrderPreview === 'function') updateOrderPreview(); 
-
-            const billingBox = document.getElementById('pending-billing-box');
-            if (billingBox) billingBox.style.display = 'none';
-            
-            alert(`ดึงรายการจาก โต๊ะ ${selectedTable} มาแล้วครับ ยายกดรับเงินสดหรือโอนได้เลย!`);
-        } catch (err) {
-            console.error("เกิดข้อผิดพลาดในการดึงข้อมูลโต๊ะ:", err);
+        // ตรวจสอบว่าโต๊ะนี้มีของจริงไหม (กันเหนียว)
+        if (!tableData || !tableData.order_items || tableData.order_items.length === 0) {
+            alert(`โต๊ะ ${selectedTable} ไม่มีรายการอาหารค้างอยู่ครับ`);
+            return;
         }
+
+        // 3. ยืนยันกับยายอีกครั้งเพื่อความชัวร์
+        if (confirm(`💰 เรียกเก็บเงิน โต๊ะ ${selectedTable} ใช่หรือไม่?`)) {
+            
+            // 🚩 [จุดหัวใจ]: ย้ายรายการจาก DB มาใส่ใน Cart หลัก
+            // เราใช้ .map() เพื่อเติม flag 'fromDB' ให้ระบบรู้ว่าเป็นรายการเก่า (โชว์ ✅)
+            cart = tableData.order_items.map(item => ({
+                ...item,
+                fromDB: true 
+            }));
+
+            // ⭐ [จุดสำคัญ]: ปักหมุดบอกระบบว่า "ตอนนี้เรากำลังอยู่ในโหมดปิดโต๊ะ"
+            // ตัวแปรนี้จะถูกใช้ในฟังก์ชันบันทึกรับเงิน เพื่อสั่งลบโต๊ะออกจากระบบ P2P
+            window.isCheckingOutTable = String(selectedTable); 
+
+            // 4. สั่งวาดหน้าจอตะกร้าใหม่ (ยายจะเห็นรายการอาหารทั้งหมดโผล่มาพร้อมยอดรวม)
+            if (typeof updateOrderPreview === 'function') {
+                updateOrderPreview(); 
+            }
+
+            // 5. ปิดกล่องสถานะบิลค้าง (เพราะตอนนี้ข้อมูลย้ายมาอยู่ที่ตะกร้าหลักเพื่อรอจ่ายเงินแล้ว)
+            const billingBox = document.getElementById('pending-billing-box');
+            if (billingBox) {
+                billingBox.style.display = 'none';
+            }
+            
+            // 6. UI Feedback: เลื่อนหน้าจอไปที่ตะกร้าเพื่อให้ยายเห็นปุ่มรับเงินชัดๆ
+            const orderTotalSection = document.getElementById('order-total-price');
+            if (orderTotalSection) {
+                orderTotalSection.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            console.log(`✅ เตรียมปิดบิลโต๊ะ ${selectedTable}: ข้อมูลวาร์ปกลับเข้าตะกร้าเรียบร้อย`);
+            alert(`ดึงรายการจาก โต๊ะ ${selectedTable} มาแล้วจ้า! \nยายตรวจสอบยอดแล้วกด "เงินสด" หรือ "โอน" ได้เลย`);
+        }
+
+    } catch (err) {
+        console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลเพื่อเช็คบิล:", err);
+        alert("ขออภัยจ้ะยาย ระบบดึงข้อมูลโต๊ะพลาด: " + err.message);
     }
 }
 
