@@ -1230,98 +1230,84 @@ async function refreshBillingBox(tableId) {
     }
 }
 
-//หย่อนบิลสั่งอาหาร 11-05-2026
+//หย่อนบิลสั่งอาหาร 12-05-2026
 // 🚩 เพิ่มพารามิเตอร์ warpData (ข้อมูลออเดอร์) และ isFromWarp (เช็คว่ามาจากวาร์ปไหม)
-/**
- * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ปรับปรุงเพื่อระบบ P2P ที่แม่นยำ)
-/**
-/**
- * ฟังก์ชันบันทึกออเดอร์ลงโต๊ะ (ฉบับสมบูรณ์: แยกฝั่งแม่-ลูก และจัดการสถานะ UI)
- * ปรับปรุงล่าสุด: 11-05-2026
- */
+
 async function saveOrderToTable(warpData = null, isFromWarp = false) {
     
-    // --- 1. เตรียมข้อมูลพื้นฐาน (Data Prep) ---
-    // บังคับ String เสมอ เพื่อให้ Dexie หาเจอ 100% ไม่หลุดไปเป็น Number
-    const targetTable = isFromWarp ? String(warpData.table) : String(selectedTable);
+    // --- 1. เตรียมข้อมูลและดักจับค่าว่าง (Critical Check) ---
+    let tableVal = isFromWarp ? (warpData ? warpData.table : null) : selectedTable;
+    
+    // บังคับตรวจสอบ: ถ้าไม่มีเลขโต๊ะ ห้ามไปต่อเด็ดขาด!
+    if (!tableVal || tableVal === "null" || tableVal === "undefined") {
+        console.error("❌ [Abort] ไม่สามารถบันทึกได้: ไม่พบเลขโต๊ะ (tableId is missing)");
+        if (!isFromWarp) alert("ยายจ๋า! กรุณาเลือกโต๊ะก่อนฝากรายการนะจ๊ะ");
+        return; 
+    }
+
+    const targetTable = String(tableVal).trim(); // มั่นใจได้ว่ามีค่าแน่นอน
     const targetItems = isFromWarp ? (warpData.items || []) : [...cart];
 
-    // เช็คความพร้อม (เฉพาะคนกดส่งเอง)
-    if (!isFromWarp) {
-        if (targetItems.length === 0) return alert("ยายจ๋า เลือกเมนูก่อนฝากลงโต๊ะครับ!");
-        if (targetTable === "null" || !targetTable) return alert("กรุณาเลือกโต๊ะก่อนนะจ๊ะ!");
+    // เช็คกรณีตะกร้าว่าง
+    if (targetItems.length === 0) {
+        if (!isFromWarp) alert("ยายจ๋า เลือกเมนูก่อนฝากลงโต๊ะครับ!");
+        return;
     }
 
     try {
-        console.log(`💾 เริ่มการบันทึกโต๊ะ ${targetTable} (สถานะวาร์ป: ${isFromWarp})`);
+        console.log(`💾 [Process] กำลังบันทึกโต๊ะ: ${targetTable} (Warp: ${isFromWarp})`);
 
         // --- 2. จัดการฐานข้อมูล (Merge Data) ---
-        // ดึงของเก่าที่มีอยู่ในโต๊ะนั้นมาดู
         const existingRecord = await db.active_tables.get(targetTable);
         
-        // ผสมออเดอร์เก่า + ออเดอร์ใหม่เข้าด้วยกัน (ป้องกันของเก่าหาย)
         let finalItems = (existingRecord && Array.isArray(existingRecord.order_items)) 
             ? [...existingRecord.order_items, ...targetItems] 
             : [...targetItems];
 
-        // บันทึกลง Dexie (ใช้ await เพื่อให้มั่นใจว่าเขียนลงเครื่องเสร็จก่อนไปต่อ)
+        // 🚩 [จุดแก้ไข]: บันทึกลง Dexie โดยระบุ ID ที่แน่นอน
         await db.active_tables.put({
-            id: targetTable, // ใช้ key 'id' ให้ตรงกับ schema ของพี่
+            id: targetTable, 
+            table: targetTable, // ใส่เผื่อไว้ทั้ง id และ table ตาม Schema
             order_items: finalItems, 
-            updated_at: new Date().toLocaleString('sv-SE') 
+            updated_at: new Date().toISOString() // ใช้ ISO Format เพื่อความเป็นมาตรฐาน
         });
 
-        // --- 3. การจัดการฝั่งคนส่ง (เครื่องลูก / หรือเครื่องแม่ที่กดเอง) ---
+        // --- 3. การจัดการหลังบันทึก (UI & P2P) ---
         if (!isFromWarp) {
-            // 📤 [P2P] ส่งสัญญาณวาร์ปบอกเครื่องแม่
+            // เครื่องที่กด (ส่งวาร์ป)
             if (typeof executeOrderSent === "function") {
-                // พารามิเตอร์ false หมายถึง "ยังไม่ชำระเงิน" (แค่ส่งออเดอร์)
                 executeOrderSent(false); 
-                console.log("🚀 [P2P] วาร์ปออเดอร์สำเร็จ");
             }
 
-            // 🚩 [ลำดับ UI ใหม่]: ล้างแค่ตะกร้า (Cart) แต่ "ยังไม่ล้าง" selectedTable ทันที
+            // ล้างตะกร้าทันที
             cart = []; 
+            if (typeof updateOrderPreview === "function") updateOrderPreview(); 
             
-            // อัปเดตหน้าจอสั่งอาหารให้ว่างเปล่า (ปุ่มฝากลงโต๊ะจะหายไปเองตามเงื่อนไข cart.length)
-            if (typeof updateOrderPreview === "function") {
-                updateOrderPreview(); 
-            }
-            
-            // สั่ง Refresh ผังโต๊ะ (ตอนนี้โต๊ะจะกลายเป็นสีแดง/ส้ม ทันทีเพราะมีของใน DB แล้ว)
-            if (typeof renderTableSelection === "function") {
-                await renderTableSelection(); 
-            }
+            // รีเฟรชผังโต๊ะให้เป็นสีส้ม/แดง
+            if (typeof renderTableSelection === "function") await renderTableSelection(); 
 
-            alert(`📥 ฝากรายการลงโต๊ะ ${targetTable} เรียบร้อยแล้วจ้า!`);
+            console.log(`✅ บันทึกโต๊ะ ${targetTable} และส่งวาร์ปเรียบร้อย`);
             
-            // ✅ [จังหวะสุดท้าย]: เมื่อทุกอย่างเสร็จ ค่อยล้างสถานะการเลือกโต๊ะ
-            // วิธีนี้จะทำให้ UI ไม่กระพริบ และปุ่มโต๊ะจะไม่กลายเป็นสีขาวกลางคัน
-            selectedTable = null;
-            if (typeof renderTableSelection === "function") {
-                await renderTableSelection(); 
-            }
+            // 🚩 [ปรับปรุง]: แทนที่จะ Alert ทันที ให้ Reset สถานะเลือกโต๊ะก่อน
+            selectedTable = null; 
+            if (typeof renderTableSelection === "function") await renderTableSelection();
 
         } else {
-            // --- 4. การจัดการฝั่งคนรับ (เครื่องแม่) ---
-            console.log(`✅ [Master] รับออเดอร์วาร์ปเข้าโต๊ะ ${targetTable} แล้ว`);
-            
-            // เครื่องแม่แค่สั่ง Refresh ผังโต๊ะ เพื่อให้ปุ่มโต๊ะนั้นเปลี่ยนเป็นสีแดง/ส้ม
-            if (typeof renderTableSelection === "function") {
-                await renderTableSelection(); 
-            }
+            // เครื่องแม่ที่รับวาร์ป
+            console.log(`✅ [Master] รับออเดอร์วาร์ปเข้าโต๊ะ ${targetTable} เรียบร้อย`);
+            if (typeof renderTableSelection === "function") await renderTableSelection(); 
         }
 
-        // --- 5. รีเฟรชส่วนสรุปยอดด้านล่าง (ถ้ามีฟังก์ชันนี้) ---
-        if (typeof refreshBillingBox === "function") {
-            refreshBillingBox(targetTable);
-        }
+        // รีเฟรช Billing Box (ถ้ามี)
+        if (typeof refreshBillingBox === "function") refreshBillingBox(targetTable);
         
     } catch (err) {
+        // 🚩 นี่คือจุดที่รูป 206/207 จะวิ่งมาตกถ้าพัง
         console.error("❌ บั๊กที่ saveOrderToTable:", err);
-        if (!isFromWarp) alert("ยายจ๋า! บันทึกลงโต๊ะพลาด: " + err.message);
+        if (!isFromWarp) alert("เกิดข้อผิดพลาดที่ฐานข้อมูล: " + err.message);
     }
 }
+
 // ฟังก์ชันปิดกล่อง (เมื่อต้องการเคลียร์หน้าจอ) 29-04-2026
 function closeBillingBox() {
     document.getElementById('pending-billing-box').style.display = 'none';
