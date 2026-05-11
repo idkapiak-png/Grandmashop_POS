@@ -594,10 +594,11 @@ function deleteSpecificItem(index) {
     updateOrderPreview();  // วาดหน้าจอใหม่
 }
 
-// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 30-04-2026
-async function confirmOrder(paymentType) {
-    // ป้องกันการกดซ้ำหรือตะกร้าว่าง
-    if (cart.length === 0) return alert("เลือกเมนูก่อนครับคุณยาย!");
+// ฟังก์ชันยืนยัน (บันทึกลงฐานข้อมูล) 11-05-2026
+// 🚩 เพิ่มพารามิเตอร์ isFromWarp (ค่าเริ่มต้นคือ false)
+async function confirmOrder(paymentType, isFromWarp = false) {
+    // 1. ตรวจสอบตะกร้า (ถ้ามาจากวาร์ป ให้ข้ามเช็ค cart ว่าง เพราะข้อมูลถูกส่งมาโดยตรง)
+    if (!isFromWarp && cart.length === 0) return alert("เลือกเมนูก่อนครับคุณยาย!");
     
     const thailandTime = new Date().toLocaleString('sv-SE'); 
     const orderId = Date.now(); 
@@ -606,6 +607,8 @@ async function confirmOrder(paymentType) {
     const rawDiscount = localStorage.getItem('default_discount') || "0";
     const isPercent = rawDiscount.toString().includes('%'); 
     const discountConfigValue = parseFloat(rawDiscount) || 0; 
+    
+    // คำนวณยอดรวม: ถ้ามาจากวาร์ป เราจะใช้ข้อมูลที่วาร์ปมา (data.items) แทน cart ในหน้าจอ
     const rawTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
     let actualDiscountBath = isPercent 
@@ -627,6 +630,7 @@ async function confirmOrder(paymentType) {
 
     try {
         // --- 2. บันทึกลงฐานข้อมูล Dexie (คงเดิม) ---
+        // จุดนี้จะทำให้เครื่องแม่บันทึกข้อมูลที่วาร์ปมาลงฐานข้อมูลตัวเองได้สำเร็จ
         for (let i = 0; i < cart.length; i++) {
             let itemTotal = cart[i].price * cart[i].qty; 
             await db.orders.add({
@@ -654,12 +658,10 @@ async function confirmOrder(paymentType) {
             });
         }
 
-        // --- 3. จัดการสถานะโต๊ะ และ ตรวจสอบการเช็คบิล ---
-        // 🚩 [จุดสำคัญ]: เราจะเช็คว่านี่คือการจ่ายเงินจาก "โต๊ะ" หรือไม่
+        // --- 3. จัดการสถานะโต๊ะ ---
         let isThisAPayment = false;
         if (window.isCheckingOutTable) {
-            isThisAPayment = true; // ยืนยันว่านี่คือการจ่ายเงิน (ไม่ใช่สั่งใหม่)
-            console.log(`💰 ตรวจพบการจ่ายเงินจากโต๊ะ: ${window.isCheckingOutTable}`);
+            isThisAPayment = true; 
         }
 
         if (typeof selectedTable !== 'undefined' && selectedTable !== null) {
@@ -671,36 +673,48 @@ async function confirmOrder(paymentType) {
                 display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
                 display.style.background = "#34495e";
             }
-            const pendingBox = document.getElementById('pending-billing-box');
-            if (pendingBox) pendingBox.style.display = 'none';
         }
 
         // --- 4. แสดงใบเสร็จ ---
-        if (typeof showSmartReceipt === "function") {
+        // ถ้ามาจากวาร์ป (เครื่องแม่รับของ) เราจะไม่เด้งใบเสร็จขึ้นมาบังหน้าจอเครื่องแม่
+        if (!isFromWarp && typeof showSmartReceipt === "function") {
             showSmartReceipt(receiptData); 
         }
 
-        // ==========================================
-        // 🚩 [จุดแก้ไขใหม่]: ระบบ P2P ที่ฉลาดขึ้น
-        // ==========================================
-        if (typeof executeOrderSent === "function") {
-            // เราส่ง isThisAPayment เข้าไปด้วย (ถ้าเป็น true เครื่องแม่จะไม่เด้งครัว)
+        // =========================================================
+        // 🚩 [จุดแก้ไขสำคัญ]: ระบบวาร์ป P2P
+        // =========================================================
+        // ✅ ถ้าไม่ได้มาจากวาร์ป (คือเครื่องลูกกดขายเอง) ให้ส่งข้อมูลไปเครื่องแม่
+        // ❌ ถ้ามาจากวาร์ปแล้ว (เครื่องแม่รับมา) ห้ามส่งวาร์ปซ้อนเด็ดขาด!
+        if (!isFromWarp && typeof executeOrderSent === "function") {
             executeOrderSent(isThisAPayment); 
-            console.log(`🚀 P2P: ส่งข้อมูลวาร์ปสำเร็จ (ประเภทการส่ง: ${isThisAPayment ? 'จ่ายเงิน' : 'สั่งอาหาร'})`);
+            console.log(`🚀 P2P: ส่งข้อมูลสำเร็จ`);
+        } else if (isFromWarp) {
+            console.log("📥 เครื่องแม่: บันทึกข้อมูลวาร์ปลงฐานข้อมูลแล้ว (งดส่งวาร์ปซ้อน)");
         }
 
         // --- 5. เคลียร์ข้อมูลและรีเซ็ตค่า ---
-        window.isCheckingOutTable = null; // 🚩 เคลียร์ "ธง" เช็คบิลทิ้ง เพื่อรอออเดอร์ถัดไป
-        cart = []; 
-        if (typeof renderTableSelection === "function") await renderTableSelection(); 
-        updateOrderPreview(); 
+        window.isCheckingOutTable = null; 
         
+        // 🚩 เคลียร์ตะกร้าเฉพาะคนที่กดขายจริงๆ (หน้าจอเครื่องแม่ที่รับวาร์ปมาจะไม่โดนล้างตะกร้าที่ค้างอยู่)
+        if (!isFromWarp) {
+            cart = []; 
+            updateOrderPreview(); 
+        }
+        
+        if (typeof renderTableSelection === "function") await renderTableSelection(); 
+        
+        // --- 6. อัปเดตตารางให้เห็นผลทันที ---
+        // จุดนี้แหละครับที่จะทำให้ "รายการออเดอร์วันนี้" บนเครื่องแม่ขยับ!
         if (typeof fetchTodaySales === "function") fetchTodaySales();
-        if (typeof loadRecentOrders === "function") loadRecentOrders();
+        if (typeof loadRecentOrders === "function") {
+            console.log("🔄 กำลังรีเฟรชตารางออเดอร์วันนี้...");
+            await loadRecentOrders(); 
+        }
 
     } catch (err) {
         console.error("❌ บันทึกล้มเหลว:", err);
-        alert("อุ๊ย! มีปัญหาตอนบันทึกข้อมูลครับคุณยาย ลองดูอีกทีนะครับ");
+        if (!isFromWarp) alert("มีปัญหาตอนบันทึกข้อมูลครับ");
     }
 }
 
@@ -1402,30 +1416,48 @@ async function finalizeOrder(paymentMethod) {
 // วางระบบ P2P 07-05-2026
 // ==========================================
 
-//คำสั่ง "ส่งเมนูอาหารเข้าครัว" 10-05-2026
-function executeOrderSent() {
+//คำสั่ง "ส่งเมนูอาหารเข้าครัว" 11-05-2026
+// 🚩 เพิ่ม parameter: isPaymentMode เพื่อรับค่าว่านี่คือการจ่ายเงินหรือไม่
+function executeOrderSent(isPaymentMode = false) {
     // 1. เช็คตะกร้าก่อน (เหมือนเดิม)
     if (!cart || cart.length === 0) return;
 
-    // 2. รวบรวมข้อมูล (ใช้ชื่อ selectedTable ตามบรรทัดที่ 7 เป๊ะๆ)
+    // 2. รวบรวมข้อมูล
     const orderData = {
         type: 'ORDER_INCOMING',
-        // ✅ ใช้ selectedTable (มี ed) ทั้งสองจุดครับ
+        // ✅ ใช้ selectedTable (มี ed) ตามเดิม
         table: (typeof selectedTable !== 'undefined' && selectedTable) ? selectedTable : 'กลับบ้าน', 
         
-        // ✅ ล้างฟังก์ชันทิ้งด้วยวิธีเดิม เพื่อป้องกัน Error ในรูป 189.png
+        // ✅ ล้างฟังก์ชันทิ้งป้องกัน Error JSON (วิธีเดิมที่พี่ใช้)
         items: JSON.parse(JSON.stringify(cart)), 
         
         orderId: 'ORD-' + Date.now(),
         time: new Date().toLocaleTimeString('th-TH'),
-        totalPrice: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+        // คำนวณยอดรวม (ใช้ qty หรือ quantity ตามโครงสร้าง cart ของพี่)
+        totalPrice: cart.reduce((sum, item) => sum + (item.price * (item.qty || item.quantity || 1)), 0)
     };
 
     // 3. ส่งข้อมูล P2P (เช็คความพร้อมของท่อเชื่อมต่อ)
     if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
-        submitOrderP2P(orderData); 
-        console.log("🚀 วาร์ปออเดอร์เข้าครัวแล้ว:", orderData);
-        alert("✅ ส่งออเดอร์ไปที่ครัวเรียบร้อย!");
+        
+        // =========================================================
+        // 🚩 [จุดตัดสินใจสำคัญ]: แยกท่อส่งตามประเภทรายการ
+        // =========================================================
+        if (isPaymentMode) {
+            // 💰 กรณีจ่ายเงิน: เรียกใช้ฟังก์ชันที่แปะป้าย isPayment: true
+            if (typeof sendPaymentToHub === 'function') {
+                sendPaymentToHub(orderData);
+                console.log("💰 วาร์ปยอดชำระเงินสำเร็จ (เครื่องแม่จะไม่เด้งครัว)");
+            }
+        } else {
+            // 👨‍🍳 กรณีสั่งอาหารปกติ: ส่งเข้าครัวตามปกติ
+            if (typeof submitOrderP2P === 'function') {
+                submitOrderP2P(orderData); 
+                console.log("🚀 วาร์ปออเดอร์เข้าครัวแล้ว:", orderData);
+                alert("✅ ส่งออเดอร์ไปที่ครัวเรียบร้อย!");
+            }
+        }
+        
     } else {
         console.error("❌ การเชื่อมต่อ P2P ไม่พร้อม");
         alert("❌ เชื่อมต่อเครื่องแม่ไม่ได้ กรุณากดเชื่อมต่อใหม่ครับ");
