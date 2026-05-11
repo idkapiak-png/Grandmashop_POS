@@ -34,7 +34,7 @@ function setupPeerListeners() {
 
 /**
  * ฟังก์ชันจัดการข้อมูลเข้า (Universal Handler)
- * อัปเดตล่าสุด: 10-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
+ * อัปเดตล่าสุด: 11-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
  */
 // เปลี่ยนเป็น async function เพื่อให้สามารถใช้คำสั่ง await (รอ) ได้
 async function handleIncomingData(data) {
@@ -48,12 +48,12 @@ async function handleIncomingData(data) {
     // --- 1. [ฝั่งเครื่องแม่]: รับออเดอร์ และ บันทึกบัญชี ---
     if (data.type === 'ORDER_INCOMING') {
         if (typeof addKitchenTicket === 'function') {
-            // 1. วาดตั๋วเข้าครัว (แสดงผลหน้าจอทันที ไม่ต้องรอฐานข้อมูล)
+            // [การทำงาน]: วาดตั๋วเข้าครัวทันทีเพื่อให้คนทำอาหารเห็นก่อน
             addKitchenTicket(data); 
 
-            // 2. 🔥 ระบบบันทึกบัญชี (ต้องรอให้บันทึกเสร็จชัวร์ๆ)
             console.log("💾 เริ่มกระบวนการบันทึกฐานข้อมูล StandaloneDatabase...");
 
+            // คำนวณยอดเงินสดที่ส่งมา
             let freshTotal = 0;
             if (data.items && Array.isArray(data.items)) {
                 freshTotal = data.items.reduce((sum, item) => {
@@ -69,7 +69,7 @@ async function handleIncomingData(data) {
                                data.table.trim() === '';
 
             try {
-                // ใช้ await เพื่อหยุดรอให้ Dexie บันทึกข้อมูลลง Disk ให้เสร็จก่อนไปบรรทัดถัดไป
+                // [การทำงาน]: ใช้ await เพื่อให้มั่นใจว่า Disk บันทึกเสร็จก่อนไปต่อ
                 if (isTakeAway) {
                     if (typeof confirmOrder === 'function') {
                         console.log("🥡 กำลังบันทึก: สั่งกลับบ้าน...");
@@ -82,21 +82,34 @@ async function handleIncomingData(data) {
                     }
                 }
 
-                // 🔄 3. [จุดสำคัญ]: สั่งโหลดตาราง Dashboard ใหม่หลังจากบันทึกเสร็จแล้ว
-                // เพิ่ม setTimeout เล็กน้อย (200ms) เพื่อให้ IndexedDB เคลียร์สถานะ Transaction ให้เรียบร้อย
+                // 🔄 [จุดสำคัญ]: อัปเดต Dashboard ให้เห็นผลทันที
+                // ขยับเวลาเป็น 500ms เพื่อให้ IndexedDB เคลียร์ Transaction ได้ 100%
                 setTimeout(async () => {
-                    console.log("🔄 ฐานข้อมูลนิ่งแล้ว -> กำลังสั่งวาดตารางรายการออเดอร์ใหม่...");
+                    console.log("🔄 ฐานข้อมูลนิ่งแล้ว -> กำลังสั่งอัปเดตหน้าจอ Dashboard...");
+                    
+                    // 1. โหลดตาราง "รายการออเดอร์วันนี้" ใหม่
                     if (typeof loadRecentOrders === 'function') {
                         await loadRecentOrders(); 
                     }
-                    if (typeof updateOrderList === 'function') updateOrderList();
-                }, 200);
+                    
+                    // 2. อัปเดตยอดเงินรวม (บาท) บนหัวเว็บ (เพิ่มเข้ามาใหม่เพื่อให้ยอดเงินขยับ)
+                    if (typeof fetchTodaySales === 'function') {
+                        fetchTodaySales(); 
+                    }
+
+                    // 3. อัปเดต UI ส่วนอื่นๆ (ถ้ามี)
+                    if (typeof updateOrderList === 'function') {
+                        updateOrderList();
+                    }
+
+                    console.log("✅ หน้าจอเครื่องแม่อัปเดตข้อมูลล่าสุดเรียบร้อย");
+                }, 500); 
 
             } catch (error) {
                 console.error("❌ เกิดข้อผิดพลาดขณะบันทึกข้อมูลวาร์ป:", error);
             }
 
-            // 4. ส่งสัญญาณ ACK ตอบกลับเครื่องลูก
+            // 4. ส่งสัญญาณยืนยัน (ACK) กลับไปหาเครื่องลูก
             if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
                 currentConn.send({
                     type: 'ACK_ORDER',
@@ -273,42 +286,56 @@ function completeTicket(orderId) {
 }
 
 //ฝั่งเครื่องลูก: สั่งอาหาร (ส่งข้อมูลไปเครื่องแม่)
-// ฟังก์ชันส่งออเดอร์ (เรียกใช้เมื่อกดปุ่ม "สั่งอาหาร") 09-05-2026
+// ฟังก์ชันส่งออเดอร์ (เรียกใช้เมื่อกดปุ่ม "สั่งอาหาร") 11-05-2026
 // ปรับให้รับค่า data เพื่อรับช่วงต่อจาก executeOrderSent()
-function submitOrderP2P(data) {
-    // 1. ตรวจสอบข้อมูลออเดอร์ (Payload)
+/**
+ * ฟังก์ชันส่งข้อมูลออเดอร์ผ่าน P2P
+ * @param {Object} data - ข้อมูลออเดอร์ (ถ้าไม่มีจะดึงจากหน้าจออัตโนมัติ)
+ * @param {Boolean} isPayment - ป้ายบอกทาง (false = สั่งอาหาร/เด้งครัว, true = จ่ายเงิน/ห้ามเด้งครัว)
+ */
+function submitOrderP2P(data, isPayment = false) {
+    // 1. ตรวจสอบและสร้างข้อมูลออเดอร์ (Payload)
+    // เราแนบ isPayment ลงไปในกล่องข้อมูลด้วยเพื่อให้เครื่องแม่รับทราบ
     const orderPayload = data || {
         type: 'ORDER_INCOMING',
         orderId: 'ORD-' + Date.now(),
         table: document.getElementById('table-number')?.value || 'ทั่วไป',
-        items: [...cart], // ใช้การกระจายค่าเพื่อป้องกันปัญหา Reference ของอาเรย์
+        items: [...cart], 
         time: new Date().toLocaleTimeString('th-TH'),
-        // แถม: ดึงหมายเหตุมาด้วย (ถ้ามีช่อง input ชื่อ order-note)
-        note: document.getElementById('order-note')?.value || '' 
+        note: document.getElementById('order-note')?.value || '',
+        isPayment: isPayment // 🚩 เพิ่มป้ายบอกสถานะลงใน Payload
     };
 
-    // 2. ส่งข้อมูลวาร์ปไปที่เครื่องแม่ (ครัว)
-    // ตรวจสอบท่อเชื่อมต่อ P2P ก่อนส่ง
+    // กรณีที่ส่ง data มาจากฟังก์ชันอื่น (เช่น จากหน้าโต๊ะ) ให้ยัดป้าย isPayment ลงไปด้วย
+    if (data) {
+        orderPayload.isPayment = isPayment;
+    }
+
+    // 2. ส่งข้อมูลวาร์ปไปที่เครื่องแม่
     if (typeof sendP2PData === 'function') {
         sendP2PData(orderPayload);
     } else if (currentConn && currentConn.open) {
         currentConn.send(orderPayload);
-        console.log("✅ วาร์ปข้อมูลไปเครื่องแม่สำเร็จ");
+        console.log("✅ วาร์ปข้อมูลไปเครื่องแม่สำเร็จ (isPayment:", isPayment, ")");
     } else {
         console.error("❌ ระบบ P2P ยังไม่พร้อม ข้อมูลไม่ถูกส่ง");
-        return; // ถ้าส่งไม่สำเร็จ ไม่ต้องวาดตั๋วในเครื่องตัวเอง
+        return; 
     }
 
-    // 🚩 3. [ส่วนที่เพิ่มใหม่]: วาดตั๋วที่ "กระดานห้องครัว" ของเครื่องลูกทันที
-    // สิ่งที่จะเกิดขึ้น: พนักงานจะเห็นออเดอร์ที่เพิ่งส่งไป โผล่ขึ้นมาในหน้าจอตัวเองด้วย
-    if (typeof addKitchenTicket === 'function') {
-        console.log("🎨 กำลังวาดตั๋วลงกระดานห้องครัวเครื่องลูก...");
-        addKitchenTicket(orderPayload);
+    // 🚩 3. การวาดตั๋วที่ "กระดานห้องครัว" ของเครื่องตัวเอง
+    // [ตรรกะใหม่]: ถ้าเป็นการ "จ่ายเงิน" (isPayment: true) เราจะไม่วาดตั๋วซ้ำในครัว
+    if (!isPayment) {
+        if (typeof addKitchenTicket === 'function') {
+            console.log("🎨 ออเดอร์ใหม่: กำลังวาดตั๋วลงกระดานห้องครัวเครื่องลูก...");
+            addKitchenTicket(orderPayload);
+        } else {
+            console.warn("⚠️ ไม่พบฟังก์ชัน addKitchenTicket");
+        }
     } else {
-        console.warn("⚠️ ไม่พบฟังก์ชัน addKitchenTicket ในเครื่องลูก (ตรวจสอบว่าก๊อปโค้ดมาวางหรือยัง)");
+        console.log("💰 สถานะจ่ายเงิน: บันทึกข้อมูลเงียบๆ ไม่วาดตั๋วซ้ำในครัว");
     }
 
-    // 4. ล้างตะกร้าสินค้าหลังจากส่งสำเร็จ (ถ้าพี่ต้องการให้เคลียร์จอขายทันที)
+    // 4. ล้างตะกร้าสินค้า (เปิดคอมเม้นท์ไว้เผื่อพี่อยากให้กดปุ่มจ่ายเงินแล้วเคลียร์ตะกร้าทันที)
     // if (typeof clearCart === 'function') clearCart(); 
 }
 

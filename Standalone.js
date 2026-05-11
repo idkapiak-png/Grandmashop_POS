@@ -602,83 +602,70 @@ async function confirmOrder(paymentType) {
     const thailandTime = new Date().toLocaleString('sv-SE'); 
     const orderId = Date.now(); 
 
-    // --- 1. วิเคราะห์ส่วนลด (รองรับ % และ บาท) ---
+    // --- 1. วิเคราะห์ส่วนลด (คงเดิม) ---
     const rawDiscount = localStorage.getItem('default_discount') || "0";
     const isPercent = rawDiscount.toString().includes('%'); 
     const discountConfigValue = parseFloat(rawDiscount) || 0; 
-    
-    // คำนวณยอดรวมดิบ (ก่อนลด)
     const rawTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
-    // 🔥 [คำนวณส่วนลด] แปลงจาก % ให้กลายเป็น "บาท" เพื่อลงบัญชี
     let actualDiscountBath = isPercent 
         ? (rawTotal * discountConfigValue) / 100 
         : discountConfigValue;
 
     const netTotal = Math.max(0, rawTotal - actualDiscountBath); 
-
-    // จัดระเบียบประเภทการชำระเงิน
     const finalPaymentMethod = (paymentType === 'transfer' || paymentType === 'QR') ? 'QR' : 'Cash';
 
-    // ข้อมูลสำหรับแสดงผลบนใบเสร็จ (Receipt)
     const receiptData = {
         order_id: orderId,
         items: [...cart], 
         total_price: rawTotal,
-        discount: actualDiscountBath, // ส่งเป็นยอดบาทเสมอเพื่อให้ Receipt คำนวณง่าย
+        discount: actualDiscountBath,
         net_total: netTotal,
         payment_method: finalPaymentMethod, 
         created_at: thailandTime
     };
 
     try {
-        // --- 2. บันทึกลงฐานข้อมูล Dexie ---
-        
-        // 2.1 บันทึกรายการอาหารทีละรายการ 04-05-2026
+        // --- 2. บันทึกลงฐานข้อมูล Dexie (คงเดิม) ---
         for (let i = 0; i < cart.length; i++) {
+            let itemTotal = cart[i].price * cart[i].qty; 
+            await db.orders.add({
+                order_id: orderId,
+                menu_name: cart[i].name,
+                qty: cart[i].qty,
+                options: cart[i].options || "", 
+                total_price: itemTotal,
+                discount: 0,            
+                payment_method: finalPaymentMethod,
+                created_at: thailandTime
+            });
+        }
 
-            // 🚩 บรรทัดที่ให้เพิ่มเพื่อเช็คครับ
-            console.log(`รายการที่ ${i+1}:`, cart[i].name, "ราคาในตะกร้าคือ:", cart[i].price);
-
-        // 🚩 มั่นใจว่าราคาที่บันทึก คือราคาที่รวม options แล้วจริงๆ
-        // ถ้าโครงสร้างข้อมูลพี่มี basePrice ให้ใช้ basePrice + extra (ถ้ามี)
-        // แต่ถ้าพี่แก้ syncOptions ให้ update ค่า price แล้ว itemTotal จะถูกต้องเองครับ
-        let itemTotal = cart[i].price * cart[i].qty; 
-
-        await db.orders.add({
-            order_id: orderId,
-            menu_name: cart[i].name,
-            qty: cart[i].qty,
-            options: cart[i].options || "", 
-            total_price: itemTotal, // <--- ตัวนี้ต้องเป็น 60 ไม่ใช่ 50
-            discount: 0,            
-            payment_method: finalPaymentMethod,
-            created_at: thailandTime
-        });
-    }
-
-        // 2.2 🔥 [จุดยุทธศาสตร์] บันทึกแถวส่วนลดแยกต่างหาก 04-05-2026
-       // 2.2 🔥 บันทึกแถวส่วนลด
-        // เปลี่ยนจาก actualDiscountAmount เป็น actualDiscountBath ให้ตรงกันครับ
         if (actualDiscountBath > 0) { 
             await db.orders.add({
                 order_id: orderId,
                 menu_name: `🔻 ส่วนลด (${isPercent ? discountConfigValue + '%' : 'บาท'})`, 
                 qty: 1,
                 options: "โปรโมชั่น/ส่วนลดพื้นฐาน",
-                total_price: -actualDiscountBath, // ต้องใช้ชื่อนี้เท่านั้น
-                discount: actualDiscountBath,     // ต้องใช้ชื่อนี้เท่านั้น
+                total_price: -actualDiscountBath,
+                discount: actualDiscountBath,
                 payment_method: finalPaymentMethod,
                 created_at: thailandTime
             });
         }
 
-        // --- 3. จัดการสถานะโต๊ะ (ถ้ามี) ---
+        // --- 3. จัดการสถานะโต๊ะ และ ตรวจสอบการเช็คบิล ---
+        // 🚩 [จุดสำคัญ]: เราจะเช็คว่านี่คือการจ่ายเงินจาก "โต๊ะ" หรือไม่
+        let isThisAPayment = false;
+        if (window.isCheckingOutTable) {
+            isThisAPayment = true; // ยืนยันว่านี่คือการจ่ายเงิน (ไม่ใช่สั่งใหม่)
+            console.log(`💰 ตรวจพบการจ่ายเงินจากโต๊ะ: ${window.isCheckingOutTable}`);
+        }
+
         if (typeof selectedTable !== 'undefined' && selectedTable !== null) {
             await db.active_tables.delete(selectedTable);
             selectedTable = null; 
 
-            // ปรับการแสดงผลหน้าจอให้กลับเป็น Walk-in
             const display = document.getElementById('current-table-display');
             if (display) {
                 display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
@@ -688,20 +675,26 @@ async function confirmOrder(paymentType) {
             if (pendingBox) pendingBox.style.display = 'none';
         }
 
-        // --- 4. แสดงใบเสร็จและล้างข้อมูล ---
+        // --- 4. แสดงใบเสร็จ ---
         if (typeof showSmartReceipt === "function") {
             showSmartReceipt(receiptData); 
         }
 
-        //ระบบ P2P 09-05-2026
-        executeOrderSent()
+        // ==========================================
+        // 🚩 [จุดแก้ไขใหม่]: ระบบ P2P ที่ฉลาดขึ้น
+        // ==========================================
+        if (typeof executeOrderSent === "function") {
+            // เราส่ง isThisAPayment เข้าไปด้วย (ถ้าเป็น true เครื่องแม่จะไม่เด้งครัว)
+            executeOrderSent(isThisAPayment); 
+            console.log(`🚀 P2P: ส่งข้อมูลวาร์ปสำเร็จ (ประเภทการส่ง: ${isThisAPayment ? 'จ่ายเงิน' : 'สั่งอาหาร'})`);
+        }
 
-        // เคลียร์ตะกร้าและอัปเดตหน้าจอ
+        // --- 5. เคลียร์ข้อมูลและรีเซ็ตค่า ---
+        window.isCheckingOutTable = null; // 🚩 เคลียร์ "ธง" เช็คบิลทิ้ง เพื่อรอออเดอร์ถัดไป
         cart = []; 
         if (typeof renderTableSelection === "function") await renderTableSelection(); 
         updateOrderPreview(); 
         
-        // อัปเดตยอดขายวันนี้ทันที
         if (typeof fetchTodaySales === "function") fetchTodaySales();
         if (typeof loadRecentOrders === "function") loadRecentOrders();
 
@@ -1168,14 +1161,14 @@ async function refreshBillingBox(tableId) {
     }
 }
 
-//หย่อนบิลสั่งอาหาร 09-05-2026
+//หย่อนบิลสั่งอาหาร 10-05-2026
 async function saveOrderToTable() {
     // เช็กความพร้อมเบื้องต้น
     if (cart.length === 0) return alert("เลือกเมนูก่อนฝากลงโต๊ะครับ!");
     if (!selectedTable) return alert("กรุณาเลือกโต๊ะก่อนครับ!");
 
     try {
-        // --- 1. ระบบดึงข้อมูลเดิมมาต่อยอด (คงเดิมไว้เพื่อความเสถียร) ---
+        // --- 1. ระบบดึงข้อมูลเดิมมาต่อยอด ---
         const existingOrder = await db.active_tables.get(selectedTable);
         let finalItems = [];
         
@@ -1187,7 +1180,7 @@ async function saveOrderToTable() {
             console.log(`📥 โต๊ะ ${selectedTable} สั่งครั้งแรก: ${finalItems.length} รายการ`);
         }
 
-        // --- 2. บันทึกข้อมูลลงในฐานข้อมูล Dexie (คงเดิม) ---
+        // --- 2. บันทึกข้อมูลลงในฐานข้อมูล Dexie ---
         await db.active_tables.put({
             table_id: selectedTable,
             order_items: finalItems, 
@@ -1195,22 +1188,30 @@ async function saveOrderToTable() {
         });
 
         // ==========================================
-        // ⭐ [จุดที่เพิ่มใหม่] ระบบวาร์ปออเดอร์เข้าครัว (P2P)
-        // ต้องวางไว้ "ก่อน" ล้างตะกร้า (cart = []) เพื่อให้มีข้อมูลส่งไปเครื่องแม่
+        // ⭐ [จุดที่ปรับปรุง] ระบบวาร์ปออเดอร์เข้าครัว (P2P)
         // ==========================================
         if (typeof executeOrderSent === "function") {
-            executeOrderSent(); 
-            console.log("🚀 P2P: ส่งรายการใหม่เข้าครัวเรียบร้อย");
+            // ส่งเฉพาะรายการ "ใหม่" ในตะกร้า (cart) ไปให้ครัว 
+            // และระบุว่า isPayment = false (เพื่อให้ครัวเด้งตั๋ว)
+            const warpData = {
+                table: selectedTable,
+                items: [...cart], // ส่งเฉพาะของใหม่ที่เพิ่งกด ไม่ต้องส่งทั้งหมดที่เคยสั่งไปแล้ว
+                type: 'ORDER_INCOMING'
+            };
+
+            // เรียกใช้ระบบวาร์ป โดยระบุว่า isPayment เป็น false (หรือปล่อยว่างไว้ก็ได้)
+            executeOrderSent(warpData, false); 
+            console.log("🚀 P2P: ส่งรายการใหม่เข้าครัวเรียบร้อย (isPayment: false)");
         }
 
         alert(`📥 ฝากรายการลงโต๊ะ ${selectedTable} และแจ้งครัวเรียบร้อย!`);
         
-        // --- 3. ล้างข้อมูลเพื่อเริ่มออเดอร์ถัดไป (คงเดิม) ---
+        // --- 3. ล้างข้อมูลเพื่อเริ่มออเดอร์ถัดไป ---
         const lastTable = selectedTable; 
-        cart = []; // ล้างตะกร้าหลังจากส่งข้อมูล P2P แล้ว (ปลอดภัย)
+        cart = []; 
         selectedTable = null; 
         
-        // --- 4. อัปเดตหน้าจอ UI (คงเดิม) ---
+        // --- 4. อัปเดตหน้าจอ UI ---
         if (typeof renderTableSelection === "function") await renderTableSelection();
         if (typeof updateOrderPreview === "function") updateOrderPreview();
         if (typeof refreshBillingBox === "function") {
@@ -1219,7 +1220,7 @@ async function saveOrderToTable() {
         
     } catch (err) {
         console.error("❌ ฝากลงโต๊ะพลาด:", err);
-        alert("เกิดข้อผิดพลาดในการฝากข้อมูล! เช็กชื่อตารางใน Dexie อีกครั้งครับ");
+        alert("เกิดข้อผิดพลาด! เช็กชื่อตารางใน Dexie อีกครั้งครับ");
     }
 }
  
@@ -1281,44 +1282,33 @@ async function selectTakeawayMode() {
 
 // ==========================================
 // ฟังก์ชัน: เช็คบิล (ดึงรายการจากโต๊ะกลับมาจ่ายเงิน)
-// ทำงานเมื่อ: กดปุ่ม "💰 เช็คบิลเก็บเงิน" ในกล่องเก็บบิล 29-04-2026
+// ทำงานเมื่อ: กดปุ่ม "💰 เช็คบิลเก็บเงิน" ในกล่องเก็บบิล 11-05-2026
 // ==========================================
 async function checkoutTable() {
     if (!selectedTable) return;
 
-    // 1. ดึงข้อมูลออเดอร์ค้างจากโต๊ะนั้นมา
     const tableData = await db.active_tables.get(selectedTable);
     if (!tableData || tableData.order_items.length === 0) {
         alert("โต๊ะนี้ไม่มีรายการอาหารครับ");
         return;
     }
 
-    // 2. ยืนยันการเช็คบิล
     if (confirm(`เรียกเก็บเงิน โต๊ะ ${selectedTable} ใช่หรือไม่?`)) {
         try {
-            // 🔥 หัวใจสำคัญ: ดึงรายการจากโต๊ะ กลับเข้าสู่ "ตะกร้าหลัก" (Cart)
-            // เพื่อให้ยายไปกดปุ่ม "เงินสด" หรือ "เงินโอน" ที่หน้าหลักต่อได้เลย
             cart = [...tableData.order_items]; 
 
-            // 3. อัปเดตหน้าจอขายให้แสดงรายการที่ดึงมาจากโต๊ะ
-            if (typeof updateOrderPreview === 'function') {
-                updateOrderPreview(); 
-            }
+            // ⭐ [เพิ่มจุดนี้]: สร้างตัวแปรบอกสถานะว่านี่คือออเดอร์จาก "โต๊ะ" ที่รอเช็คบิล
+            // เราจะเอาไว้ใช้ใน confirmOrder เพื่อส่งสัญญาณวาร์ปแบบ 'true'
+            window.isCheckingOutTable = selectedTable; 
 
-            // 4. 🔥 แก้บั๊ก box is not defined: ประกาศตัวแปรอ้างอิงให้ถูกต้อง
+            if (typeof updateOrderPreview === 'function') updateOrderPreview(); 
+
             const billingBox = document.getElementById('pending-billing-box');
-            if (billingBox) {
-                billingBox.style.display = 'none'; // ซ่อนกล่องเก็บบิลหลังจากดึงข้อมูลไปแล้ว
-            }
-
-            // 5. ปรับสถานะปุ่มโต๊ะ (ยังไม่ลบจาก DB จนกว่าจะจ่ายเงินสำเร็จจริงๆ)
-            // หรือจะเลือกให้ลบทันทีที่ดึงมาจ่ายเงินก็ได้ (แนะนำให้ลบตอนบันทึกเงินสำเร็จ)
+            if (billingBox) billingBox.style.display = 'none';
             
             alert(`ดึงรายการจาก โต๊ะ ${selectedTable} มาแล้วครับ ยายกดรับเงินสดหรือโอนได้เลย!`);
-
         } catch (err) {
             console.error("เกิดข้อผิดพลาดในการดึงข้อมูลโต๊ะ:", err);
-            alert("เช็คบิลไม่ได้ ลองดูที่ Console นะเพื่อน");
         }
     }
 }
