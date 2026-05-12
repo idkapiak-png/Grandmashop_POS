@@ -441,13 +441,44 @@ function orderMenu(name, price) {
     // 3. อัปเดตการแสดงผล
     updateOrderPreview();
 }
-
+//12-05-2026
+/**
+ * ฟังก์ชันเพิ่มรายการอาหารลงตะกร้า:
+ * ปรับปรุงให้แยกแถวระหว่าง "ของเก่าที่มีในโต๊ะแล้ว ✅" กับ "ของใหม่ที่พึ่งกดสั่ง 🆕"
+ */
 function addItemToOrder(name, price) {
-    currentOrder.name = name;
-    currentOrder.price = price;
-    currentOrder.qty = 1;
-    document.querySelectorAll('#Order-menu button').forEach(b => b.classList.remove('selected'));
-    updateOrderPreview();
+    // 1. 🔍 ค้นหาในตะกร้า (cart) ว่ามีเมนูชื่อนี้ "ที่เป็นของใหม่" อยู่แล้วหรือไม่
+    // 🚩 เงื่อนไขสำคัญ: ต้องชื่อตรงกัน และ ต้องไม่มีป้าย fromDB (เพราะเราจะไม่ไปยุ่งกับของเก่า)
+    let existingNewItem = cart.find(item => item.name === name && !item.fromDB);
+
+    if (existingNewItem) {
+        // --- ➕ กรณีเจอของใหม่ชื่อเดียวกันในตะกร้าแล้ว ---
+        // ให้เพิ่มจำนวน (Quantity) ขึ้นไป 1 หน่วย
+        existingNewItem.qty = (existingNewItem.qty || 0) + 1;
+        console.log(`➕ เพิ่มจำนวน [${name}] เป็น ${existingNewItem.qty} จาน`);
+    } else {
+        // --- 🆕 กรณีเป็นเมนูใหม่ หรือมีแต่ของเก่า (✅) ในโต๊ะ ---
+        // ให้สร้างแถวใหม่แยกออกมาต่างหาก ห้ามไปรวมกับแถวที่มีเครื่องหมายถูก
+        cart.push({
+            name: name,
+            price: parseFloat(price),
+            qty: 1,
+            fromDB: false, // 🚩 ระบุว่าเป็นของใหม่ (เพื่อให้ฟังก์ชันวาร์ปรู้ว่าต้องส่งเข้าครัว)
+            options: ""    // เผื่อมีตัวเลือกเสริม
+        });
+        console.log(`🆕 เพิ่มรายการใหม่: [${name}] ลงในตะกร้า`);
+    }
+
+    // 2. 🎨 จัดการ UI: ล้างสถานะการเลือกที่ปุ่มเมนู
+    document.querySelectorAll('#Order-menu button').forEach(b => {
+        b.classList.remove('selected');
+    });
+
+    // 3. 🚩 [จุดสำคัญ]: อัปเดตการแสดงผลหน้าจอ
+    // เมื่อเราเปลี่ยนข้อมูลใน cart แล้ว ต้องสั่งวาดรายการอาหารใหม่ให้ยายเห็นทันที
+    if (typeof updateOrderPreview === 'function') {
+        updateOrderPreview();
+    }
 }
 
 // 25-04-2026
@@ -486,11 +517,11 @@ function getSelectedOptions() {
  * หน้าที่: แสดงรายการอาหาร, คำนวณเงิน, และควบคุมการโชว์ปุ่ม "ฝากลงโต๊ะ"
  */
 /**
- * ฟังก์ชันวาดหน้าจอสรุปออเดอร์ (UI Renderer)
- * ปรับปรุง: ล้างสถานะเก่า 100% และจัดการการแสดงผลให้ลื่นไหล
+ * ฟังก์ชันวาดหน้าจอสรุปออเดอร์ (ตะกร้าสินค้า):
+ * ปรับปรุงให้แยกแยะรายการเก่า/ใหม่ และบล็อกการลบรายการที่สั่งไปแล้ว
  */
 function updateOrderPreview() {
-    // 1. ดึง Element สำคัญ (ใช้หลักการ Fail-safe เช็คก่อนใช้งานเสมอ)
+    // 1. ดึง Element สำคัญ
     const detailBox = document.getElementById('order-detail');
     const totalBox = document.getElementById('order-total-price');
     const qtyBox = document.getElementById('order-qty'); 
@@ -500,10 +531,8 @@ function updateOrderPreview() {
     const btnCash = document.getElementById('btn-pay-cash');       
     const btnTransfer = document.getElementById('btn-pay-transfer'); 
 
-    // ซ่อนปุ่ม Pay Now (ถ้ามี) เพราะเราใช้ปุ่มแยกประเภทจ่ายเงินด้านล่าง
     if(btnPayNow) btnPayNow.style.display = 'none'; 
 
-    // 🚩 [สิ่งที่เพิ่ม]: ล้างสถานะปุ่มจ่ายเงินเป็น "ปิดใช้งาน" ไว้ก่อนทุกครั้งที่เริ่มวาดใหม่
     const disablePayButtons = () => {
         [btnCash, btnTransfer].forEach(btn => {
             if(btn) {
@@ -513,14 +542,12 @@ function updateOrderPreview() {
         });
     };
 
-    // --- ส่วนที่ 1: วิเคราะห์ส่วนลด (ดึงจากระบบตั้งค่า) ---
     const rawDiscount = localStorage.getItem('default_discount') || "0";
     const isPercent = rawDiscount.toString().includes('%'); 
     const discountConfigValue = parseFloat(rawDiscount) || 0; 
 
-    // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า (ล้างทุกอย่างให้เกลี้ยง) ---
+    // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า ---
     if (!cart || cart.length === 0) {
-        console.log("🛒 ตะกร้าว่าง: กำลังล้างหน้าจอ...");
         if(detailBox) detailBox.innerHTML = `
             <div style="text-align:center; color:#999; padding:20px;">
                 <i class="fas fa-shopping-basket" style="font-size: 2rem; display:block; margin-bottom:10px;"></i>
@@ -529,42 +556,50 @@ function updateOrderPreview() {
         if(totalBox) totalBox.innerHTML = "รวมทั้งสิ้น : 0.-";
         if(qtyBox) qtyBox.innerText = "1"; 
         
-        disablePayButtons(); // ล็อกปุ่มจ่ายเงิน
+        disablePayButtons();
         if(btnToTable) btnToTable.style.display = 'none'; 
-        return; // จบการทำงานทันทีถ้าไม่มีของ
+        return; 
     }
 
-    // --- ส่วนที่ 3: คำนวณรายการอาหาร (สร้าง HTML ชุดใหม่ทั้งหมด) ---
+    // --- ส่วนที่ 3: คำนวณรายการอาหาร (แยก Logic ล็อกปุ่ม) ---
     let grandTotal = 0;
     
-    // 🚩 [ไฮไลท์]: สร้าง HTML จาก Array cart โดยตรง มั่นใจได้ว่าไม่มี "ของเก่า" ปนแน่นอน
     let detailHTML = cart.map((item, index) => {
         const itemTotal = (parseFloat(item.price) || 0) * (parseInt(item.qty) || 1);
         grandTotal += itemTotal;
 
-        const isPersisted = item.fromDB === true; 
+        // 🚩 [เช็คสถานะ]: ถ้าเป็นของเก่าจาก DB ให้ถือว่าโดนล็อก (Persisted)
+        const isLocked = item.fromDB === true; 
 
         return `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 8px; ${isPersisted ? 'background: #fdfdfd;' : ''}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 8px; ${isLocked ? 'background: #f9f9f9; border-left: 4px solid #27ae60; padding-left: 8px;' : ''}">
                 <div style="flex: 1;">
                     <div style="font-weight: bold; font-size: 1rem; color: #2d3436;">
-                        ${isPersisted ? '<span style="color:#27ae60;">✅</span> ' : '<span style="color:#3498db;">🆕</span> '}${item.name}
+                        ${isLocked ? '<span style="color:#27ae60;">✅</span> ' : '<span style="color:#3498db;">🆕</span> '}${item.name}
                     </div>
                     ${item.options ? `<small style="color:#636e72; display:block;">🔹 ${item.options}</small>` : ''}
+                    ${isLocked ? '<small style="color:#27ae60; font-size: 0.7rem;">(สั่งแล้ว แก้ไขไม่ได้)</small>' : ''}
                 </div>
                 <div style="text-align: right; min-width: 85px;">
                     <span style="font-size: 0.85rem; color:#636e72;">x${item.qty}</span><br>
                     <span style="font-weight: bold; color: #2d3436;">${itemTotal.toLocaleString()}.-</span>
                 </div>
-                <button onclick="deleteSpecificItem(${index})" 
-                        style="background: #ff7675; color: white; border: none; border-radius: 8px; width: 35px; height: 35px; margin-left: 12px; cursor: pointer; transition: 0.2s;">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
+
+                ${isLocked ? `
+                    <div style="width: 35px; height: 35px; margin-left: 12px; display: flex; align-items: center; justify-content: center; color: #ccc;">
+                        <i class="fas fa-lock" title="รายการนี้ส่งเข้าครัวแล้ว"></i>
+                    </div>
+                ` : `
+                    <button onclick="deleteSpecificItem(${index})" 
+                            style="background: #ff7675; color: white; border: none; border-radius: 8px; width: 35px; height: 35px; margin-left: 12px; cursor: pointer; transition: 0.2s;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `}
             </div>
         `;
     }).join('');
 
-    // --- ส่วนที่ 4: คำนวณและแสดงผลส่วนลด ---
+    // --- ส่วนที่ 4: คำนวณส่วนลด ---
     let actualDiscountAmount = 0;
     if (isPercent) {
         actualDiscountAmount = (grandTotal * discountConfigValue) / 100;
@@ -574,7 +609,6 @@ function updateOrderPreview() {
 
     const netTotal = Math.max(0, grandTotal - actualDiscountAmount);
     
-    // แทรกส่วนลดเข้าไปใน HTML ท้ายรายการอาหาร
     if (actualDiscountAmount > 0) {
         const label = isPercent ? `ส่วนลด (${discountConfigValue}%)` : `ส่วนลดเงินสด`;
         detailHTML += `
@@ -585,10 +619,9 @@ function updateOrderPreview() {
         `;
     }
 
-    // 🚩 [Action]: เขียน HTML ชุดใหม่ทับของเก่า (จุดปราบรายการค้าง)
     if(detailBox) detailBox.innerHTML = detailHTML;
 
-    // --- ส่วนที่ 5: แสดงยอดรวมสุทธิ (Net Total) ---
+    // --- ส่วนที่ 5: แสดงยอดรวมสุทธิ ---
     if(totalBox) {
         const strikeThroughHTML = (actualDiscountAmount > 0) 
             ? `<small style="font-size: 0.8rem; color: #b2bec3; text-decoration: line-through;">ยอดรวม: ${grandTotal.toLocaleString()}.-</small><br>` 
@@ -603,13 +636,12 @@ function updateOrderPreview() {
         `;
     }
 
-    // --- ส่วนที่ 6: ปลดล็อกปุ่มและตั้งค่าสถานะโต๊ะ ---
+    // --- ส่วนที่ 6: จัดการปุ่มและการแสดงผลจำนวน ---
     if(qtyBox && cart.length > 0) {
         const lastItem = cart[cart.length - 1];
         qtyBox.innerText = lastItem.qty || "1";
     }
 
-    // เปิดให้กดจ่ายเงินได้ (ปลดล็อกความโปร่งใส)
     [btnCash, btnTransfer].forEach(btn => {
         if(btn) {
             btn.style.opacity = '1';
@@ -617,18 +649,25 @@ function updateOrderPreview() {
         }
     });
 
-    // 🚩 [ไฮไลท์]: ควบคุมปุ่ม "ฝากลงโต๊ะ" (ต้องระบุโต๊ะ และต้องมีของในตะกร้า)
     const hasTable = (typeof selectedTable !== 'undefined' && selectedTable !== null && selectedTable !== "null" && selectedTable !== "");
     
     if (hasTable && cart.length > 0) {
-        if(btnToTable) {
-            btnToTable.style.display = 'block';
-            // ปรับข้อความปุ่มตามบริบทของเครื่องแม่/เครื่องลูก
-            // btnToTable.innerHTML = `<i class="fas fa-concierge-bell"></i> ส่งออเดอร์`;
-        }
+        if(btnToTable) btnToTable.style.display = 'block';
     } else {
         if(btnToTable) btnToTable.style.display = 'none';
     }
+}
+
+/**
+ * 🚩 [ฟังก์ชันเสริม]: ป้องกันการลบผ่าน Code
+ */
+function deleteSpecificItem(index) {
+    if (cart[index] && cart[index].fromDB) {
+        console.warn("🚫 ปฏิเสธการลบ: รายการนี้ถูกสั่งไปแล้ว");
+        return;
+    }
+    cart.splice(index, 1);
+    updateOrderPreview();
 }
 
 // ฟังก์ชันลบเฉพาะบางรายการ 25-04-2026
