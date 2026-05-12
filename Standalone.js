@@ -1689,66 +1689,73 @@ function executeOrderSent(isPaymentMode = false, extraData = null) {
  * [จุดประสงค์]: เพื่อให้ป้ายสถานะที่มุมจอ "ตรงกับหน้าจอตั้งค่า" เสมอ
  * [การทำงาน]: เช็กสถานะสวิตช์ก่อน แล้วค่อยเช็กโหมดที่เลือก
  */
+/**
+ * ฟังก์ชันอัปเดตป้ายบอกสถานะ (Role Badge) บนหน้าหลัก
+ * [หน้าที่]: ตรวจสอบว่าระบบเครือข่ายเปิดอยู่ไหม และแสดงบทบาทให้ตรงกับที่เลือกจริง
+ */
 function updateRoleDisplay() {
+    // 1. ดึง Element ป้ายสถานะ
     const badge = document.getElementById('role-badge');
     const icon = document.getElementById('role-icon');
     const text = document.getElementById('role-text');
     
-    // 🚩 1. ดึงสถานะจากสวิตช์หน้าจอ (ใช้ ID: p2p-toggle ตาม HTML ของพี่)
-    // การเช็กตรงนี้จะช่วยแก้ปัญหา "ป้ายค้าง" แม้ปิดสวิตช์แล้ว (ในรูป แก้ 216.jpg)
+    // 2. ตรวจสอบสถานะสวิตช์ P2P จากหน้าจอจริง (ID: p2p-toggle)
     const p2pToggle = document.getElementById('p2p-toggle'); 
+    
+    // 🚩 หัวใจสำคัญ: เช็กจาก 'checked' ของสวิตช์ก่อนเป็นอันดับแรก
     const isP2PEnabled = p2pToggle ? p2pToggle.checked : false;
 
-    // ถ้าไม่มี element ป้าย ให้หยุดทำงานเพื่อไม่ให้เกิด Error
+    // ถ้าไม่มีป้ายในหน้านั้น ให้หยุดทำงานทันทีเพื่อป้องกัน Error
     if (!badge) return;
 
-    // แสดงป้ายเสมอเพื่อให้ User มั่นใจว่าแอปทำงานโหมดไหนอยู่
+    // สั่งให้ป้ายแสดงตัวออกมา (เพื่อความมั่นใจ)
     badge.style.display = 'inline-block';
 
-    // 🚩 2. [ด่านที่ 1]: ถ้าสวิตช์ "ปิด" อยู่ (Unchecked)
-    // เราจะบังคับแสดงสถานะ "ใช้งานเครื่องเดียว" ทันที โดยไม่สนใจค่าในความจำ
+    // --- [ด่านที่ 1]: กรณีปิดสวิตช์ ---
+    // ต่อให้ในเครื่องจะจำว่าเป็น "แม่" หรือ "ลูก" แต่ถ้าสวิตช์ปิด เราจะบังคับเป็นโหมดเครื่องเดียว
     if (!isP2PEnabled) {
-        badge.style.backgroundColor = '#95a5a6'; // สีเทา (Standalone)
+        badge.style.backgroundColor = '#95a5a6'; // สีเทา
         badge.style.color = 'white';
         badge.style.border = '1px solid #7f8c8d';
         icon.innerText = '🏠';
-        text.innerText = 'Alone';
+        text.innerText = 'Alone'; 
         
-        console.log("ℹ️ [Status] สวิตช์ปิด: แสดงผลเป็นเครื่องเดียว");
-        return; // จบการทำงานที่นี่เลย
+        console.log("ℹ️ [UI] โหมด: ใช้งานเครื่องเดียว (สวิตช์ปิดอยู่)");
+        return; // จบการทำงาน ไม่ต้องไปเช็กโหมด P2P ต่อ
     }
 
-    // 🚩 3. [ด่านที่ 2]: ถ้าสวิตช์ "เปิด" อยู่ ถึงจะไปดูโหมดที่เลือก (จาก localStorage)
+    // --- [ด่านที่ 2]: กรณีเปิดสวิตช์แล้ว ---
+    // ระบบจะไปดึงค่า 'p2p_mode' ล่าสุดจากความจำเครื่อง (localStorage)
     const p2pMode = localStorage.getItem('p2p_mode');
 
     if (p2pMode === 'hub') {
-        // กรณีเป็นเครื่องแม่
+        // สถานะเครื่องแม่
         badge.style.backgroundColor = '#e74c3c'; // สีแดง
         badge.style.color = 'white';
         badge.style.border = '1px solid #c0392b';
         icon.innerText = '👑';
-        text.innerText = 'เครื่องแม่ (HUB)';
+        text.innerText = 'Boss';
     } else if (p2pMode === 'client') {
-        // กรณีเป็นเครื่องลูก
+        // สถานะเครื่องลูก
         badge.style.backgroundColor = '#3498db'; // สีฟ้า
         badge.style.color = 'white';
         badge.style.border = '1px solid #2980b9';
         icon.innerText = '📱';
-        text.innerText = 'เครื่องลูก (Client)';
+        text.innerText = 'Baby';
     } else if (p2pMode === 'kitchen') {
-        // กรณีเป็นจอครัว
+        // สถานะจอครัว
         badge.style.backgroundColor = '#f39c12'; // สีส้ม
         badge.style.color = 'white';
         badge.style.border = '1px solid #e67e22';
         icon.innerText = '👨‍🍳';
-        text.innerText = 'จอครัว';
+        text.innerText = 'kitchen';
     } else {
-        // ⚠️ กรณี "เปิดสวิตช์แล้ว" แต่ "ยังไม่ได้กดเลือกปุ่มใดๆ"
+        // กรณีเปิดสวิตช์ แต่ยังไม่ได้กดปุ่มเลือกบทบาทใดๆ เลย
         badge.style.backgroundColor = '#f1c40f'; // สีเหลือง
         badge.style.color = '#2c3e50';
         badge.style.border = '1px solid #f39c12';
         icon.innerText = '⚠️';
-        text.innerText = 'รอเลือกโหมด P2P';
+        text.innerText = 'รอเลือกบทบาท P2P...';
     }
 }
 

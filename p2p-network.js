@@ -7,8 +7,41 @@
 
 let peer = null;
 let currentConn = null;
+let connections = []; // สำหรับเครื่องแม่ที่ต้องจำเครื่องลูกหลายเครื่อง
 
 // --- ฟังก์ชันหลักของระบบ Peer ---
+
+/**
+ * ฟังก์ชันสำหรับดักฟังข้อมูล (Listener)
+ * ใช้สำหรับจัดการข้อมูลที่เครื่องแม่ (Hub) ส่งมาให้เครื่องลูกหรือจอครัว 12-05-2026
+ */
+function setupConnListeners(conn) {
+    conn.on('data', function(data) {
+        console.log("📩 ข้อมูลวาร์ปมาถึงแล้ว:", data);
+
+        // เช็กว่าตอนนี้เราอยู่ในโหมดครัวหรือไม่
+        const currentMode = localStorage.getItem('p2p_mode');
+
+        if (currentMode === 'kitchen' && data.type === 'ORDER') {
+            console.log("👨‍🍳 ออเดอร์ใหม่เข้าครัว! กำลังเพิ่มตั๋ว...");
+            
+            // เรียกใช้ฟังก์ชันเพิ่มตั๋วที่พี่มีอยู่แล้ว
+            if (typeof addKitchenTicket === 'function') {
+                addKitchenTicket(data.orderData);
+            } else {
+                console.error("❌ หาฟังก์ชัน addKitchenTicket ไม่เจอครับพี่!");
+            }
+        }
+    });
+
+    conn.on('close', function() {
+        console.log("🔴 การเชื่อมต่อกับเครื่องแม่สิ้นสุดลง");
+    });
+
+    conn.on('error', function(err) {
+        console.error("⚠️ เกิดข้อผิดพลาดในการรับข้อมูล:", err);
+    });
+}
 
 function setupPeerListeners() {
     if (!peer) return;
@@ -184,42 +217,63 @@ function sendPaymentToHub(paymentData) {
  * ฟังก์ชันหลักเมื่อมีการสลับสวิตช์ เปิด/ปิด P2P
  * [คำอธิบาย]: ควบคุมการเชื่อมต่อ Peer และสถานะในเครื่องทั้งหมด
  */
+/**
+ * ฟังก์ชันควบคุมการเปิด-ปิด ระบบ P2P ผ่าน Checkbox
+ * [หน้าที่]: สลับโหมดระหว่าง "ใช้งานเครื่องเดียว" และ "ระบบเครือข่าย"
+ */
 function toggleP2P() {
     const checkBox = document.getElementById("p2p-toggle");
     
+    // ตรวจสอบว่ามี Checkbox จริงไหมเพื่อกัน Error
+    if (!checkBox) return;
+
     if (checkBox.checked) {
-        // --- 🟢 กรณีเปิดใช้งาน ---
-        console.log("🟢 ระบบเครือข่าย: กำลังเปิดใช้งาน...");
+        // --- 🟢 กรณีเปิดใช้งาน (Checked) ---
+        console.log("🟢 ระบบเครือข่าย: กำลังเตรียมพร้อมใช้งาน...");
+        
+        // 1. บันทึกสถานะว่าเปิดระบบแล้ว
         localStorage.setItem('p2p_enabled', 'true');
         
-        // เริ่มต้นระบบ Peer ถ้ายังไม่มี
+        // 2. เริ่มต้นระบบ Peer (ถ้ายังไม่มีการสร้างไว้)
         if (typeof peer === 'undefined' || !peer) {
-            // Note: ปกติการสร้าง Peer() เปล่าๆ มักใช้สำหรับ Client 
-            // แต่เราสร้างไว้รอได้เลย แล้วค่อยกำหนดบทบาททีหลัง
             peer = new Peer(); 
-            setupPeerListeners();
+            // หมายเหตุ: setupPeerListeners คือตัวดักฟังสถานะพื้นฐานของ Peer
+            if (typeof setupPeerListeners === 'function') {
+                setupPeerListeners();
+            }
         }
+        
+        console.log("ℹ️ ระบบพร้อมให้เลือกบทบาท (แม่/ลูก/ครัว)");
+
     } else {
-        // --- 🔴 กรณีปิดการทำงาน ---
-        console.log("🔴 ระบบเครือข่าย: ปิดการทำงาน");
+        // --- 🔴 กรณีปิดการทำงาน (Unchecked) ---
+        console.log("🔴 ระบบเครือข่าย: ปิดการทำงานและล้างข้อมูลค้าง");
         
-        // 1. เก็บสถานะหลักว่าปิด
-        localStorage.setItem('p2p_enabled', 'false');
-        
-        // 🚩 [จุดสำคัญ]: ล้างบทบาททิ้งทันที เพื่อแก้ปัญหาป้ายค้างใน "แก้ 216.jpg"
-        localStorage.setItem('p2p_mode', 'none'); 
-        
-        // 2. ทำลายการเชื่อมต่อทั้งหมดที่ค้างอยู่
-        if (typeof peer !== 'undefined' && peer) {
-            peer.destroy();
-            peer = null;
-            currentConn = null;
-            console.log("🛑 ทำลายการเชื่อมต่อ Peer และล้างค่า Connection เรียบร้อย");
+        // 1. เรียกใช้ฟังก์ชันรีเซ็ตที่เราสร้างไว้ (สำคัญมาก!)
+        // [ผล]: จะทำการ peer.destroy(), ลบ p2p_mode, และคืนหน้าจอปกติ
+        if (typeof resetP2P === 'function') {
+            resetP2P();
+        } else {
+            // กรณีไม่มีฟังก์ชัน resetP2P ให้ทำลาย Peer ตรงนี้เลย
+            localStorage.setItem('p2p_enabled', 'false');
+            localStorage.setItem('p2p_mode', 'none'); 
+            if (typeof peer !== 'undefined' && peer) {
+                peer.destroy();
+                peer = null;
+            }
+        }
+
+        // 2. จัดระเบียบหน้าจอคืนค่าเดิม (เช่น แสดงยอดเงินที่เคยซ่อน)
+        if (typeof applyKitchenLogic === 'function') {
+            applyKitchenLogic();
         }
     }
 
-    // 🚩 เรียกอัปเดตป้ายสถานะที่มุมจอทันที เพื่อให้เปลี่ยนเป็น "ใช้งานเครื่องเดียว"
-    updateRoleDisplay();
+    // 🚩 3. อัปเดตป้ายสถานะทันที
+    // [ผล]: ถ้าติ๊กออก ป้ายจะกลายเป็นสีเทา "Alone" ทันทีตามที่พี่ต้องการ
+    if (typeof updateRoleDisplay === 'function') {
+        updateRoleDisplay();
+    }
 }
 
 //เครื่องแม่
@@ -305,27 +359,105 @@ function setupAsClient() {
 }
 
 // จอครัว 12-05-2026
+/**
+ * ฟังก์ชันตั้งค่าเครื่องให้เป็น "จอครัว (KDS)"
+ * [หน้าที่]: สร้างการเชื่อมต่อ P2P ไปยังเครื่องแม่ และเปลี่ยนหน้าจอให้เป็นระบบจัดการคิวอาหาร
+ */
 function setupAsKitchen() {
-    const targetId = document.getElementById('shop-id-input').value; // ใช้ ID เครื่องแม่ที่ระบุในช่อง input
+    // 1. ดึงชื่อร้าน (Peer ID ของเครื่องแม่) จากช่อง Input
+    const targetId = document.getElementById('shop-id-input').value; 
+    
+    // ตรวจสอบว่าใส่ ID หรือยัง ถ้าไม่ใส่ให้หยุดและเตือนทันที
     if (!targetId) return alert("กรุณาใส่ชื่อร้าน (ID เครื่องแม่) ก่อนครับ");
 
-    if (typeof peer !== 'undefined' && peer) peer.destroy();
+    // 2. เคลียร์การเชื่อมต่อเก่า (ถ้ามี) เพื่อป้องกันการเชื่อมต่อซ้อนจนอืด
+    if (typeof peer !== 'undefined' && peer) {
+        console.log("♻️ กำลังรีเซ็ตการเชื่อมต่อเก่า...");
+        peer.destroy();
+    }
     
+    // 3. เริ่มต้นระบบ Peer ใหม่
     peer = new Peer(); 
+
+    // เมื่อ Peer พร้อมใช้งาน (ได้รับ ID ของตัวเองมาแล้ว)
     peer.on('open', (id) => {
+        console.log("📡 Peer ID ของเครื่องครัวคือ: " + id);
+
+        // 4. สั่ง "เชื่อมต่อ" ไปยัง ID เครื่องแม่ (Hub)
         const conn = peer.connect(targetId);
-        setupConnListeners(conn);
-        
-        // 🚩 บันทึกโหมดเป็นครัว
+
+        // 🚩 [จุดสำคัญ]: เรียกใช้ฟังก์ชัน "ดักฟังข้อมูล" 
+        // เพื่อให้เครื่องครัวรู้ว่าเมื่อไหร่ที่มีออเดอร์วาร์ปมาจากเครื่องแม่
+        setupConnListeners(conn); 
+
+        applyKitchenLogic(); // 🚩 เพิ่มตรงนี้ เพื่อให้หน้าจอจัดระเบียบทันทีที่เชื่อมต่อติด
+
+        // 5. บันทึกบทบาทลงในความจำเครื่อง (LocalStorage) 
+        // [ผล]: ค่านี้จะถูกนำไปใช้ใน applyKitchenLogic และ updateRoleDisplay
         localStorage.setItem('p2p_mode', 'kitchen');
 
-        // อัปเดตป้ายสถานะทันที
-        updateRoleDisplay(); 
+        // 6. อัปเดตป้ายสถานะ (Badge) มุมจอทันที
+        // [ผล]: ป้ายจะเปลี่ยนเป็นสีส้ม "👨‍🍳 จอครัว" โดยไม่ต้องรีเฟรชหน้าจอ
+        if (typeof updateRoleDisplay === 'function') {
+            updateRoleDisplay(); 
+        }
 
-        alert("เชื่อมต่อกับเครื่องแม่ในฐานะ 'จอครัว' สำเร็จ!");
+        // 7. จัดระเบียบหน้าจอสำหรับโหมดครัว
+        // [ผล]: ซ่อนยอดเงิน/กำไร และแสดงส่วนของตั๋วอาหารขึ้นมาแทน
+        if (typeof applyKitchenLogic === 'function') {
+            applyKitchenLogic();
+        }
+
+        // 8. แสดงหน้าจอครัว (Overlay) ที่พี่ทำไว้
+        if (typeof showKitchen === 'function') {
+            showKitchen();
+        }
+
+        console.log("✅ เชื่อมต่อระบบครัวสำเร็จ: กำลังรอออเดอร์...");
+    });
+
+    // กรณีเกิดความผิดพลาดในการเชื่อมต่อ (เช่น หา ID เครื่องแม่ไม่เจอ)
+    peer.on('error', (err) => {
+        console.error("❌ เกิดข้อผิดพลาด P2P:", err);
+        alert("เชื่อมต่อไม่สำเร็จ: กรุณาเช็กว่า ID เครื่องแม่ถูกต้องและเครื่องแม่เปิดระบบอยู่ครับ");
     });
 }
 
+/**
+ * ฟังก์ชันจัดการระเบียบหน้าจอสำหรับโหมดครัว
+ * [หน้าที่]: สั่งซ่อนส่วนที่ไม่เกี่ยวข้องกับคนทำอาหาร (เช่น ยอดขาย, กำไร) 
+ * และแสดงปุ่มที่จำเป็นสำหรับงานครัวเท่านั้น
+ */
+function applyKitchenLogic() {
+    const p2pMode = localStorage.getItem('p2p_mode');
+    
+    // 1. ดึง Element ที่เกี่ยวข้องกับการเงิน (ปรับ ID ตามที่พี่ใช้จริงนะครับ)
+    const financialSection = document.getElementById('financial-summary'); 
+    const profitText = document.getElementById('profit-display');
+    const posButtons = document.getElementById('pos-action-buttons'); // ปุ่มกดสั่งอาหารหน้าหลัก
+
+    if (p2pMode === 'kitchen') {
+        console.log("🧹 [Logic] กำลังจัดระเบียบหน้าจอสำหรับคนทำอาหาร...");
+        
+        // ซ่อนส่วนที่เป็นความลับทางการเงิน
+        if (financialSection) financialSection.style.display = 'none';
+        if (profitText) profitText.style.display = 'none';
+        
+        // อาจจะซ่อนปุ่มขายของหน้าหลัก เพื่อกันคนเผลอไปกดสั่งซ้อน
+        if (posButtons) posButtons.style.display = 'none';
+        
+        // สั่งเปิดหน้าจอครัว (Overlay) ทันที
+        if (typeof showKitchen === 'function') showKitchen();
+
+    } else {
+        // กรณีไม่ใช่โหมดครัว (เช่น กลับมาเป็น Standalone หรือ Hub) ให้โชว์ทุกอย่างตามปกติ
+        if (financialSection) financialSection.style.display = 'block';
+        if (profitText) profitText.style.display = 'block';
+        if (posButtons) posButtons.style.display = 'block';
+        
+        console.log("🏠 [Logic] กลับสู่โหมดการทำงานปกติ");
+    }
+}
 
 // --- ฟังก์ชันการทำงานอื่นๆ (KDS / Kitchen) ---
 
@@ -568,4 +700,39 @@ function markAsDoneP2P(orderId, table) {
         // กรณีท่อหลุด ส่งไม่ได้ ให้แจ้งเตือนพ่อครัว
         alert("❌ ส่งข้อมูลหาพนักงานไม่ได้: กรุณาตรวจสอบการเชื่อมต่อ");
     }
+}
+
+//ใช้ "ปิดระบบ P2P" หรือรีเซ็ตค่า 12-05-2026
+/**
+ * ฟังก์ชันรีเซ็ตระบบ P2P และคืนค่าหน้าจอ
+ * [หน้าที่]: ปิดการเชื่อมต่อ Peer, ลบสถานะในเครื่อง และสั่งจัดระเบียบหน้าจอใหม่
+ */
+function resetP2P() {
+    console.log("🔄 กำลังปิดระบบเครือข่ายและคืนค่าหน้าจอ...");
+
+    // 1. ปิดการเชื่อมต่อ PeerJS (ถ้ามี)
+    if (typeof peer !== 'undefined' && peer) {
+        peer.destroy();
+        console.log("🚫 ปิดการเชื่อมต่อ Peer เรียบร้อย");
+    }
+
+    // 2. ลบโหมด P2P ออกจากความจำเครื่อง
+    localStorage.removeItem('p2p_mode');
+
+    // 3. สั่งอัปเดตป้ายสถานะ (จะกลับไปเป็นสีเทา "Alone/Standalone")
+    if (typeof updateRoleDisplay === 'function') {
+        updateRoleDisplay();
+    }
+
+    // 4. สั่งจัดระเบียบหน้าจอใหม่ (จะกลับมาโชว์ยอดเงินและปุ่มขายของ)
+    if (typeof applyKitchenLogic === 'function') {
+        applyKitchenLogic();
+    }
+    
+    // 5. ปิดหน้าจอครัว (ถ้าเปิดค้างไว้)
+    if (typeof hideKitchen === 'function') {
+        hideKitchen();
+    }
+
+    alert("กลับสู่โหมดใช้งานเครื่องเดียวเรียบร้อยครับพี่!");
 }
