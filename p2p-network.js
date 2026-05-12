@@ -42,6 +42,9 @@ function setupPeerListeners() {
  * ฟังก์ชันจัดการข้อมูลวาร์ป (Data Handler) - "สมอง" ของเครื่องแม่
  * ปรับปรุง: แก้ไขบั๊กสั่งกลับบ้านแล้วครัวเงียบ + จัดลำดับ UI Refresh ใหม่
  */
+/**
+ * ฟังก์ชันรับข้อมูลวาร์ป (P2P): เครื่องแม่ประมวลผลข้อมูลที่ส่งมาจากเครื่องลูก
+ */
 async function handleIncomingData(data) {
     console.log('🔔 [P2P] ได้รับข้อมูลวาร์ปใหม่:', data);
     
@@ -51,77 +54,82 @@ async function handleIncomingData(data) {
     const statusText = document.getElementById('status-text');
 
     // =========================================================
-    // 🚩 [โหมดรับออเดอร์]: เครื่องแม่ประมวลผลข้อมูลที่ลูกส่งมา
+    // 🚩 [โหมดรับออเดอร์]: เครื่องแม่ประมวลผลข้อมูล
     // =========================================================
     if (data.type === 'ORDER_INCOMING') {
         
         // 1. เตรียมข้อมูลพื้นฐาน
         const isPayment = data.isPayment === true; 
         const tableStr = data.table ? String(data.table).trim() : "";
-        const hasItems = data.items && data.items.length > 0;
+        
+        // 🚩 กรองของใหม่จริงๆ จากข้อมูลที่วาร์ปมา (newOnly) 
+        // ถ้าเครื่องลูกไม่ได้ส่งมา ให้ลองหาจากรายการที่ไม่มีป้าย fromDB
+        const newItems = data.newOnly || (data.items ? data.items.filter(i => !i.fromDB) : []);
+        const hasNewItems = newItems.length > 0;
 
-        // 🚩 [จุดที่ปรับ]: ครัวต้อง "สะดุ้ง" ทุกครั้งที่มีของใหม่ ไม่ว่าลูกจะจ่ายเงินแล้วหรือยังไม่จ่าย
-        // เงื่อนไขเดิมคือ !isPayment && hasItems ทำให้คนจ่ายเงินล่วงหน้าออเดอร์ไม่เข้าครัว
-        const shouldGoToKitchen = hasItems; 
-
-        console.log(`📊 ประมวลผล: โต๊ะ[${tableStr}] | เข้าครัว[${shouldGoToKitchen}] | จ่ายแล้ว[${isPayment}]`);
+        console.log(`📊 ประมวลผล: โต๊ะ[${tableStr}] | ของใหม่[${newItems.length}] | จ่ายแล้ว[${isPayment}]`);
 
         // 2. จัดการตั๋วครัว (Kitchen Ticket) 
-        // สั่งให้ดังที่เครื่องแม่ทันที ยายจะได้เห็นออเดอร์เด้งขึ้นมา
-        if (shouldGoToKitchen && typeof addKitchenTicket === 'function') {
-            console.log("👨‍🍳 [Kitchen] พบรายการอาหาร -> กำลังส่งตั๋วให้ครัว...");
-            addKitchenTicket(data); 
+        // 🚩 ปรับใหม่: ให้เครื่องแม่แจ้งครัว "เฉพาะเมื่อมีรายการใหม่จริงๆ" เท่านั้น 
+        // เพื่อป้องกันยายสับสนเวลาเครื่องลูกกดเช็คบิลเฉยๆ โดยไม่ได้สั่งเพิ่ม
+        if (hasNewItems && typeof addKitchenTicket === 'function') {
+            console.log("👨‍🍳 [Kitchen] พบออเดอร์ใหม่ -> ส่งเข้าครัว...");
             
-            // 🚩 [สิ่งที่เพิ่ม]: ถ้าพี่มีฟังก์ชันเล่นเสียง (Bell) ใส่ตรงนี้ได้เลยครับ
-            // if (typeof playOrderSound === 'function') playOrderSound();
+            // เตรียมก้อนข้อมูลเฉพาะของใหม่ให้ครัว
+            const kitchenData = { ...data, items: newItems };
+            addKitchenTicket(kitchenData); 
+            
+            // 🔔 แจ้งเตือนเสียง หรือสั่นที่เครื่องแม่
+            if (typeof showOrderNotify === 'function') {
+                showOrderNotify(`[โต๊ะ ${tableStr}] สั่งเพิ่ม ${newItems.length} รายการ!`);
+            }
         }
 
         // 3. จัดการฐานข้อมูล (Database Management)
         try {
-            // เช็คว่าเป็นประเภท "กลับบ้าน / จ่ายเงิน" หรือไม่
             const isTakeAway = !tableStr || ['กลับบ้าน', 'ทั่วไป', ''].includes(tableStr);
 
             if (isPayment || isTakeAway) {
-                // 🥡 กรณี "เช็คบิล" หรือ "สั่งกลับบ้าน" -> ปิดยอดลงบัญชีขาย
+                // 🥡 กรณี "เช็คบิล/สั่งกลับบ้าน" -> ปิดยอดลง Dexie db.orders
                 if (typeof confirmOrder === 'function') {
-                    console.log("🥡 [Action] บันทึกยอดขายและปิดบิล...");
-                    // ส่งข้อมูลชุดใหญ่ไปบันทึกประวัติการขาย Real-time
+                    console.log("🥡 [Action] บันทึกยอดขายและลบโต๊ะออกจาก active_tables...");
                     await confirmOrder(data.payment_method || 'Cash', true, data); 
                 }
             } else {
-                // 🏠 กรณี "ฝากลงโต๊ะ" -> พักข้อมูลไว้ที่โต๊ะ (เปลี่ยนสีปุ่มโต๊ะ)
+                // 🏠 กรณี "ฝากลงโต๊ะ" -> พักข้อมูลไว้ที่ db.active_tables
                 if (typeof saveOrderToTable === 'function') {
-                    console.log(`🏠 [Action] บันทึกลลงโต๊ะ: ${tableStr}`);
+                    console.log(`🏠 [Action] อัปเดตข้อมูลโต๊ะ: ${tableStr}`);
                     await saveOrderToTable(data, true);
                 }
             }
 
-            // 4. สั่งรีเฟรชหน้าจอ (UI Refresh)
-            // ใช้ setTimeout เพื่อรอให้ฐานข้อมูล Dexie บันทึกเสร็จแบบนิ่งๆ
-            setTimeout(async () => {
-                console.log("🔄 [UI] กำลังอัปเดตหน้าจอให้ทันสมัย...");
-                
-                if (typeof loadRecentOrders === 'function') await loadRecentOrders(); 
-                if (typeof fetchTodaySales === 'function') fetchTodaySales(); 
-                if (typeof renderTableSelection === 'function') await renderTableSelection(); 
-                if (typeof updateOrderList === 'function') updateOrderList();
+            // 4. สั่งรีเฟรชหน้าจอ (UI Sync)
+            // 🚩 [จุดพิชิตชัย]: เรียกใช้ renderTableSelection ทันทีเพื่อให้สีโต๊ะ Sync กัน
+            console.log("🔄 [UI] กำลังอัปเดตสีโต๊ะและยอดขายบนหน้าจอแม่...");
+            
+            // ใช้ Promise.all เพื่ออัปเดตทุกอย่างพร้อมกันแบบรวดเร็ว
+            await Promise.all([
+                (typeof renderTableSelection === 'function') ? renderTableSelection() : Promise.resolve(),
+                (typeof loadRecentOrders === 'function') ? loadRecentOrders() : Promise.resolve(),
+                (typeof fetchTodaySales === 'function') ? fetchTodaySales() : Promise.resolve()
+            ]);
 
-                console.log("✅ [Success] ข้อมูลหน้าจอแม่ Sync กับเครื่องลูกแล้ว");
-            }, 800); 
+            if (typeof updateOrderList === 'function') updateOrderList();
+            console.log("✅ [Success] หน้าจอเครื่องแม่ Sync เรียบร้อย!");
 
         } catch (error) {
             console.error("❌ [Error] บันทึกข้อมูลวาร์ปล้มเหลว:", error);
             alert("เครื่องแม่บันทึกข้อมูลพลาด: " + error.message);
         }
 
-        // 5. ส่งสัญญาณ ACK (ตอบกลับ) ให้เครื่องลูกสบายใจ
+        // 5. ส่งสัญญาณ ACK (ตอบกลับ) ให้เครื่องลูก
         if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
             currentConn.send({ type: 'ACK_ORDER', orderId: data.orderId });
         }
         if (navigator.vibrate) navigator.vibrate(200); 
     }
     
-    // --- ส่วนดักสัญญาณจากเครื่องอื่น (คงเดิมตามมาตรฐานของพี่) ---
+    // --- ส่วนดักสัญญาณ ACK และสถานะอาหารเสร็จ (คงเดิม) ---
     if (data.type === 'ACK_ORDER') {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
@@ -134,7 +142,7 @@ async function handleIncomingData(data) {
         alert(`✅ อาหารโต๊ะ [ ${data.table || 'ไม่ระบุ'} ] เสร็จแล้วครับ!`);
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#3498db'; 
-            statusText.innerText = `โต๊ะ ${data.table}: อาหารเสร็จแล้ว!`;
+            statusText.innerText = `โต๊ะ ${data.table}: อาหารเสร็จ!`;
             setTimeout(() => { if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText); }, 5000);
         }
     }
