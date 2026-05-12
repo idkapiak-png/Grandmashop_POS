@@ -62,24 +62,22 @@ async function handleIncomingData(data) {
         const isPayment = data.isPayment === true; 
         const tableStr = data.table ? String(data.table).trim() : "";
         
-        // 🚩 กรองของใหม่จริงๆ จากข้อมูลที่วาร์ปมา (newOnly) 
-        // ถ้าเครื่องลูกไม่ได้ส่งมา ให้ลองหาจากรายการที่ไม่มีป้าย fromDB
+        // 🚩 กรองของใหม่จริงๆ: ใช้ข้อมูลที่เครื่องลูกส่งมา (newOnly)
         const newItems = data.newOnly || (data.items ? data.items.filter(i => !i.fromDB) : []);
         const hasNewItems = newItems.length > 0;
 
-        console.log(`📊 ประมวลผล: โต๊ะ[${tableStr}] | ของใหม่[${newItems.length}] | จ่ายแล้ว[${isPayment}]`);
+        // 🚩 [จุดสำคัญ]: ดักจับประเภทการเงินที่วาร์ปมา (แก้ปัญหาเงินโอน)
+        const method = data.payment_method || data.paymentType || 'Cash';
+
+        console.log(`📊 ประมวลผล: โต๊ะ[${tableStr}] | ของใหม่[${newItems.length}] | จ่ายด้วย[${method}] | โหมด[${isPayment ? 'ชำระเงิน' : 'สั่งเพิ่ม'}]`);
 
         // 2. จัดการตั๋วครัว (Kitchen Ticket) 
-        // 🚩 ปรับใหม่: ให้เครื่องแม่แจ้งครัว "เฉพาะเมื่อมีรายการใหม่จริงๆ" เท่านั้น 
-        // เพื่อป้องกันยายสับสนเวลาเครื่องลูกกดเช็คบิลเฉยๆ โดยไม่ได้สั่งเพิ่ม
+        // แจ้งครัว "เฉพาะเมื่อมีรายการใหม่จริงๆ" เท่านั้น
         if (hasNewItems && typeof addKitchenTicket === 'function') {
             console.log("👨‍🍳 [Kitchen] พบออเดอร์ใหม่ -> ส่งเข้าครัว...");
-            
-            // เตรียมก้อนข้อมูลเฉพาะของใหม่ให้ครัว
             const kitchenData = { ...data, items: newItems };
             addKitchenTicket(kitchenData); 
             
-            // 🔔 แจ้งเตือนเสียง หรือสั่นที่เครื่องแม่
             if (typeof showOrderNotify === 'function') {
                 showOrderNotify(`[โต๊ะ ${tableStr}] สั่งเพิ่ม ${newItems.length} รายการ!`);
             }
@@ -90,13 +88,14 @@ async function handleIncomingData(data) {
             const isTakeAway = !tableStr || ['กลับบ้าน', 'ทั่วไป', ''].includes(tableStr);
 
             if (isPayment || isTakeAway) {
-                // 🥡 กรณี "เช็คบิล/สั่งกลับบ้าน" -> ปิดยอดลง Dexie db.orders
+                // 🥡 กรณี "เช็คบิล/สั่งกลับบ้าน" -> บันทึกยอดขาย (ใช้ method ที่วาร์ปมา)
                 if (typeof confirmOrder === 'function') {
-                    console.log("🥡 [Action] บันทึกยอดขายและลบโต๊ะออกจาก active_tables...");
-                    await confirmOrder(data.payment_method || 'Cash', true, data); 
+                    console.log(`🥡 [Action] บันทึกยอดขาย (${method}) และล้างข้อมูลโต๊ะ...`);
+                    // 🚩 ส่ง method เข้าไปเป็นพารามิเตอร์แรก เพื่อให้รายงานขายเครื่องแม่ถูกต้อง
+                    await confirmOrder(method, true, data); 
                 }
             } else {
-                // 🏠 กรณี "ฝากลงโต๊ะ" -> พักข้อมูลไว้ที่ db.active_tables
+                // 🏠 กรณี "ฝากลงโต๊ะ/สั่งเพิ่ม" -> อัปเดตข้อมูลโต๊ะ
                 if (typeof saveOrderToTable === 'function') {
                     console.log(`🏠 [Action] อัปเดตข้อมูลโต๊ะ: ${tableStr}`);
                     await saveOrderToTable(data, true);
@@ -104,10 +103,8 @@ async function handleIncomingData(data) {
             }
 
             // 4. สั่งรีเฟรชหน้าจอ (UI Sync)
-            // 🚩 [จุดพิชิตชัย]: เรียกใช้ renderTableSelection ทันทีเพื่อให้สีโต๊ะ Sync กัน
-            console.log("🔄 [UI] กำลังอัปเดตสีโต๊ะและยอดขายบนหน้าจอแม่...");
+            console.log("🔄 [UI] กำลังอัปเดตสถานะหน้าจอแม่...");
             
-            // ใช้ Promise.all เพื่ออัปเดตทุกอย่างพร้อมกันแบบรวดเร็ว
             await Promise.all([
                 (typeof renderTableSelection === 'function') ? renderTableSelection() : Promise.resolve(),
                 (typeof loadRecentOrders === 'function') ? loadRecentOrders() : Promise.resolve(),
@@ -115,7 +112,6 @@ async function handleIncomingData(data) {
             ]);
 
             if (typeof updateOrderList === 'function') updateOrderList();
-            console.log("✅ [Success] หน้าจอเครื่องแม่ Sync เรียบร้อย!");
 
         } catch (error) {
             console.error("❌ [Error] บันทึกข้อมูลวาร์ปล้มเหลว:", error);
@@ -129,12 +125,15 @@ async function handleIncomingData(data) {
         if (navigator.vibrate) navigator.vibrate(200); 
     }
     
-    // --- ส่วนดักสัญญาณ ACK และสถานะอาหารเสร็จ (คงเดิม) ---
+    // --- ส่วนดักสัญญาณ ACK และสถานะอาหารเสร็จ (คงเดิมตามที่พี่ส่งมา) ---
     if (data.type === 'ACK_ORDER') {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
             statusText.innerText = 'วาร์ปสำเร็จ! แม่ได้รับแล้ว';
-            setTimeout(() => { if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText); }, 3000);
+            setTimeout(() => { 
+                if (statusDot) statusDot.style.backgroundColor = '#7f8c8d';
+                if (statusText) statusText.innerText = 'ระบบพร้อมวาร์ป';
+            }, 3000);
         }
     }
 
@@ -143,7 +142,6 @@ async function handleIncomingData(data) {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#3498db'; 
             statusText.innerText = `โต๊ะ ${data.table}: อาหารเสร็จ!`;
-            setTimeout(() => { if (typeof resetWarpStatus === 'function') resetWarpStatus(statusDot, statusText); }, 5000);
         }
     }
 }
@@ -182,24 +180,46 @@ function sendPaymentToHub(paymentData) {
 
 // --- ฟังก์ชันควบคุมหน้าจอ (UI) ---
 
+/**
+ * ฟังก์ชันหลักเมื่อมีการสลับสวิตช์ เปิด/ปิด P2P
+ * [คำอธิบาย]: ควบคุมการเชื่อมต่อ Peer และสถานะในเครื่องทั้งหมด
+ */
 function toggleP2P() {
     const checkBox = document.getElementById("p2p-toggle");
+    
     if (checkBox.checked) {
+        // --- 🟢 กรณีเปิดใช้งาน ---
         console.log("🟢 ระบบเครือข่าย: กำลังเปิดใช้งาน...");
         localStorage.setItem('p2p_enabled', 'true');
-        if (!peer) {
+        
+        // เริ่มต้นระบบ Peer ถ้ายังไม่มี
+        if (typeof peer === 'undefined' || !peer) {
+            // Note: ปกติการสร้าง Peer() เปล่าๆ มักใช้สำหรับ Client 
+            // แต่เราสร้างไว้รอได้เลย แล้วค่อยกำหนดบทบาททีหลัง
             peer = new Peer(); 
             setupPeerListeners();
         }
     } else {
+        // --- 🔴 กรณีปิดการทำงาน ---
         console.log("🔴 ระบบเครือข่าย: ปิดการทำงาน");
+        
+        // 1. เก็บสถานะหลักว่าปิด
         localStorage.setItem('p2p_enabled', 'false');
-        if (peer) {
+        
+        // 🚩 [จุดสำคัญ]: ล้างบทบาททิ้งทันที เพื่อแก้ปัญหาป้ายค้างใน "แก้ 216.jpg"
+        localStorage.setItem('p2p_mode', 'none'); 
+        
+        // 2. ทำลายการเชื่อมต่อทั้งหมดที่ค้างอยู่
+        if (typeof peer !== 'undefined' && peer) {
             peer.destroy();
             peer = null;
             currentConn = null;
+            console.log("🛑 ทำลายการเชื่อมต่อ Peer และล้างค่า Connection เรียบร้อย");
         }
     }
+
+    // 🚩 เรียกอัปเดตป้ายสถานะที่มุมจอทันที เพื่อให้เปลี่ยนเป็น "ใช้งานเครื่องเดียว"
+    updateRoleDisplay();
 }
 
 //เครื่องแม่
@@ -212,6 +232,10 @@ function setupAsHub() {
     peer = new Peer(name); 
     setupPeerListeners();
     localStorage.setItem('p2p_mode', 'hub');
+
+    //แถบสถานะ (Status Bar) P2P 12-05-2026
+    updateRoleDisplay();
+
     alert("ตอนนี้เครื่องนี้คือ 'เครื่องแม่' แล้วครับ");
 }
 
@@ -247,6 +271,9 @@ function setupAsClient() {
             alert("✅ เชื่อมต่อสำเร็จ! ร้าน " + name + " พร้อมวาร์ปออเดอร์");
             localStorage.setItem('p2p_mode', 'client');
 
+            //แถบสถานะ (Status Bar) P2P 12-05-2026
+            updateRoleDisplay();
+
             // ✨ [จุดที่เพิ่มใหม่]: ติดตั้งหูฟังดักรับข้อมูลขากลับจากเครื่องแม่
             // สิ่งที่จะเกิดขึ้น: เมื่อแม่กด "ทำเสร็จแล้ว" ข้อมูลจะวิ่งเข้าบรรทัดนี้ทันที
             currentConn.on('data', (data) => {
@@ -276,6 +303,29 @@ function setupAsClient() {
         }
     });
 }
+
+// จอครัว 12-05-2026
+function setupAsKitchen() {
+    const targetId = document.getElementById('shop-id-input').value; // ใช้ ID เครื่องแม่ที่ระบุในช่อง input
+    if (!targetId) return alert("กรุณาใส่ชื่อร้าน (ID เครื่องแม่) ก่อนครับ");
+
+    if (typeof peer !== 'undefined' && peer) peer.destroy();
+    
+    peer = new Peer(); 
+    peer.on('open', (id) => {
+        const conn = peer.connect(targetId);
+        setupConnListeners(conn);
+        
+        // 🚩 บันทึกโหมดเป็นครัว
+        localStorage.setItem('p2p_mode', 'kitchen');
+
+        // อัปเดตป้ายสถานะทันที
+        updateRoleDisplay(); 
+
+        alert("เชื่อมต่อกับเครื่องแม่ในฐานะ 'จอครัว' สำเร็จ!");
+    });
+}
+
 
 // --- ฟังก์ชันการทำงานอื่นๆ (KDS / Kitchen) ---
 

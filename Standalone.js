@@ -689,6 +689,10 @@ function deleteSpecificItem(index) {
  * ฟังก์ชันเช็คบิล/ยืนยันยอดขาย: 
  * ปรับปรุงให้ส่งเฉพาะของใหม่เข้าครัว และส่งทั้งหมดไปบันทึกเงิน
  */
+/**
+ * ฟังก์ชันยืนยันการขาย:
+ * ปรับปรุงให้ส่งประเภทการชำระเงิน (Cash/QR) ติดไปกับระบบวาร์ป P2P ด้วย
+ */
 async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
     
     // --- 1. เตรียมข้อมูลพื้นฐาน ---
@@ -697,7 +701,6 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
     
     if (!targetTable) targetTable = "กลับบ้าน";
 
-    // เช็คความพร้อม (เฉพาะคนกด)
     if (!isFromWarp && targetItems.length === 0) {
         return alert("เลือกเมนูก่อนครับยาย!");
     }
@@ -705,11 +708,10 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
     const thailandTime = new Date().toLocaleString('sv-SE'); 
     const orderId = Date.now(); 
 
-    // 🚩 [จุดพิชิตปัญหา]: กรองเอาเฉพาะ "รายการใหม่" (รายการที่ไม่มีป้าย fromDB)
-    // รายการที่มี fromDB (มีเครื่องหมาย ✅) จะถูกตัดออกจากชุดที่จะส่งเข้าครัว
+    // กรองเอาเฉพาะ "รายการใหม่" เพื่อส่งเข้าครัว
     const newItemsOnly = targetItems.filter(item => !item.fromDB);
 
-    // --- 2. คำนวณยอดเงิน (ต้องคิดจาก targetItems ทั้งหมด) ---
+    // --- 2. คำนวณยอดเงิน ---
     const rawDiscount = localStorage.getItem('default_discount') || "0";
     const isPercent = rawDiscount.toString().includes('%'); 
     const discountValue = parseFloat(rawDiscount) || 0; 
@@ -717,14 +719,17 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
     const rawTotal = targetItems.reduce((sum, item) => sum + (item.price * (item.qty || 1)), 0);
     const actualDiscountBath = isPercent ? (rawTotal * discountValue) / 100 : discountValue;
     const netTotal = Math.max(0, rawTotal - actualDiscountBath); 
+
+    // 🚩 [วิเคราะห์ประเภทเงิน]: แปลงค่า paymentType ให้เป็นมาตรฐาน (QR หรือ Cash)
     const finalPaymentMethod = (paymentType === 'transfer' || paymentType === 'QR') ? 'QR' : 'Cash';
 
     try {
         // --- 3. บันทึกลงฐานข้อมูล Dexie (Daily Sales) ---
+        // จุดนี้บันทึกที่เครื่องตัวเอง (เครื่องลูกบันทึกที่ลูก เครื่องแม่บันทึกที่แม่)
         for (let item of targetItems) {
             await db.orders.add({
                 order_id: orderId,
-                menu_name: item.name, // ชื่อจะมี ✅ ติดไปด้วยในรายงานขาย (ยายดูง่าย)
+                menu_name: item.name,
                 qty: item.qty || 1,
                 options: item.options || "", 
                 total_price: item.price * (item.qty || 1),
@@ -744,7 +749,7 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
             });
         }
 
-        // --- 4. เคลียร์สถานะโต๊ะใน DB (เช็คบิลเสร็จ โต๊ะต้องว่าง) ---
+        // --- 4. เคลียร์สถานะโต๊ะใน DB ---
         if (targetTable && !['กลับบ้าน', 'ทั่วไป'].includes(targetTable)) {
             const tableKey = String(targetTable);
             await db.active_tables.delete(tableKey); 
@@ -764,13 +769,13 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
         // --- 5. การสื่อสาร P2P ---
         if (!isFromWarp) {
             // 🚩 [ส่งวาร์ปไปเครื่องแม่]: 
-            // ส่ง targetItems ไปเพื่อบันทึกเงิน 
-            // และส่ง newItemsOnly ไปเพื่อให้เครื่องแม่ตัดสินใจว่าจะดังในครัวหรือไม่
+            // เพิ่มการส่ง paymentType เข้าไปใน Object ข้อมูลเพื่อให้เครื่องแม่รับทราบ
             if (typeof executeOrderSent === "function") {
                 executeOrderSent(true, {
                     items: targetItems, 
                     newOnly: newItemsOnly, 
-                    table: targetTable
+                    table: targetTable,
+                    paymentType: finalPaymentMethod // 🛰️ ส่ง 'QR' หรือ 'Cash' ไปที่นี่!
                 }); 
             }
             
@@ -783,17 +788,14 @@ async function confirmOrder(paymentType, isFromWarp = false, warpData = null) {
                 }); 
             }
 
-            cart = []; // ล้างตะกร้า
+            cart = []; 
             if (typeof updateOrderPreview === "function") updateOrderPreview();
         } else {
             // 🚩 [เครื่องแม่รับวาร์ป]:
-            console.log(`🔔 เครื่องแม่บันทึกยอดขายเรียบร้อย (${targetTable})`);
+            console.log(`🔔 เครื่องแม่บันทึกยอดขายเรียบร้อย (${targetTable}) จ่ายด้วย: ${finalPaymentMethod}`);
             
-            // 👨‍🍳 ตรวจสอบ: ครัวจะดัง "เฉพาะเมื่อมีของใหม่" จริงๆ เท่านั้น
             if (newItemsOnly.length > 0 && typeof showOrderNotify === 'function') {
                 showOrderNotify(`[โต๊ะ ${targetTable}] มีออเดอร์ใหม่เพิ่มมาจ้า!`);
-            } else {
-                console.log("🤫 ไม่มีรายการใหม่ (เป็นการเช็คบิลอย่างเดียว) ไม่แจ้งเตือนครัว");
             }
         }
 
@@ -1613,94 +1615,140 @@ async function finalizeOrder(paymentMethod) {
 // ==========================================
 // วางระบบ P2P 07-05-2026
 // ==========================================
-
-/**
- * ฟังก์ชันหลักในการปล่อยวาร์ปข้อมูล (เครื่องลูก -> เครื่องแม่)
- * ปรับปรุง: ตรวจสอบข้อมูลให้ "สะอาด" และ "ครบถ้วน" ก่อนส่งลงท่อ
- */
 /**
  * ฟังก์ชันวาร์ปข้อมูล (P2P): ส่งข้อมูลจากเครื่องลูกไปเครื่องแม่
- * @param {boolean} isPaymentMode - true ถ้าเป็นการชำระเงิน, false ถ้าเป็นการสั่งอาหาร/ฝากโต๊ะ
- * @param {object} extraData - ข้อมูลเพิ่มเติมที่ส่งมาจากฟังก์ชันหลัก (เช่นรายการที่กรองแล้ว)
+ * [อัปเดต]: เพิ่มการตรวจสอบโหมด P2P เพื่อปิดการแจ้งเตือน Error เมื่อใช้งานเครื่องเดียว 12-05-2026
  */
 function executeOrderSent(isPaymentMode = false, extraData = null) {
+    // --- 0. [จุดเพิ่มใหม่]: ตรวจสอบความตั้งใจของผู้ใช้ก่อนเริ่มทำงาน ---
+    const p2pMode = localStorage.getItem('p2p_mode'); // ดูว่าเราตั้งค่าเป็น 'hub', 'client' หรือ 'none'
+    const isConnected = (typeof currentConn !== 'undefined' && currentConn && currentConn.open);
+
+    // 🚩 ถ้าไม่ได้ตั้งโหมด P2P ไว้ หรือ ไม่มีการเชื่อมต่อที่เปิดอยู่
+    // ให้จบฟังก์ชันเงียบๆ โดยไม่ต้องทำงานต่อ และไม่ต้องแจ้งเตือน Error
+    if (!p2pMode || p2pMode === 'none' || !isConnected) {
+        console.log("ℹ️ [P2P Mode] ปิดอยู่ หรือยังไม่ได้เชื่อมต่อ: ทำงานโหมดเครื่องเดียว (Standalone)");
+        return; 
+    }
+
     console.log(`📡 [P2P System] เริ่มเตรียมวาร์ป (โหมด: ${isPaymentMode ? 'ชำระเงิน' : 'สั่งอาหาร'})`);
 
-    // --- 1. [ปรับปรุง] การรวบรวมข้อมูลรายการอาหาร ---
-    // เลือกใช้รายการอาหารจาก extraData ถ้ามีการส่งมา (ซึ่งควรจะมีจากการกรอง fromDB แล้ว)
-    // หากไม่มี ให้ใช้ข้อมูลในตะกร้า (cart) ทั้งหมดเป็นค่าสำรอง
+    // --- 1. การรวบรวมข้อมูลรายการอาหาร ---
     const itemsToSend = (extraData && extraData.items) ? extraData.items : [...cart];
-    
-    // ดึงรายการใหม่ (newOnly) เพื่อให้เครื่องแม่รู้ว่าต้องพิมพ์ใบครัวใบไหนบ้าง
     const newItemsOnly = (extraData && extraData.newOnly) ? extraData.newOnly : itemsToSend.filter(i => !i.fromDB);
 
-    // เช็คความพร้อม: ถ้าไม่มีรายการเลย ไม่ต้องส่งให้เปลืองแรง
     if (itemsToSend.length === 0) {
         console.warn("⚠️ ไม่มีรายการอาหาร ยกเลิกการวาร์ป");
         return;
     }
 
     // --- 2. รวบรวมและจัดรูปแบบข้อมูล (Data Packing) ---
+    const method = extraData?.paymentType || extraData?.payment_method || 'Cash';
+
     const orderData = {
         type: 'ORDER_INCOMING',
-        
-        // 🚩 บังคับเป็น String ป้องกันเลขโต๊ะกลายเป็นสีขาวเพราะ Type ผิด
-        table: (extraData && extraData.table) ? String(extraData.table) : (selectedTable ? String(selectedTable) : 'กลับบ้าน'), 
-        
-        // 🚩 รายการทั้งหมด (สำหรับบันทึกยอดขาย)
+        table: (extraData && extraData.table) ? String(extraData.table) : (typeof selectedTable !== 'undefined' && selectedTable ? String(selectedTable) : 'กลับบ้าน'), 
         items: JSON.parse(JSON.stringify(itemsToSend)), 
-        
-        // 🚩 [ใหม่] รายการใหม่เท่านั้น (สำหรับแจ้งครัว/พิมพ์ใบสั่ง)
         newOnly: JSON.parse(JSON.stringify(newItemsOnly)), 
-        
         orderId: 'ORD-' + Date.now(),
         time: new Date().toLocaleTimeString('th-TH'),
-        
-        // คำนวณยอดรวมจากรายการทั้งหมด (เผื่อเครื่องแม่ใช้สรุปหน้าจอ)
-        total: itemsToSend.reduce((sum, item) => {
-            const amount = item.qty || 1;
-            return sum + (parseFloat(item.price) * amount);
-        }, 0),
-
-        // 🚩 ส่งสถานะจ่ายเงิน: เครื่องแม่จะใช้ตัวนี้ตัดสินใจว่าต้องลบโต๊ะ (Render สีขาว) หรือไม่
+        total: itemsToSend.reduce((sum, item) => sum + (parseFloat(item.price) * (item.qty || 1)), 0),
         isPayment: isPaymentMode,
-        
-        payment_method: extraData?.payment_method || (typeof currentPaymentMethod !== 'undefined' ? currentPaymentMethod : 'Cash')
+        payment_method: method 
     };
 
-    // --- 3. ตรวจสอบสถานะท่อเชื่อมต่อ และส่งข้อมูล ---
-    if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
-        
-        console.log(`📤 กำลังส่งข้อมูลโต๊ะ [ ${orderData.table} ]...`);
+    // --- 3. ตรวจสอบสถานะการส่งข้อมูล ---
+    // เนื่องจากเราเช็ค isConnected ด้านบนแล้ว ตรงนี้จะทำงานเมื่อ "พร้อมส่ง" จริงๆ เท่านั้น
+    try {
+        currentConn.send(orderData);
+        console.log("✅ [P2P] วาร์ปข้อมูลสำเร็จ!");
 
-        try {
-            currentConn.send(orderData);
-            console.log("✅ [P2P] ข้อมูลลอยไปในอากาศสู่เครื่องแม่แล้ว!");
-
-            // อัปเดต UI จุดสถานะเชื่อมต่อ
-            const statusDot = document.getElementById('status-dot');
-            const statusText = document.getElementById('status-text');
-            if (statusDot && statusText) {
-                statusDot.style.backgroundColor = '#f39c12'; // สีส้ม = กำลังวาร์ป
-                statusText.innerText = 'วาร์ปสำเร็จแล้ว...';
-            }
-
-            // แจ้งเตือนคนสั่ง (ยกเว้นโหมดจ่ายเงิน เพราะมีใบเสร็จโชว์อยู่แล้ว)
-            if (!isPaymentMode) {
-                alert(`✅ ส่งออเดอร์โต๊ะ ${orderData.table} เข้าครัวเรียบร้อย!`);
-            }
-
-        } catch (err) {
-            console.error("❌ ส่งข้อมูลล้มเหลว:", err);
-            alert("❌ วาร์ปข้อมูลล้มเหลว! กรุณาลองใหม่อีกครั้ง");
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        if (statusDot && statusText) {
+            statusDot.style.backgroundColor = '#2ecc71'; 
+            statusText.innerText = 'วาร์ปสำเร็จแล้ว';
         }
+
+        if (!isPaymentMode) {
+            alert(`✅ ส่งออเดอร์โต๊ะ ${orderData.table} เข้าครัวเรียบร้อย!`);
+        }
+    } catch (err) {
+        // กรณีเชื่อมต่ออยู่แต่ส่งไม่ผ่านจริงๆ ค่อยฟ้อง Error
+        console.error("❌ [P2P] ส่งข้อมูลล้มเหลว:", err);
+    }
+}
+
+//แถบสถานะ (Status Bar) 12-05-2026 CSS
+/**
+ * ฟังก์ชันอัปเดตป้ายสถานะ (Role Badge)
+ * [อัปเดต]: เชื่อมโยงกับ Checkbox หน้าตั้งค่า เพื่อป้องกันค่าค้าง (Bug ใน แก้ 216.jpg)
+ */
+/**
+ * ฟังก์ชันอัปเดตป้ายบอกบทบาท (Role Badge)
+ * [จุดประสงค์]: เพื่อให้ป้ายสถานะที่มุมจอ "ตรงกับหน้าจอตั้งค่า" เสมอ
+ * [การทำงาน]: เช็กสถานะสวิตช์ก่อน แล้วค่อยเช็กโหมดที่เลือก
+ */
+function updateRoleDisplay() {
+    const badge = document.getElementById('role-badge');
+    const icon = document.getElementById('role-icon');
+    const text = document.getElementById('role-text');
+    
+    // 🚩 1. ดึงสถานะจากสวิตช์หน้าจอ (ใช้ ID: p2p-toggle ตาม HTML ของพี่)
+    // การเช็กตรงนี้จะช่วยแก้ปัญหา "ป้ายค้าง" แม้ปิดสวิตช์แล้ว (ในรูป แก้ 216.jpg)
+    const p2pToggle = document.getElementById('p2p-toggle'); 
+    const isP2PEnabled = p2pToggle ? p2pToggle.checked : false;
+
+    // ถ้าไม่มี element ป้าย ให้หยุดทำงานเพื่อไม่ให้เกิด Error
+    if (!badge) return;
+
+    // แสดงป้ายเสมอเพื่อให้ User มั่นใจว่าแอปทำงานโหมดไหนอยู่
+    badge.style.display = 'inline-block';
+
+    // 🚩 2. [ด่านที่ 1]: ถ้าสวิตช์ "ปิด" อยู่ (Unchecked)
+    // เราจะบังคับแสดงสถานะ "ใช้งานเครื่องเดียว" ทันที โดยไม่สนใจค่าในความจำ
+    if (!isP2PEnabled) {
+        badge.style.backgroundColor = '#95a5a6'; // สีเทา (Standalone)
+        badge.style.color = 'white';
+        badge.style.border = '1px solid #7f8c8d';
+        icon.innerText = '🏠';
+        text.innerText = 'Alone';
         
+        console.log("ℹ️ [Status] สวิตช์ปิด: แสดงผลเป็นเครื่องเดียว");
+        return; // จบการทำงานที่นี่เลย
+    }
+
+    // 🚩 3. [ด่านที่ 2]: ถ้าสวิตช์ "เปิด" อยู่ ถึงจะไปดูโหมดที่เลือก (จาก localStorage)
+    const p2pMode = localStorage.getItem('p2p_mode');
+
+    if (p2pMode === 'hub') {
+        // กรณีเป็นเครื่องแม่
+        badge.style.backgroundColor = '#e74c3c'; // สีแดง
+        badge.style.color = 'white';
+        badge.style.border = '1px solid #c0392b';
+        icon.innerText = '👑';
+        text.innerText = 'เครื่องแม่ (HUB)';
+    } else if (p2pMode === 'client') {
+        // กรณีเป็นเครื่องลูก
+        badge.style.backgroundColor = '#3498db'; // สีฟ้า
+        badge.style.color = 'white';
+        badge.style.border = '1px solid #2980b9';
+        icon.innerText = '📱';
+        text.innerText = 'เครื่องลูก (Client)';
+    } else if (p2pMode === 'kitchen') {
+        // กรณีเป็นจอครัว
+        badge.style.backgroundColor = '#f39c12'; // สีส้ม
+        badge.style.color = 'white';
+        badge.style.border = '1px solid #e67e22';
+        icon.innerText = '👨‍🍳';
+        text.innerText = 'จอครัว';
     } else {
-        // กรณีเชื่อมต่อไม่ได้
-        console.error("❌ การเชื่อมต่อ P2P ไม่พร้อม");
-        if (!isFromWarp) { // กัน Loop แจ้งเตือน
-            alert("❌ เชื่อมต่อเครื่องแม่ไม่ได้! กรุณาเช็คการเชื่อมต่อ");
-        }
+        // ⚠️ กรณี "เปิดสวิตช์แล้ว" แต่ "ยังไม่ได้กดเลือกปุ่มใดๆ"
+        badge.style.backgroundColor = '#f1c40f'; // สีเหลือง
+        badge.style.color = '#2c3e50';
+        badge.style.border = '1px solid #f39c12';
+        icon.innerText = '⚠️';
+        text.innerText = 'รอเลือกโหมด P2P';
     }
 }
 
@@ -1978,6 +2026,9 @@ window.onload = async function() {
     if (typeof updateDashboardPriceInsight === 'function') {
         updateDashboardPriceInsight();
     }
+
+    // 🚩 เพิ่มบรรทัดนี้ลงไปครับ แถบสถานะ (Status Bar) P2P 12-05-2026
+    updateRoleDisplay();
     
     console.log("🚀 Smart POS พร้อมดูแลร้านยายแล้วจ้า! (Version 11: ระบบประวัติและทุนยืดหยุ่นพร้อมใช้งาน)");
 };

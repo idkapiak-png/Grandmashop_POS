@@ -18,7 +18,7 @@
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=14.2"></script>
+    <script src="qrcode.min.js?v=14.4"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -33,7 +33,7 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=14.2"></script>
+    <script src="Standalone.js?v=14.4"></script>
 
 
     <!--05-05-2026 เชื่อมระบบ P2P-->
@@ -86,6 +86,25 @@
 
             <div id="sales-summary" style="text-align: center; background: white; padding: 15px; border-radius: 15px;">
                 <p style="margin: 0;">💰 ยอดขายวันนี้:</p>
+
+                <!--แถบสถานะ (Status Bar) P2P 12-05-2026-->
+                <!-- ป้ายแสดงบทบาทเครื่อง (Role Badge) -->
+                <div id="role-badge" style="
+                    position: absolute;
+                    top: -50px; /* ปรับระดับให้ตรงกับลูกศรในรูป */
+                    left: 0px;
+                    padding: 4px 10px;
+                    border-radius: 20px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    letter-spacing: 0.5px;
+                    display: none; /* ซ่อนไว้ก่อนจนกว่าจะเลือกโหมด */
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                    z-index: 100;
+                ">
+                    <span id="role-icon"></span> 
+                    <span id="role-text"></span>
+                </div>
                 
                 <div id="total-sales-display" style="font-size: 2.5rem; font-weight: bold; color: #2ecc71; margin: 5px 0;">0</div>
                 <p style="margin-top: -10px; margin-bottom: 10px;">.-</p>
@@ -354,6 +373,7 @@
         
         <!-- สวิตช์หลัก -->
         <label class="switch">
+            <!-- 🚩 เมื่อติ๊กเข้าหรือออก จะเรียกฟังก์ชัน toggleP2P ทันที -->
             <input type="checkbox" id="p2p-toggle" onchange="toggleP2P()">
             <span class="slider"></span> เปิดใช้งานระบบเครือข่าย
         </label>
@@ -362,11 +382,9 @@
             <input type="text" id="shop-id-input" placeholder="ระบุชื่อร้าน (เช่น Grandma01)">
             <button onclick="setupAsHub()" style="background: #27ae60; color: white;">เป็นเครื่องแม่ (Hub)</button>
             <button onclick="setupAsClient()" style="background: #2980b9; color: white;">เป็นเครื่องลูก (Client)</button>
+            <button onclick="setupAsKitchen()" style="background: #f39c12; color: white;">เป็นจอครัว (Kitchen)</button>
         </div>
     </div>
-
-    <!--ที่ปุ่มสั่งอาหา 09-05-2026-->
-    <button onclick="submitOrderP2P()">สั่งอาหาร</button>
     
      <!--โชว์ตั๋วอาหาร-09-05-2026->
     <div id="kitchen-ticket-container">ทดสอบโชว์ตรงนี้</div>
