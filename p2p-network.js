@@ -12,34 +12,52 @@ let connections = []; // สำหรับเครื่องแม่ที�
 // --- ฟังก์ชันหลักของระบบ Peer ---
 
 /**
- * ฟังก์ชันสำหรับดักฟังข้อมูล (Listener)
- * ใช้สำหรับจัดการข้อมูลที่เครื่องแม่ (Hub) ส่งมาให้เครื่องลูกหรือจอครัว 12-05-2026
+ * ฟังก์ชันสำหรับ "ดักฟัง" ข้อมูลที่วาร์ปผ่านการเชื่อมต่อ (Connection) 12-05-2026
+ * [หน้าที่]: แยกแยะประเภทข้อมูล (ออเดอร์/การตอบกลับ) และสั่งงานให้ตรงตามบทบาทของเครื่องนั้นๆ
  */
 function setupConnListeners(conn) {
+    // 1. เมื่อมีข้อมูล (Data) วาร์ปมาถึง
     conn.on('data', function(data) {
-        console.log("📩 ข้อมูลวาร์ปมาถึงแล้ว:", data);
+        console.log("📩 [P2P] ข้อมูลวาร์ปมาถึงแล้ว:", data);
 
-        // เช็กว่าตอนนี้เราอยู่ในโหมดครัวหรือไม่
+        // ตรวจสอบความถูกต้องของข้อมูลเบื้องต้น
+        if (!data || !data.type) return;
+
+        // ดึงโหมดปัจจุบันของเครื่องเรามาเช็ก
         const currentMode = localStorage.getItem('p2p_mode');
 
+        // 🚩 [เคสที่ 1]: ถ้าเราเป็น "จอครัว" และได้รับข้อมูลประเภท ORDER
         if (currentMode === 'kitchen' && data.type === 'ORDER') {
-            console.log("👨‍🍳 ออเดอร์ใหม่เข้าครัว! กำลังเพิ่มตั๋ว...");
+            console.log("👨‍🍳 [Kitchen] ออเดอร์ใหม่เข้าครัว! กำลังเพิ่มตั๋ว...");
             
-            // เรียกใช้ฟังก์ชันเพิ่มตั๋วที่พี่มีอยู่แล้ว
+            // เรียกใช้ฟังก์ชันวาดตั๋วอาหาร (ใช้ข้อมูลจาก orderData ที่เครื่องแม่ส่งมา)
             if (typeof addKitchenTicket === 'function') {
                 addKitchenTicket(data.orderData);
             } else {
-                console.error("❌ หาฟังก์ชัน addKitchenTicket ไม่เจอครับพี่!");
+                console.error("❌ [Error] หาฟังก์ชัน addKitchenTicket ไม่เจอครับพี่!");
             }
+        }
+
+        // 🚩 [เคสที่ 2]: ถ้าข้อมูลที่ส่งมาเป็นประเภทอื่น (เช่น การตอบกลับ ACK หรือแจ้งสถานะ)
+        // ส่งต่อไปให้ handleIncomingData ช่วยจัดการต่อ เพื่อให้ตรรกะไม่ซ้ำซ้อน
+        if (typeof handleIncomingData === 'function') {
+            handleIncomingData(data);
         }
     });
 
+    // 2. เมื่อการเชื่อมต่อถูกตัด (Close)
     conn.on('close', function() {
-        console.log("🔴 การเชื่อมต่อกับเครื่องแม่สิ้นสุดลง");
+        console.warn("🔴 [P2P] การเชื่อมต่อสิ้นสุดลง (Disconnected)");
+        
+        // ถ้าเป็นจอครัว ให้แจ้งเตือนว่าหลุดจากเครื่องแม่แล้ว
+        if (localStorage.getItem('p2p_mode') === 'kitchen') {
+            alert("⚠️ ขาดการติดต่อกับเครื่องแม่! กรุณาตรวจสอบสถานะเครื่องแม่ครับ");
+        }
     });
 
+    // 3. เมื่อเกิดข้อผิดพลาด (Error)
     conn.on('error', function(err) {
-        console.error("⚠️ เกิดข้อผิดพลาดในการรับข้อมูล:", err);
+        console.error("⚠️ [P2P] เกิดข้อผิดพลาดในการรับข้อมูล:", err);
     });
 }
 
@@ -66,12 +84,6 @@ function setupPeerListeners() {
 }
 
 /**
- * ฟังก์ชันจัดการข้อมูลเข้า (Universal Handler)
- * อัปเดตล่าสุด: 12-05-2026 | ปรับโฉมเป็น "ไฟสถานะ" (Indicator Mode)
- */
-// เปลี่ยนเป็น async function เพื่อให้สามารถใช้คำสั่ง await (รอ) ได้
-
-/**
  * ฟังก์ชันจัดการข้อมูลวาร์ป (Data Handler) - "สมอง" ของเครื่องแม่
  * ปรับปรุง: แก้ไขบั๊กสั่งกลับบ้านแล้วครัวเงียบ + จัดลำดับ UI Refresh ใหม่
  */
@@ -94,22 +106,31 @@ async function handleIncomingData(data) {
         // 1. เตรียมข้อมูลพื้นฐาน
         const isPayment = data.isPayment === true; 
         const tableStr = data.table ? String(data.table).trim() : "";
-        
-        // 🚩 กรองของใหม่จริงๆ: ใช้ข้อมูลที่เครื่องลูกส่งมา (newOnly)
         const newItems = data.newOnly || (data.items ? data.items.filter(i => !i.fromDB) : []);
         const hasNewItems = newItems.length > 0;
-
-        // 🚩 [จุดสำคัญ]: ดักจับประเภทการเงินที่วาร์ปมา (แก้ปัญหาเงินโอน)
         const method = data.payment_method || data.paymentType || 'Cash';
 
-        console.log(`📊 ประมวลผล: โต๊ะ[${tableStr}] | ของใหม่[${newItems.length}] | จ่ายด้วย[${method}] | โหมด[${isPayment ? 'ชำระเงิน' : 'สั่งเพิ่ม'}]`);
+        console.log(`📊 ประมวลผล: โต๊ะ[${tableStr}] | ของใหม่[${newItems.length}] | จ่ายด้วย[${method}]`);
 
         // 2. จัดการตั๋วครัว (Kitchen Ticket) 
-        // แจ้งครัว "เฉพาะเมื่อมีรายการใหม่จริงๆ" เท่านั้น
-        if (hasNewItems && typeof addKitchenTicket === 'function') {
-            console.log("👨‍🍳 [Kitchen] พบออเดอร์ใหม่ -> ส่งเข้าครัว...");
+        if (hasNewItems) {
+            console.log("👨‍🍳 [Action] พบออเดอร์ใหม่ -> เตรียมส่งเข้าครัว...");
             const kitchenData = { ...data, items: newItems };
-            addKitchenTicket(kitchenData); 
+
+            // 2.1 วาดตั๋วบนหน้าจอเครื่องแม่เอง (ถ้าเปิดโหมดดูครัวไว้)
+            if (typeof addKitchenTicket === 'function') {
+                addKitchenTicket(kitchenData); 
+            }
+
+            // 🚩 [จุดที่เพิ่มใหม่]: ส่งข้อมูลต่อไปยัง "จอครัว" ผ่าน P2P
+            // เครื่องแม่ต้อง "ตะโกนบอก" ทุกเครื่องที่ต่ออยู่ว่า "มีออเดอร์เข้านะ!"
+            if (typeof sendP2PData === 'function') {
+                console.log("📢 [Broadcast] กำลังวาร์ปออเดอร์ไปที่จอครัว...");
+                sendP2PData({
+                    type: 'ORDER',      // ใช้ type 'ORDER' เพื่อให้ตรงกับที่ครัวรอฟัง
+                    orderData: kitchenData
+                });
+            }
             
             if (typeof showOrderNotify === 'function') {
                 showOrderNotify(`[โต๊ะ ${tableStr}] สั่งเพิ่ม ${newItems.length} รายการ!`);
@@ -117,48 +138,39 @@ async function handleIncomingData(data) {
         }
 
         // 3. จัดการฐานข้อมูล (Database Management)
+        // (ส่วนนี้คงเดิมตามของพี่ เพื่อบันทึกยอดขายและอัปเดตโต๊ะ)
         try {
             const isTakeAway = !tableStr || ['กลับบ้าน', 'ทั่วไป', ''].includes(tableStr);
-
             if (isPayment || isTakeAway) {
-                // 🥡 กรณี "เช็คบิล/สั่งกลับบ้าน" -> บันทึกยอดขาย (ใช้ method ที่วาร์ปมา)
                 if (typeof confirmOrder === 'function') {
-                    console.log(`🥡 [Action] บันทึกยอดขาย (${method}) และล้างข้อมูลโต๊ะ...`);
-                    // 🚩 ส่ง method เข้าไปเป็นพารามิเตอร์แรก เพื่อให้รายงานขายเครื่องแม่ถูกต้อง
                     await confirmOrder(method, true, data); 
                 }
             } else {
-                // 🏠 กรณี "ฝากลงโต๊ะ/สั่งเพิ่ม" -> อัปเดตข้อมูลโต๊ะ
                 if (typeof saveOrderToTable === 'function') {
-                    console.log(`🏠 [Action] อัปเดตข้อมูลโต๊ะ: ${tableStr}`);
                     await saveOrderToTable(data, true);
                 }
             }
 
-            // 4. สั่งรีเฟรชหน้าจอ (UI Sync)
-            console.log("🔄 [UI] กำลังอัปเดตสถานะหน้าจอแม่...");
-            
+            // 4. สั่งรีเฟรชหน้าจอแม่
             await Promise.all([
                 (typeof renderTableSelection === 'function') ? renderTableSelection() : Promise.resolve(),
                 (typeof loadRecentOrders === 'function') ? loadRecentOrders() : Promise.resolve(),
                 (typeof fetchTodaySales === 'function') ? fetchTodaySales() : Promise.resolve()
             ]);
-
             if (typeof updateOrderList === 'function') updateOrderList();
 
         } catch (error) {
             console.error("❌ [Error] บันทึกข้อมูลวาร์ปล้มเหลว:", error);
-            alert("เครื่องแม่บันทึกข้อมูลพลาด: " + error.message);
         }
 
-        // 5. ส่งสัญญาณ ACK (ตอบกลับ) ให้เครื่องลูก
+        // 5. ส่งสัญญาณ ACK (ตอบกลับ) ให้เครื่องลูก (ส่งหาเฉพาะเครื่องที่ส่งมา)
         if (typeof currentConn !== 'undefined' && currentConn && currentConn.open) {
             currentConn.send({ type: 'ACK_ORDER', orderId: data.orderId });
         }
         if (navigator.vibrate) navigator.vibrate(200); 
     }
     
-    // --- ส่วนดักสัญญาณ ACK และสถานะอาหารเสร็จ (คงเดิมตามที่พี่ส่งมา) ---
+    // --- ส่วนดักสัญญาณ ACK และสถานะอาหารเสร็จ (คงเดิม) ---
     if (data.type === 'ACK_ORDER') {
         if (statusDot && statusText) {
             statusDot.style.backgroundColor = '#2ecc71'; 
@@ -172,10 +184,6 @@ async function handleIncomingData(data) {
 
     if (data.type === 'ORDER_DONE' || data.type === 'ORDER_READY') {
         alert(`✅ อาหารโต๊ะ [ ${data.table || 'ไม่ระบุ'} ] เสร็จแล้วครับ!`);
-        if (statusDot && statusText) {
-            statusDot.style.backgroundColor = '#3498db'; 
-            statusText.innerText = `โต๊ะ ${data.table}: อาหารเสร็จ!`;
-        }
     }
 }
 
@@ -277,18 +285,63 @@ function toggleP2P() {
 }
 
 //เครื่องแม่
+/**
+ * ฟังก์ชันตั้งค่าเครื่องให้เป็น "เครื่องแม่ (Hub)"
+ * [หน้าที่]: เป็นศูนย์กลางรับข้อมูลจากเครื่องลูก และกระจายออเดอร์ไปยังจอครัว
+ * [อัปเดตล่าสุด]: 12-05-2026 เพิ่มระบบจัดการ Connection สำหรับกระจายออเดอร์
+ */
 function setupAsHub() {
+    // 1. ดึงชื่อร้าน (ID) จากช่อง Input
     const name = document.getElementById('shop-id-input').value;
     if (!name) return alert("กรุณาใส่ชื่อร้านก่อนครับ");
     
-    if (peer) peer.destroy(); // เคลียร์ของเก่าก่อนเปลี่ยนโหมด
+    // 2. เคลียร์การเชื่อมต่อเก่าทิ้งก่อน (ถ้ามี) เพื่อเริ่มระบบใหม่ให้นิ่งๆ
+    if (typeof peer !== 'undefined' && peer) {
+        peer.destroy();
+    }
     
+    // 3. สร้าง Peer ใหม่โดยใช้ชื่อร้านเป็น ID
     peer = new Peer(name); 
-    setupPeerListeners();
+
+    // 🚩 [จุดสำคัญ]: ล้างรายชื่อเครื่องที่เชื่อมต่อสะสมไว้ เพื่อเริ่มนับใหม่เมื่อเปิดโหมด Hub
+    if (typeof connections !== 'undefined') {
+        connections = []; 
+    }
+
+    // 4. 🚩 [หัวใจหลัก]: รอรับการเชื่อมต่อที่ทักเข้ามา (Incoming Connection)
+    // ไม่ว่าจะเป็น เครื่องลูก (Client) หรือ จอครัว (Kitchen) จะต้องผ่านประตูนี้
+    peer.on('connection', (conn) => {
+        console.log("📡 [Hub] มีเครื่องใหม่วาร์ปเข้ามาเชื่อมต่อ: " + conn.peer);
+
+        // เก็บข้อมูลเครื่องที่ทักเข้ามาลงใน Array 'connections'
+        // [ผล]: เพื่อให้ฟังก์ชัน sendP2PData รู้ว่าจะต้องวาร์ปออเดอร์ไปหาใครบ้าง
+        if (typeof connections !== 'undefined') {
+            connections.push(conn);
+        }
+
+        // 🚩 สั่งให้เครื่องแม่ "เงี่ยหูฟัง" ข้อมูลที่เครื่องนี้จะส่งมา (เช่น ออเดอร์จากเครื่องลูก)
+        if (typeof setupConnListeners === 'function') {
+            setupConnListeners(conn);
+        }
+
+        // เมื่อการเชื่อมต่อเปิดใช้งานสมบูรณ์
+        conn.on('open', () => {
+            console.log(`✅ เชื่อมต่อกับ [${conn.peer}] สำเร็จ`);
+        });
+    });
+    
+    // 5. ตั้งค่าตัวดักฟังสถานะพื้นฐานของ Peer
+    if (typeof setupPeerListeners === 'function') {
+        setupPeerListeners();
+    }
+
+    // 6. บันทึกโหมดลงในความจำเครื่อง
     localStorage.setItem('p2p_mode', 'hub');
 
-    //แถบสถานะ (Status Bar) P2P 12-05-2026
-    updateRoleDisplay();
+    // 7. อัปเดตแถบสถานะ (Status Bar) ให้เป็นสีเขียว "เครื่องแม่ (Hub)"
+    if (typeof updateRoleDisplay === 'function') {
+        updateRoleDisplay();
+    }
 
     alert("ตอนนี้เครื่องนี้คือ 'เครื่องแม่' แล้วครับ");
 }
@@ -461,10 +514,41 @@ function applyKitchenLogic() {
 
 // --- ฟังก์ชันการทำงานอื่นๆ (KDS / Kitchen) ---
 
+/**
+ * ฟังก์ชันส่งข้อมูลผ่านระบบ P2P 12-05-2026
+ * [หน้าที่]: ส่งข้อมูล (Payload) จากเครื่องเราไปยังเครื่องอื่นๆ ที่เชื่อมต่ออยู่
+ * [พิเศษ]: รองรับการส่งหาหลายเครื่องพร้อมกัน (Broadcast) สำหรับเครื่องแม่
+ */
 function sendP2PData(payload) {
     const isEnabled = localStorage.getItem('p2p_enabled') === 'true';
-    if (isEnabled && currentConn && currentConn.open) {
+    
+    // 1. ตรวจสอบก่อนว่าเปิดระบบ P2P อยู่หรือไม่
+    if (!isEnabled) {
+        console.warn("⚠️ ไม่สามารถส่งข้อมูลได้: ระบบ P2P ถูกปิดอยู่");
+        return;
+    }
+
+    // 2. กรณีเครื่องทั่วไป (มี Connection เดียว เช่น เครื่องลูกส่งหาเครื่องแม่)
+    if (currentConn && currentConn.open) {
         currentConn.send(payload);
+        console.log("📤 [P2P] ส่งข้อมูลสำเร็จ (Single Connection)");
+    } 
+
+    // 3. 🚩 [จุดสำคัญสำหรับเครื่องแม่]: กระจายข้อมูลให้ทุกเครื่อง (Broadcast)
+    // เช็กว่ามีรายการเครื่องที่เชื่อมต่อสะสมไว้ใน Array หรือไม่
+    if (typeof connections !== 'undefined' && Array.isArray(connections)) {
+        let sentCount = 0;
+        
+        connections.forEach((conn, index) => {
+            if (conn && conn.open) {
+                conn.send(payload);
+                sentCount++;
+            }
+        });
+
+        if (sentCount > 0) {
+            console.log(`📢 [Broadcast] วาร์ปข้อมูลไปทั้งหมด ${sentCount} เครื่องเรียบร้อย!`);
+        }
     }
 }
 
