@@ -15,10 +15,13 @@
     <!--05-05-2026 เชื่อมระบบ P2P-->
     <script src="peerjs.min.js"></script>
 
+    <!--05-05-2026 เชื่อมระบบ P2P-->
+    <script src="p2p-network.js"></script> 
+
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=14.6"></script>
+    <script src="qrcode.min.js?v=14.8"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -33,11 +36,8 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=14.6"></script>
+    <script src="Standalone.js?v=14.8"></script>
 
-
-    <!--05-05-2026 เชื่อมระบบ P2P-->
-    <script src="p2p-network.js"></script> 
 
     <!--ทำให้ตั๋วคิวดูมี Animation 10-05--2026-->
     <style>
@@ -106,8 +106,7 @@
                     <span id="role-text"></span>
                 </div>
                 
-                <div id="total-sales-display" style="font-size: 2.5rem; font-weight: bold; color: #2ecc71; margin: 5px 0;">0</div>
-                <p style="margin-top: -10px; margin-bottom: 10px;">.-</p>
+                <div id="total-sales-display" style="font-size: 2.5rem; font-weight: bold; color: #2ecc71; margin: 5px 0;">0.-</div>
 
                 <div style="display: inline-block; border: 2px solid #00acc1; border-radius: 8px; padding: 5px 15px; margin-bottom: 15px; font-size: 0.9rem; color: #555;">
                     💵 เงินสด: <span id="cash-display">0</span> | 📱 โอน: <span id="qr-display">0</span>
@@ -216,20 +215,36 @@
             </div>
             <h2 id="menu-name">กะเพรารสเด็ด</h2>
 
-            <!--เพิ่มเติม 23-04-2026 เพิ่มระบบค้นหา--> 
-            <div class="search-container" style="margin: 15px; text-align: center;">
+            <!--เพิ่มเติม 29-05-2026 เพิ่มระบบค้นหา--> 
+            <div class="search-container" style="margin: 15px; text-align: center; position: relative; z-index: 100;">
                 <input type="text" 
                     id="smart-search-input" 
                     oninput="searchSmartMenu(this.value)" 
-                    placeholder="🔍 พิมพ์ชื่อเมนูเพื่อค้นหา..." 1
-                    style="width: 90%; padding: 12px; border-radius: 25px; border: 2px solid #e2ff42; font-size: 16px; outline: none;">
+                    placeholder="🔍 พิมพ์ชื่อเมนูเพื่อค้นหา..." 
+                    style="width: 90%; padding: 12px; border-radius: 25px; border: 2px solid #e2ff42; font-size: 16px; outline: none; box-sizing: border-box;">
                 
-                <div id="search-results-area" style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center;"></div>
+                <div id="search-results-area" style="
+                    position: absolute; 
+                    top: 100%; 
+                    left: 5%; 
+                    width: 90%; 
+                    max-height: 250px; 
+                    overflow-y: auto; 
+                    background: #2c2c2c; 
+                    border: 1px solid #444; 
+                    border-radius: 12px; 
+                    margin-top: 5px; 
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+                    display: none; 
+                    flex-direction: column; 
+                    padding: 5px; 
+                    box-sizing: border-box;">
+                </div>
             </div>
 
             <!-- เพิ่มปุ่มนี้เข้าไปในส่วนที่แสดงปุ่มโต๊ะของคุณยายครับ 30-04-2026 -->
             <div class="mode-selector" style="margin-bottom: 15px; display: flex; gap: 10px;">
-                <button id="btn-takeaway" onclick="selectTakeawayMode()" style="flex: 1; padding: 15px; background-color: #58baf7; color: black; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer;">
+                <button id="btn-takeaway" onclick="selectWalkIn()" style="flex: 1; padding: 15px; background-color: #58baf7; color: black; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer;">
                     🍳 ขายหน้าร้าน (กลับบ้าน)
                 </button>
             </div>
@@ -245,10 +260,11 @@
 
             <button onclick="showSetting()" style="position: absolute; top: 10px; right: 10px; font-size: 20px; border: none; background: none; cursor: pointer;">⚙️</button>
 
-            <div id="egg-counter">
+            <!--29-05-2026-->
+           <div id="universal-counter">
                 <p style="font-weight: bold;">
-                    <span id="display-label">🥚 วันนี้ใช้ไข่ไปแล้ว</span>: 
-                    <span id="egg-count">0</span> 
+                    <span id="display-label">📊 วันนี้ใช้ไปแล้ว</span>: 
+                    <span id="total-count">0</span> 
                     <span id="display-unit">ฟอง</span>
                 </p>
             </div>
@@ -594,14 +610,28 @@
         </button>
     </div>
 
+
+
     <div class="backup-section" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc;">
         <h3>📦 จัดการฐานข้อมูล (ย้ายเครื่อง)</h3>
         <button onclick="backupDatabase()" style="background: #8e44ad; color: white; padding: 10px; margin: 5px;">
             📤 สำรองข้อมูล (Backup)
         </button>
         <br>
-        <label for="importFile" style="display: block; margin-top: 10px; font-weight: bold;">นำเข้าข้อมูลจากเครื่องเก่า:</label>
-        <input type="file" id="importFile" accept=".json" onchange="restoreDatabase(event)" style="margin-top: 5px;">
+        <!--นำเข้าข้อมูลจากเครื่องเก่า 29-05-2026-->
+         <label for="importFile" style="display: block; margin-top: 10px; font-weight: bold;">นำเข้าข้อมูลจากเครื่องเก่า:</label>
+
+        <input type="file" id="importFile" accept=".json" onchange="handleFileChangeWrapper(event)" style="display: none;">
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+            <button type="button" onclick="document.getElementById('importFile').click()" style="padding: 8px 15px; background: #e67e22; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+                📂 เลือกไฟล์สำรอง
+            </button>
+            
+            <span id="import-file-name-display" style="color: #7f8c8d; font-size: 0.95rem;">กดไฟล์สำรองตรงนี้เลยจ๊ะ</span>
+        </div>
+
+        
     </div>
 
     <!--ระบบจดบันทึกวัตถุดิบ 1-04-2026-->

@@ -86,7 +86,7 @@ header {
 
 /* ส่วน "นับไข่" และ "ส่วนเพิ่มเติม" (Interactive Section) */
 
-#egg-counter {
+#universal-counter {
     background: #ffffff; /* สีเหลืองนวลเหมือนไข่แดง */
     padding: 10px;
     border-radius: 10px;
