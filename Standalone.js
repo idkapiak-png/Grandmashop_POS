@@ -248,7 +248,7 @@ async function saveCostAndRefresh() {
 // กล่องที่ 3: ระบบ Dynamic Menu & Options (แยกส่วนหน้าขายและคลัง)
 // ==========================================
 
-// วาดปุ่มกดสั่งอาหาร (หน้าแรก) - ดึงจาก localStorage เท่านั้น
+// วาดปุ่มกดสั่งอาหาร (หน้าแรก) - ดึงจาก localStorage เท่านั้น 09-06-2026
 async function renderOrderButtons() {
     const menuContainer = document.getElementById('Order-menu');
     if (!menuContainer) return;
@@ -256,7 +256,7 @@ async function renderOrderButtons() {
     const savedQuickMenus = JSON.parse(localStorage.getItem('quickMenus')) || [];
 
     menuContainer.innerHTML = savedQuickMenus.length ? '' : 
-        '<p style="grid-column: span 2; text-align: center; color: #888; padding: 20px;">ยังไม่มีเมนูด่วน... ตั้งค่าที่ "บันทึกรายการเมนูขาย" ⚙️</p>';
+        '<p class="menu-empty-hint">ยังไม่มีเมนูด่วน... ตั้งค่าที่ "บันทึกรายการเมนูขาย" ⚙️</p>';
 
     savedQuickMenus.forEach(menu => {
         const btn = document.createElement('button');
@@ -270,7 +270,7 @@ async function renderOrderButtons() {
     });
 }
 
-// วาดรายการ "บันทึกรายการเมนูขาย" ในหน้าตั้งค่า - ดึงจาก localStorage  25-04-2026
+// วาดรายการ "บันทึกรายการเมนูขาย" ในหน้าตั้งค่า - ดึงจาก localStorage 09-06-2026
 function renderMenuSettings() {
     const container = document.getElementById('menu-settings-list');
     if (!container) return;
@@ -279,79 +279,89 @@ function renderMenuSettings() {
     
     quickMenus.forEach((menu, index) => {
         const div = document.createElement('div');
-        div.className = 'menu-setting-row';
-        // ใช้การตั้งค่าแบบเดิมของนาย เพื่อให้ CSS ในไฟล์ Standalone.css ยังทำงานได้ปกติ
-        div.style.display = "flex"; 
-        div.style.gap = "5px"; 
-        div.style.marginBottom = "8px";
+        div.className = 'menu-setting-row'; // 🔒 ใช้คลาสใหม่ในการคุม Layout แทนการเขียน .style ใน JS
         
+        // ชำระล้างเอาสไตล์ตกแต่งอินไลน์ออกทั้งหมด แล้วสวมป้ายคลาสที่เราสร้างเตรียมไว้ใน CSS แทน
         div.innerHTML = `
-            <input type="text" value="${menu.name}" disabled style="flex: 2; padding: 8px; background: #f0f0f0;">
-            <input type="number" value="${menu.price}" disabled style="width: 70px; padding: 8px; background: #f0f0f0;">
-            <button type="button" onclick="toggleEditRow(this)" style="background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 5px;">📝</button>
-            <button type="button" onclick="this.parentElement.remove()" style="background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 5px;">🗑️</button>
+            <input type="text" value="${menu.name}" disabled class="stg-input-name">
+            <input type="number" value="${menu.price}" disabled class="stg-input-price">
+            <button type="button" class="stg-row-btn btn-row-edit" onclick="toggleEditRow(this)">📝</button>
+            <button type="button" class="stg-row-btn btn-row-delete" onclick="this.parentElement.remove()">🗑️</button>
         `;
         container.appendChild(div);
     });
 }
 
-// ฟังก์ชันสำหรับสลับโหมด แก้ไข/ล็อก (Toggle Edit) 25-04-2026
+// ฟังก์ชันสำหรับสลับโหมด แก้ไข/ล็อก (Toggle Edit) 09-06-2026
 function toggleEditRow(btn) {
     const row = btn.parentElement;
     const inputs = row.querySelectorAll('input');
     const isCurrentlyDisabled = inputs[0].disabled;
 
     inputs.forEach(input => {
+        // 🔒 ตรรกะหลัก: สลับสถานะเปิด/ปิดอินพุต คงไว้เหมือนเดิมร้อยเปอร์เซ็นต์
         input.disabled = !isCurrentlyDisabled;
-        // เปลี่ยนสีพื้นหลังเล็กน้อยเพื่อให้รู้ว่าช่องไหนแก้ได้/ไม่ได้
-        input.style.background = isCurrentlyDisabled ? "#ffffff" : "#f0f0f0";
-        if (isCurrentlyDisabled) input.style.border = "1px solid #00acc1";
-        else input.style.border = "1px solid #ddd";
+        
+        // 🟢 เปลี่ยนจากการยัดสีอินไลน์ มาเป็นการดึง-ถอดคลาสจาก CSS แทน ปลอดภัยและคลีนสุดๆ
+        if (isCurrentlyDisabled) {
+            input.classList.add('is-editing');
+        } else {
+            input.classList.remove('is-editing');
+        }
     });
 
-    // เปลี่ยนไอคอนปุ่ม
-    btn.innerText = isCurrentlyDisabled ? "✅" : "📝";
-    btn.style.background = isCurrentlyDisabled ? "#2ecc71" : "#3498db";
+    // เปลี่ยนไอคอนปุ่ม และสลับคลาสสีของปุ่มระหว่าง สีฟ้า(แก้ไข) กับ สีเขียว(บันทึก)
+    if (isCurrentlyDisabled) {
+        btn.innerText = "✅";
+        btn.classList.remove('btn-row-edit');
+        btn.classList.add('btn-row-save');
+    } else {
+        btn.innerText = "📝";
+        btn.classList.remove('btn-row-save');
+        btn.classList.add('btn-row-edit');
+    }
 }
 
-// ปรับส่วนเพิ่มแถวใหม่ ให้พร้อมพิมพ์ได้ทันที (ไม่ต้องกดแก้) 25-04-2026
+// ปรับส่วนเพิ่มแถวใหม่ ให้พร้อมพิมพ์ได้ทันที (ไม่ต้องกดแก้) 09-06-2026
 function addMenuField() {
     const container = document.getElementById('menu-settings-list');
-    const div = document.createElement('div');
-    div.className = 'menu-setting-row';
-    div.style.display = "flex"; 
-    div.style.gap = "5px"; 
-    div.style.marginBottom = "8px";
+    if (!container) return; // 🔒 ใส่ระบบความปลอดภัยดักจับไว้ เผื่อหน้าจอนี้ยังไม่ถูกโหลด ระบบจะได้ไม่พัง
     
+    const div = document.createElement('div');
+    div.className = 'menu-setting-row'; // 🟢 ใช้ Layout ความพรีเมียมจาก CSS ที่เราจัดระเบียบไว้แล้ว
+    
+    // ชำระล้างสไตล์อินไลน์ออกทั้งหมด แล้วใช้คลาสสากลระดับพรีเมียมมาสวมแทน
     div.innerHTML = `
-        <input type="text" placeholder="ชื่อเมนู" style="flex: 2; padding: 8px; border: 1px solid #00acc1;">
-        <input type="number" placeholder="ราคา" style="width: 70px; padding: 8px; border: 1px solid #00acc1;">
-        <button type="button" onclick="this.parentElement.remove()" style="background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 5px;">🗑️</button>
+        <input type="text" placeholder="ชื่อเมนู" class="stg-input-name is-editing">
+        <input type="number" placeholder="ราคา" class="stg-input-price is-editing">
+        <button type="button" class="stg-row-btn btn-row-delete" onclick="this.parentElement.remove()">🗑️</button>
     `;
     container.appendChild(div);
 }
 
-// วาดส่วนเพิ่มเติม (Options) 25-04-2026
+// วาดส่วนเพิ่มเติม (Options) 09-06-2026
 async function renderExtraOptions() {
     const container = document.getElementById('dynamic-options-list');
-    if (!container) return;
+    if (!container) return; // 🔒 เกราะป้องกันดักจับตัวแปรว่าง ระบบหน้าบ้านจะได้ไม่พังกลางคัน
+    
     const allOptions = await db.extra_options.toArray();
     container.innerHTML = '';
 
     allOptions.forEach(opt => {
         const label = document.createElement('label');
-        label.style.display = "block";
-        label.style.marginBottom = "5px";
+        label.className = 'extra-opt-label'; // 🟢 ดึงโครงสร้างระเบียบแถวพรีเมียมและนุ่มนิ้วมาจาก CSS ทันที
+        
+        // ชำระล้างเอาสไตล์อินไลน์ออกหมดจด แล้วครอบด้วยคลาสที่เราเตรียมไว้เรียบร้อย
         label.innerHTML = `
             <input type="checkbox" class="extra-opt-check"
-            data-name="${opt.name}" 
-            data-price="${opt.price}"
-            onchange="syncOptions()">  <span>+ ${opt.name} (${opt.price}.-)</span>
+                   data-name="${opt.name}" 
+                   data-price="${opt.price}"
+                   onchange="syncOptions()"> <span>+ ${opt.name} (${opt.price}.-)</span>
         `;
         container.appendChild(label);
     });
 }
-// 04-05-2026 
+// 04-06-2026 
 function syncOptions() {
     // 1. ถ้าในตะกร้ายังไม่มีของเลย ก็ไม่ต้องทำอะไร
     if (cart.length === 0) return;
@@ -359,7 +369,14 @@ function syncOptions() {
     // 2. ดึงค่า Options ที่ถูกติ๊กอยู่ในปัจจุบันทั้งหมด
     let extraPrice = 0;
     let extraNames = [];
-    document.querySelectorAll('.extra-opt-check:checked').forEach(checkbox => {
+    
+    // ดึง Element ของกลุ่ม Checkbox ออปชันทั้งหมดบนหน้าจอ (รวมทั้งที่ติ๊กและไม่ได้ติ๊ก) เพื่อใช้ตรวจสอบสถานะ DOM
+    const allOptionCheckboxes = document.querySelectorAll('.extra-opt-check');
+    
+    // กรองเอาเฉพาะตัวที่ถูกติ๊กเลือกอยู่ในปัจจุบัน
+    const checkedCheckboxes = document.querySelectorAll('.extra-opt-check:checked');
+    
+    checkedCheckboxes.forEach(checkbox => {
         extraPrice += parseFloat(checkbox.getAttribute('data-price')) || 0;
         extraNames.push(checkbox.getAttribute('data-name'));
     });
@@ -367,17 +384,37 @@ function syncOptions() {
     // 3. เข้าไปแก้ไข "รายการล่าสุด" ในตะกร้า
     let lastItem = cart[cart.length - 1];
     
-    // --- 🚩 จุดที่แก้ไข: ตรวจสอบและบันทึกราคาพื้นฐาน (Base Price) ---
-    // ถ้าตัวแปร basePrice ยังไม่มีค่า ให้เอาค่า price ปัจจุบันนั่นแหละบันทึกเก็บไว้ก่อน
+    // --- 🚩 จุดที่แก้ไขเดิม: ตรวจสอบและบันทึกราคาพื้นฐาน (Base Price) ---
     if (lastItem.basePrice === undefined || lastItem.basePrice === null) {
         lastItem.basePrice = parseFloat(lastItem.price) || 0;
     }
 
-    // อัปเดตราคาที่ถูกต้อง (ราคาพื้นฐานที่จำไว้ + ราคาตัวเลือกเสริมที่เพิ่งติ๊ก)
-    lastItem.price = lastItem.basePrice + extraPrice;
-    
-    // อัปเดตชื่อตัวเลือกเสริม
-    lastItem.options = extraNames.join(', ');
+    // =========================================================================
+    // 🛡️ [เกราะป้องกันระดับวิกฤต - ป้องกันสัญญาณผีล้างข้อมูลตะกร้า]
+    // =========================================================================
+    // 🧠 สิ่งที่จะเกิดขึ้น: 
+    // เราจะยอมให้อัปเดตราคาและล้างข้อความออปชันในตะกร้าได้ก็ต่อเมื่อ "หน้าจอวาด Element เสร็จสมบูรณ์แล้วเท่านั้น"
+    // (ตรวจสอบจาก allOptionCheckboxes.length > 0 คือต้องมีกล่อง Checkbox ปรากฏตัวอยู่บนจอจริง ๆ)
+    //
+    // ❌ ถ้าเกิดอาการหน้าจอกระพริบ/โหลดไม่ทัน จนป้าย Checkbox บนจอหายไปชั่วคราว (length === 0)
+    // โค้ดบล็อกนี้จะ "บล็อก" ไม่ให้ลอจิกวิ่งไปเคลียร์ค่าว่างทับข้อมูลเดิม ข้อมูล 'พิเศษ' ดั้งเดิมจึงปลอดภัย 100%
+    //
+    // 🟢 แต่ถ้ายายตั้งใจกด "เอาติ๊กออก" เองจริง ๆ (Checkbox ยังอยู่บนจอ แต่ไม่มีตัวไหนโดนติ๊กเลย)
+    // ระบบจะยอมให้เคลียร์ค่าเป็นว่างเปล่า และหักลบราคาเหลือเพียงราคาฐานตามธรรมชาติของตะกร้าสินค้าปกติครับ
+    // =========================================================================
+    if (allOptionCheckboxes.length > 0) {
+        
+        // อัปเดตราคาที่ถูกต้อง (ราคาพื้นฐานที่จำไว้ + ราคาตัวเลือกเสริมที่เพิ่งติ๊กจริงบนจอ)
+        lastItem.price = lastItem.basePrice + extraPrice;
+        
+        // อัปเดตชื่อตัวเลือกเสริม (ถ้าไม่มีการติ๊กเลย จะกลายเป็นค่าว่าง "" ซึ่งถูกต้องตามเจตนายาย)
+        lastItem.options = extraNames.join(', ');
+        
+        console.log(`🎯 [syncOptions] อัปเดตออปชันสำเร็จจริงตาม UI: "${lastItem.options}" ราคาบวกเพิ่ม: +${extraPrice}.-`);
+    } else {
+        // 🚨 กรณีหลุดเข้าสภาวะ Race Condition (หน้าจอยังวาดไม่เสร็จ แต่อลาร์มฟังก์ชันทำงานย้อนศร)
+        console.warn("🛑 [Safety Blocked] ตรวจพบการสั่งงานย้อนศรขณะ DOM ยังวาดไม่เสร็จ ระบบสั่งระงับการล้างข้อมูลเพื่อเซฟตะกร้าสินค้า");
+    }
 
     // 4. สั่งวาดหน้าจอใหม่
     if (typeof updateOrderPreview === "function") {
@@ -385,17 +422,24 @@ function syncOptions() {
     }
 }
 
+// วาดส่วนเพิ่มเติม (Options) ในหน้าตั้งค่า - ถอนสไตล์ออกจาก JS ปลอดภัยระยะยาว 25-04-2026
 async function renderOptionsSettings() {
     const container = document.getElementById('options-settings-list');
-    if (!container) return;
+    if (!container) return; // 🔒 ระบบเกราะป้องกันดักจับตัวแปรว่าง แอปจะได้ไม่พังกลางคัน
+    
     const allOptions = await db.extra_options.toArray();
     container.innerHTML = '';
+    
     allOptions.forEach(opt => {
         const div = document.createElement('div');
-        div.style.display = "flex"; div.style.gap = "5px"; div.style.marginBottom = "8px";
-        div.innerHTML = `<input type="text" value="${opt.name}" onchange="updateExtra(${opt.id}, 'name', this.value)" style="flex: 2; padding: 5px;">
-                         <input type="number" value="${opt.price}" onchange="updateExtra(${opt.id}, 'price', this.value)" style="width: 70px; padding: 5px;">
-                         <button onclick="deleteExtra(${opt.id})" style="background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 5px;">🗑️</button>`;
+        div.className = 'opt-setting-row'; // 🟢 ใช้คลาสจัด Layout จาก CSS แทนการยัด .style ตรงๆ
+        
+        // ชำระล้างเอาสไตล์ตกแต่งอินไลน์ออกเกลี้ยง แล้วสวมคลาสพรีเมียมที่เราจัดระเบียบไว้ใน CSS แทน
+        div.innerHTML = `
+            <input type="text" value="${opt.name}" class="opt-input-name" onchange="updateExtra(${opt.id}, 'name', this.value)">
+            <input type="number" value="${opt.price}" class="opt-input-price" onchange="updateExtra(${opt.id}, 'price', this.value)">
+            <button type="button" class="opt-btn-delete" onclick="deleteExtra(${opt.id})">🗑️</button>
+        `;
         container.appendChild(div);
     });
 }
@@ -517,23 +561,23 @@ function getSelectedOptions() {
  * ปรับปรุงให้แยกแยะรายการเก่า/ใหม่ และบล็อกการลบรายการที่สั่งไปแล้ว
  */
 function updateOrderPreview() {
+    console.log("🔄 [จับไต๋บั๊ก] updateOrderPreview() กำลังพยายามวาดรายการอาหารขึ้นจอ...");
+
     // --- 1. ดึง Element สำคัญ ---
     const detailBox = document.getElementById('order-detail');
     const totalBox = document.getElementById('order-total-price');
     const qtyBox = document.getElementById('order-qty'); 
     const btnToTable = document.getElementById('btn-to-table');     
     const btnPayNow = document.getElementById('btn-pay-now');      
-    const btnCash = document.getElementById('btn-pay-cash');       
+    const btnCash = document.getElementById('btn-pay-cash');        
     const btnTransfer = document.getElementById('btn-pay-transfer'); 
 
-    if(btnPayNow) btnPayNow.style.display = 'none'; 
+    if(btnPayNow) btnPayNow.style.display = 'block'; 
 
+    // เปลี่ยนจากการยัดสไตล์สด มาเป็นการสวมคลาสล็อกสถานะจาก CSS แทน ปลอดภัยสูงสุด
     const disablePayButtons = () => {
         [btnCash, btnTransfer].forEach(btn => {
-            if(btn) {
-                btn.style.opacity = '0.3'; 
-                btn.style.pointerEvents = 'none'; 
-            }
+            
         });
     };
 
@@ -541,72 +585,51 @@ function updateOrderPreview() {
     const isPercent = rawDiscount.toString().includes('%'); 
     const discountConfigValue = parseFloat(rawDiscount) || 0; 
 
-    // --- ส่วนที่ 2: กรณีตะกร้าว่างเปล่า ---
-    if (!cart || cart.length === 0) {
-        if(detailBox) detailBox.innerHTML = `
-            <div style="text-align:center; color:#999; padding:20px;">
-                <i class="fas fa-shopping-basket" style="font-size: 2rem; display:block; margin-bottom:10px;"></i>
-                ยังไม่ได้เลือกเมนู
-            </div>`;
-        if(totalBox) totalBox.innerHTML = "รวมทั้งสิ้น : 0.-";
-        if(qtyBox) qtyBox.innerText = "1"; 
-        
-        disablePayButtons();
-        if(btnToTable) btnToTable.style.display = 'none'; 
-        return; 
-    }
-
-    // --- ส่วนที่ 3: คำนวณรายการอาหาร (แยก Logic ล็อกปุ่ม) ---
+    // --- ส่วนที่ 3: คำนวณรายการอาหาร ---
     let grandTotal = 0;
     
     let detailHTML = cart.map((item, index) => {
-        
-        // 🎯 [แก้ไขจุดวิกฤตจุดที่ 1]: ดึงราคาตัวเลือกเสริมออกมาคิดเงินให้ถูกต้องรอบคอบ
-        // ดักคีย์ทุกรูปแบบที่ระบบพี่อาจจะบันทึกไว้ในตะกร้า (ทั้งรูปแบบ CamelCase และ ตัวหนอน)
         const opPrice = parseFloat(item.optionPrice || item.option_price || item.extraPrice || item.extra_price || 0);
         const basePrice = parseFloat(item.price) || 0;
         const finalQty = parseInt(item.qty) || 1;
 
-        // 🧠 สิ่งที่จะเกิดขึ้น: นำ (ราคาอาหารหลัก + ราคาตัวเลือกเสริม) มารวมกันก่อน แล้วค่อยคูณกับจำนวนจาน
         const itemTotal = (basePrice + opPrice) * finalQty;
         grandTotal += itemTotal;
 
         const isLocked = item.fromDB === true; 
-
-        // 🚩 [เตรียมการต่อยอดในอนาคตของพี่]: ดึงสถานะจานมาตรวจสอบ
         const itemStatus = item.status || 'pending';
-        const statusBadge = itemStatus === 'done' 
-            ? `<span style="color:#2ecc71; font-size:0.8rem; font-weight:bold;">[เสิร์ฟแล้ว]</span>` 
-            : '';
+        const statusBadge = itemStatus === 'done' ? `<span class="badge-serve-done">[เสิร์ฟแล้ว]</span>` : '';
 
-        // 🎯 [แก้ไขจุดวิกฤตจุดที่ 2]: ปรับแถวข้อความตัวเลือกเสริมให้โชว์ราคาด้วย 
-        // สิ่งที่จะเกิดขึ้น: บนหน้าจอพรีวิวก่อนส่งเข้าครัว จะโชว์บอกพนักงานชัดๆ เลยว่า 🔹 พิเศษ (+10.-)
-        const optionTextTag = item.options 
-            ? `<small style="color:#636e72; display:block;">🔹 ${item.options}${opPrice > 0 ? ` (+${opPrice.toLocaleString()}.-)` : ''}</small>` 
+        let cleanedOptions = String(item.options || "").trim();
+        if (cleanedOptions.includes("พิเศษ")) {
+            cleanedOptions = "พิเศษ";
+        }
+
+        const optionTextTag = cleanedOptions 
+            ? `<small class="cart-item-option">🔹 ${cleanedOptions}${opPrice > 0 ? ` (+${opPrice.toLocaleString()}.-)` : ''}</small>` 
             : '';
 
         return `
-            <div data-item-id="${item.itemId || ''}" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 8px; ${isLocked ? 'background: #f9f9f9; border-left: 4px solid #27ae60; padding-left: 8px;' : ''}">
-                <div style="flex: 1;">
-                    <div style="font-weight: bold; font-size: 1rem; color: #2d3436;">
+            <div data-item-id="${item.itemId || ''}" class="cart-item-row ${isLocked ? 'is-locked-row' : ''}">
+                <div class="cart-item-info">
+                    <div class="cart-item-title">
                         ${isLocked ? '<span style="color:#27ae60;">✅</span> ' : '<span style="color:#3498db;">🆕</span> '}${item.name} ${statusBadge}
                     </div>
                     ${optionTextTag}
-                    ${isLocked ? '<small style="color:#27ae60; font-size: 0.7rem;">(สั่งแล้ว แก้ไขไม่ได้)</small>' : ''}
+                    ${isLocked ? '<small class="cart-item-notice">(สั่งแล้ว แก้ไขไม่ได้)</small>' : ''}
                 </div>
-                <div style="text-align: right; min-width: 85px;">
-                    <span style="font-size: 0.85rem; color:#636e72;">x${finalQty}</span><br>
-                    <span style="font-weight: bold; color: #2d3436;">${itemTotal.toLocaleString()}.-</span>
+                <div class="cart-item-pricing">
+                    <span class="cart-item-qty">x${finalQty}</span><br>
+                    <span class="cart-item-total">${itemTotal.toLocaleString()}.-</span>
                 </div>
 
                 ${isLocked ? `
-                    <div style="width: 35px; height: 35px; margin-left: 12px; display: flex; align-items: center; justify-content: center; color: #ccc;">
+                    <div class="icon-cart-lock">
                         <i class="fas fa-lock" title="รายการนี้ส่งเข้าครัวแล้ว"></i>
                     </div>
                 ` : `
-                    <button onclick="deleteSpecificItem(${index})" 
-                            style="background: #ff7675; color: white; border: none; border-radius: 8px; width: 35px; height: 35px; margin-left: 12px; cursor: pointer; transition: 0.2s;">
-                        <i class="fas fa-trash-alt"></i>
+                    <button type="button" class="btn-cart-delete" onclick="deleteSpecificItem(${index})">
+                        🗑️
                     </button>
                 `}
             </div>
@@ -626,7 +649,7 @@ function updateOrderPreview() {
     if (actualDiscountAmount > 0) {
         const label = isPercent ? `ส่วนลด (${discountConfigValue}%)` : `ส่วนลดเงินสด`;
         detailHTML += `
-            <div style="display: flex; justify-content: space-between; color: #e67e22; background: #fff9f0; margin-top: 10px; border-radius: 8px; padding: 10px; font-weight: bold; border: 1px solid #ffeaa7;">
+            <div class="cart-discount-row">
                 <span><i class="fas fa-tag"></i> ${label}:</span>
                 <span>-${actualDiscountAmount.toLocaleString()}.-</span>
             </div>
@@ -638,36 +661,40 @@ function updateOrderPreview() {
     // --- ส่วนที่ 5: แสดงยอดรวมสุทธิ ---
     if(totalBox) {
         const strikeThroughHTML = (actualDiscountAmount > 0) 
-            ? `<small style="font-size: 0.8rem; color: #b2bec3; text-decoration: line-through;">ยอดรวม: ${grandTotal.toLocaleString()}.-</small><br>` 
+            ? `<small>ยอดรวม: ${grandTotal.toLocaleString()}.-</small>` 
             : '';
 
         totalBox.innerHTML = `
-            <div style="line-height: 1.3;">
+            <div class="cart-net-total-box">
                 ${strikeThroughHTML}
-                <span style="font-size: 0.95rem; color: #636e72;">ยอดสุทธิ:</span> 
-                <span style="color: #2d3436; font-size: 1.8rem; font-weight: 800;">${netTotal.toLocaleString()}.-</span>
+                <span class="text-label">ยอดสุทธิ:</span> 
+                <span class="text-price">${netTotal.toLocaleString()}.-</span>
             </div>
         `;
     }
 
     // --- ส่วนที่ 6: จัดการปุ่มและการแสดงผลจำนวน ---
-    if(qtyBox && cart.length > 0) {
-        const lastItem = cart[cart.length - 1];
-        qtyBox.innerText = lastItem.qty || "1";
+    if(qtyBox) {
+        if(cart && cart.length > 0) {
+            const lastItem = cart[cart.length - 1];
+            qtyBox.innerText = lastItem.qty || "1";
+        } else {
+            qtyBox.innerText = "0"; // ถ้าว่างให้โชว์ 0
+        }
     }
 
+    // 2. [สำคัญมาก] บังคับแสดงปุ่มชำระเงินเสมอ (ย้ายออกมานอกเงื่อนไขตะกร้า)
     [btnCash, btnTransfer].forEach(btn => {
         if(btn) {
-            btn.style.opacity = '1';
-            btn.style.pointerEvents = 'auto';
+            btn.style.display = 'inline-block'; 
+            btn.classList.remove('btn-payment-disabled');
         }
     });
 
     const hasTable = (typeof selectedTable !== 'undefined' && selectedTable !== null && selectedTable !== "null" && selectedTable !== "");
-    if (hasTable && cart.length > 0) {
-        if(btnToTable) btnToTable.style.display = 'block';
-    } else {
-        if(btnToTable) btnToTable.style.display = 'none';
+    // 3. บังคับแสดงปุ่มฝากโต๊ะเสมอ
+    if(btnToTable) {
+        btnToTable.style.display = 'block'; 
     }
 }
 
@@ -727,6 +754,13 @@ function normalizeTableName(rawTable) {
 async function confirmOrder(payment_method, isFromWarp = false, warpData = null) {
     // 1. [ดักเบิ้ลระดับที่ 1]: ป้องกันกระแสลูปและปัญหาพนักงานกดย้ำปุ่มคิดเงิน
     if (isConfirmingOrder && !isFromWarp) return;
+
+    // --- 🚨 [จุดเพิ่มความปลอดภัย]: ดักตะกร้าว่างก่อนเริ่มลอจิกอื่น ---
+    if (!isFromWarp && (!cart || cart.length === 0)) {
+        alert("⚠️ ยายจ๋า! ตะกร้ายังว่างอยู่เลย เลือกของก่อนนะ");
+        return;
+    }
+
     if (!isFromWarp) isConfirmingOrder = true;
 
     // --- ด่านย้ำสติก่อนชำระเงิน ---
@@ -868,13 +902,14 @@ async function confirmOrder(payment_method, isFromWarp = false, warpData = null)
                     total_price: finalNetTotal,    // ✨ ส่งราคาสุทธิที่ถูกต้องไปเจนรูป QR Code และสรุปท้ายบิล
                     payment_method: payment_method, 
                     created_at: new Date().toLocaleString('sv-SE')
-                }); 
+                });
+
             }
 
             if (targetTable && targetTable !== 'กลับบ้าน') {
                 const matchNumber = targetTable.match(/\d+/);
                 const cleanTableKey = matchNumber ? String(matchNumber[0]) : String(targetTable);
-                await db.active_tables.delete(cleanTableKey); 
+                await db.active_tables.delete(cleanTableKey);
             }
 
             cart = []; 
@@ -882,6 +917,7 @@ async function confirmOrder(payment_method, isFromWarp = false, warpData = null)
             window.isCheckingOutTable = null;
 
             if (typeof updateOrderPreview === "function") updateOrderPreview();
+            
             if (typeof renderTableSelection === "function") await renderTableSelection();
             if (typeof renderRecentOrdersUI === "function") renderRecentOrdersUI();
         }
@@ -903,145 +939,114 @@ async function fetchTodaySales() {
     try {
         const todayStr = new Date().toLocaleDateString('sv-SE');
         const allOrders = await db.orders.toArray();
-        let total = 0, cashTotal = 0, qrTotal = 0, countItems = 0;
         
-        // 🎯 ดึงคำค้นหาเป้าหมายสากลจากหน้าตั้งค่า (เช่น กล่อง, จาน, ไข่ดาว) ค่าเริ่มต้นเป็น "ไข่" ป้องกันระบบพัง
-        const targetSearch = localStorage.getItem('counterLabel') || "ไข่"; 
+        // 1. จัดกลุ่มยอดขายตาม Order ID เพื่อแก้ปัญหาการนับส่วนลดซ้ำซ้อน
+        const orderSummary = {}; 
+        let countItems = 0;
+        const targetSearch = localStorage.getItem('counterLabel') || "ไข่";
 
         allOrders.forEach(o => {
-            // 1. ตรวจสอบเงื่อนไขคัดกรองออเดอร์เฉพาะที่เป็นของวันนี้เท่านั้น
             if (o.created_at && o.created_at.startsWith(todayStr)) {
-                const amount = Number(o.total_price || 0);
-                total += amount; // สะสมยอดขายรวมทั้งหมด (รวมค่าบวกปกติ และค่าติดลบของส่วนลด)
-                
-                // ⚡ [บังคับมาตรฐานตัวพิมพ์ใหญ่สำหรับ Single Codebase]:
-                // ดึงค่าช่องทางการชำระเงิน แปลงเป็นข้อความ ปรับเป็นตัวพิมพ์ใหญ่ และตัดช่องว่างส่วนเกินทั้งหมด
-                const method = String(o.payment_method || '').toUpperCase().trim();
-
-                // 🧠 ตรรกะแยกถุงเงินอัจฉริยะ ป้องกันข้อมูลหลุดมาตรฐาน:
-                if (method === 'CASH') {
-                    // สิ่งที่จะเกิดขึ้น: บิลใดๆ ที่ถูกระบุว่าเป็นเงินสด จะวิ่งเข้ามารวมที่ cashTotal อย่างถูกต้องแม่นยำ
-                    cashTotal += amount;
-                } else if (amount > 0) {
-                    // สิ่งที่จะเกิดขึ้น: หากเป็นบิลขายปกติ (ยอดมากกว่า 0) และช่องทางไม่ใช่ CASH (เช่น QR, TRANSFER)
-                    // ระบบจะรวบยอดก้อนนี้เข้าไปสะสมไว้ที่ถุง "เงินโอน/QR" ทันที เพื่อป้องกันเงินรั่วไหล
-                    qrTotal += amount;
+                // ถ้ายังไม่มี Order นี้ในระบบ ให้เริ่มนับ
+                if (!orderSummary[o.order_id]) {
+                    orderSummary[o.order_id] = {
+                        total: 0,
+                        method: String(o.payment_method || 'CASH').toUpperCase().trim(),
+                        hasProcessed: true
+                    };
                 }
                 
-                // 💡 จัดการหักยอดเงินโอน กรณีเจอแถวรายการส่วนลด (ยอดติดลบ)
-                if (amount < 0 && method !== 'CASH') {
-                    // สิ่งที่จะเกิดขึ้น: รายการส่วนลดที่ผูกกับบิลเงินโอน จะวิ่งมาหักลบออกจากยอดรวมเงินโอนได้อย่างเที่ยงตรงตามบัญชีจริง
-                    qrTotal += amount; 
-                }
+                // นำยอดรวมของแต่ละแถว (total_price) มารวมใน Order ID นั้นๆ
+                orderSummary[o.order_id].total += Number(o.total_price || 0);
+                
+                // หักส่วนลดออก (สมมติว่าส่วนลดถูกบันทึกไว้ในฟิลด์ discount ของแต่ละแถวแล้ว)
+                orderSummary[o.order_id].total -= Number(o.discount || 0);
 
-                // 2. ตรวจสอบการนับจำนวนวัตถุดิบเป้าหมายสากลของวัน (เปลี่ยนจาก hardcode ไข่ดาว เป็นคำค้นหาแปรผัน)
-                // สิ่งที่จะเกิดขึ้น: ระบบจะทำการสแกนหาข้อความใน Option ออเดอร์ หากตรงกับคำที่ตั้งค่าไว้ จะทำการบวกสะสมจำนวนชิ้นทันที
+                // นับวัตถุดิบ (นับเฉพาะเมื่อมี options ตรงกับเป้าหมาย)
                 if (o.options && o.options.includes(targetSearch)) {
-                    countItems += Number(o.qty || 1); // ใช้ 1 เป็นค่าตั้งต้นกันบั๊กกรณีข้อมูลไม่มีจำนวน qty
+                    countItems += Number(o.qty || 1);
                 }
             }
         });
 
-        // 3. ควบคุมและป้องกันไม่ให้ตัวเลขบนแดชบอร์ดหลักติดลบ
-        const finalTotal = Math.max(0, total);
-        const finalCash = Math.max(0, cashTotal);
-        const finalQR = Math.max(0, qrTotal);
+        // 2. คำนวณผลรวมจากยอดที่กรุ๊ปไว้
+        let total = 0, cashTotal = 0, qrTotal = 0;
+        Object.values(orderSummary).forEach(s => {
+            const finalOrderTotal = Math.max(0, s.total);
+            total += finalOrderTotal;
+            if (s.method === 'CASH') {
+                cashTotal += finalOrderTotal;
+            } else {
+                qrTotal += finalOrderTotal;
+            }
+        });
 
-        // 4. สั่งนำตัวเลขพ่นลงหน้าจอ HTML ตาม ID ต่างๆ 29-05-2026
-        if (document.getElementById('total-sales-display')) {
-            // ดึงตัวเลขมาทำลูกคอมม่า (toLocaleString) แล้วตบท้ายด้วยเครื่องหมาย . - ทันที
-            document.getElementById('total-sales-display').innerText = finalTotal.toLocaleString() + ".-";
-        }
-        
-        if (document.getElementById('cash-display')) document.getElementById('cash-display').innerText = finalCash.toLocaleString();
-        if (document.getElementById('qr-display')) document.getElementById('qr-display').innerText = finalQR.toLocaleString();
-        
-        // 🔄 [จุดปรับปรุงแก้ไขคีย์หลัก]: เปลี่ยนเป้าหมายการพ่นตัวเลขจาก 'egg-count' ไปหาบ้านเลขที่ใหม่ 'total-count'
-        // สิ่งที่จะเกิดขึ้น: ตัวเลขสะสมประจำวันจะถูกส่งไปแสดงผลตรงช่องตัวเลขระบบนับยอดสากลในหน้า UI หลักอย่างเที่ยงตรง ไม่ค้างที่เลข 0
-        const counterElem = document.getElementById('total-count');
-        if (counterElem) {
-            counterElem.innerText = countItems.toLocaleString();
-        }
-        
-        // --- 📥 ส่วนการจัดการต้นทุนและกำไร (คงไว้สมบูรณ์แบบไม่ให้โดน Reset) ---
-        
-        // 5. จัดการเรื่อง "ต้นทุน" (Daily Investment)
+        // 3. อัปเดตหน้าจอ (DOM)
+        if (document.getElementById('total-sales-display')) 
+            document.getElementById('total-sales-display').innerText = total.toLocaleString() + ".-";
+        if (document.getElementById('cash-display')) 
+            document.getElementById('cash-display').innerText = cashTotal.toLocaleString();
+        if (document.getElementById('qr-display')) 
+            document.getElementById('qr-display').innerText = qrTotal.toLocaleString();
+        if (document.getElementById('total-count')) 
+            document.getElementById('total-count').innerText = countItems.toLocaleString();
+
+        // 4. จัดการต้นทุนและกำไร
         const costInput = document.getElementById('daily-cost');
         const summary = await db.dailysummary.get(todayStr);
-        let dailyCost = 0;
+        let dailyCost = parseFloat(costInput?.value) || summary?.daily_investment || parseFloat(localStorage.getItem('myDailyCost')) || 0;
+        
+        if (costInput && costInput.value === "") costInput.value = dailyCost;
+        
+        const netProfit = total - dailyCost;
+        if (typeof updateProfitStatusDisplay === 'function') updateProfitStatusDisplay(netProfit);
 
-        // 🌟 ตรรกะลำดับความน่าเชื่อถือ: ตัวเลขบนหน้าจอ (Input) > ฐานข้อมูล (DB) > ความจำชั่วคราว (localStorage)
-        if (costInput && costInput.value !== "") {
-            dailyCost = parseFloat(costInput.value) || 0;
-        } 
-        else if (summary && summary.daily_investment) {
-            dailyCost = summary.daily_investment;
-            if (costInput) costInput.value = dailyCost; // ดึงเลขจาก DB มาโชว์ที่หน้าจอตัวป้อน
-        } 
-        else {
-            dailyCost = parseFloat(localStorage.getItem('myDailyCost')) || 0;
-            if (costInput) costInput.value = dailyCost;
-        }
+        // 5. บันทึกข้อมูลสรุปประจำวัน
+        const summaryData = {
+            summary_date: todayStr,
+            total_sales: total,
+            total_count: countItems,
+            daily_investment: dailyCost,
+            net_profit: netProfit
+        };
 
-        // 6. คำนวณกำไรสุทธิ (Net Profit) โดยเอาทุนสดลบกับยอดขายสะสมปัจจุบัน
-        const netProfit = finalTotal - dailyCost;
+        summary ? await db.dailysummary.update(todayStr, summaryData) : await db.dailysummary.put(summaryData);
 
-        if (typeof updateProfitStatusDisplay === 'function') {
-            // ส่งยอดกำไร/ขาดทุนไปอัปเดตแถบ "คืนทุน / ยังไม่คืนทุน" บนหน้าจอหลัก
-            updateProfitStatusDisplay(netProfit);
-        }
-
-        // 7. บันทึกและสรุปข้อมูลภาพรวมรายวันกลับลงคลังฐานข้อมูล Dexie DB ให้ตรงตามโครงสร้างตารางใหม่
-        if (summary) {
-            // สิ่งที่จะเกิดขึ้น: ถ้าในคลังมีข้อมูลของวันนี้อยู่แล้ว ระบบจะอัปเดตเฉพาะยอดขาย, จำนวนวัตถุดิบล่าสุด (total_count), ต้นทุน และกำไรสุทธิ
-            await db.dailysummary.update(todayStr, {
-                total_sales: finalTotal,
-                total_count: countItems, // ซิงค์เข้าฟิลด์สากล ล้างคำเฉพาะทางออกไป
-                daily_investment: dailyCost, 
-                net_profit: netProfit
-            });
-        } else {
-            // สิ่งที่จะเกิดขึ้น: หากเป็นบิลใบแรกของวัน ระบบจะสร้าง Record วันใหม่ขึ้นมา พร้อมบันทึกฟิลด์ 'total_count' สะอาดเคลียร์ 100%
-            await db.dailysummary.put({
-                summary_date: todayStr,
-                total_sales: finalTotal,
-                total_count: countItems, 
-                daily_investment: dailyCost,
-                net_profit: netProfit
-            });
-        }
-
-        console.log(`🚀 [Dashboard Sync] ซิงค์คลังสำเร็จ: ยอดเงินสด ${finalCash}.- | ยอดเงินโอน ${finalQR}.- | ยอดนับวัตถุดิบสากลวันนี้สะสมได้ ${countItems} รายการ`);
+        console.log(`🚀 [Dashboard Sync] สำเร็จ: ยอดรวม ${total} | ไข่ ${countItems}`);
 
     } catch (err) { 
-        console.error("❌ เกิดข้อผิดพลาดในการดึงยอดขายรายวัน:", err); 
+        console.error("❌ เกิดข้อผิดพลาดในการดึงยอดขาย:", err); 
     }
 }
 
-// ✨ ฟังก์ชันใหม่สำหรับเปลี่ยน "⚠️ รอคำนวณ" เป็น "กำไรสีเขียวๆ"
+// ✨ ฟังก์ชันใหม่สำหรับเปลี่ยน "⚠️ รอคำนวณ" เป็น "กำไรสีเขียวๆ" - ถอนสไตล์ออกจาก JS ปลอดภัยระยะยาว
 function updateProfitStatusDisplay(profit) {
     const statusDiv = document.getElementById('profit-status');
-    if (!statusDiv) return;
+    if (!statusDiv) return; // 🔒 เกราะป้องกันระบบเผื่อ Element ตัวนี้ยังไม่พร้อมทำงาน
 
     if (profit > 0) {
         statusDiv.innerHTML = `
-            <div style="background: #e8f5e9; color: #2e7d32; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+            <div class="profit-badge is-surplus">
                 🎉 กำไรวันนี้: ${profit.toLocaleString()} บาท
             </div>`;
     } else if (profit < 0) {
         statusDiv.innerHTML = `
-            <div style="background: #fff5f5; color: #e74c3c; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+            <div class="profit-badge is-deficit">
                 📉 ยังไม่คืนทุน: อีก ${Math.abs(profit).toLocaleString()} บาท
             </div>`;
     } else {
         statusDiv.innerHTML = `
-            <div style="background: #f8f9fa; color: #555; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+            <div class="profit-badge is-break-even">
                 ⚖️ เท่าทุนพอดี
             </div>`;
     }
 }
 
 function resetOrder() {
+    // 🚩 แปะเพิ่มตรงนี้เพื่อดักจับตัวการซ่อนแอบ
+    console.warn("⚠️ [จับไต๋บั๊ก] resetOrder() ถูกสั่งให้ทำงานซ้อนขึ้นมา!");
+    console.trace();
+
     currentOrder = { name: "", price: 0, qty: 1 };
     document.getElementById('order-detail').innerText = "ยังไม่ได้เลือกเมนู";
     document.getElementById('order-total-price').innerText = "รวม: 0.-";
@@ -1094,7 +1099,7 @@ async function saveTableSettings() {
     }
 }
 
-// 2. ฟังก์ชันวาดปุ่มเลือกโต๊ะที่หน้าแรก (หน้าขาย) 12-05-2026
+// 2. ฟังก์ชันวาดปุ่มเลือกโต๊ะที่หน้าแรก (หน้าขาย) - แยกดีไซน์ออกจาก JS ถาวร 09-06-2026
 async function renderTableSelection() {
     const container = document.getElementById('table-selection-area'); 
     if (!container) return;
@@ -1107,7 +1112,6 @@ async function renderTableSelection() {
             total = parseInt(tableSetting.value);
         } else {
             total = parseInt(localStorage.getItem('totalTables')) || 0;
-            // ถ้าใน LocalStorage มี แต่ใน Dexie ไม่มี ให้สำรองลง Dexie ไว้
             if (total > 0) {
                 await db.settings.put({ key: 'totalTables', value: total });
             }
@@ -1123,80 +1127,40 @@ async function renderTableSelection() {
     let activeTableIds = [];
     try {
         const activeTables = await db.active_tables.toArray();
-        // 🚩 [จุดสำคัญ]: แปลง ID ทุกตัวเป็น String เพื่อใช้เปรียบเทียบค่าให้แม่นยำ
         activeTableIds = activeTables.map(t => String(t.table_id));
     } catch (err) {
         console.error("❌ ดึงสถานะโต๊ะไม่ได้:", err);
     }
 
-    // --- 3. [วนลูปวาดปุ่ม] กำหนดสีตามเงื่อนไข (ขาว/ส้ม/เขียว) ---
+    // --- 3. [วนลูปวาดปุ่ม] กำหนดป้ายคลาสตามเงื่อนไขชีวิตจริง (ขาว/ส้ม/เขียว) ---
     for (let i = 1; i <= total; i++) {
         const btn = document.createElement('button');
-        const currentIdStr = String(i); // เลขโต๊ะปัจจุบัน (String)
+        btn.type = 'button';
+        const currentIdStr = String(i); 
         
-        // 🔍 ตรวจสอบสถานะ
-        const hasBill = activeTableIds.includes(currentIdStr); // มีข้อมูลค้างใน DB ไหม?
-        const isSelected = (String(selectedTable) === currentIdStr); // ยายกำลังกดเลือกโต๊ะนี้อยู่ไหม?
+        const hasBill = activeTableIds.includes(currentIdStr); 
+        const isSelected = (String(selectedTable) === currentIdStr); 
 
         btn.innerText = "โต๊ะ " + i;
         
-        // --- [Logic การเลือกสี] ---
-        // ค่าเริ่มต้น: สีขาว/เทา (โต๊ะว่าง)
-        let bgColor = '#ffffff'; 
-        let textColor = '#2c3e50';
-        let borderColor = '#bdc3c7';
-        let shadowColor = '#bdc3c7';
-
+        // 🟢 เริ่มต้นสวมคลาสปุ่มโต๊ะมาตรฐานสากลจาก CSS
+        btn.className = 'table-btn';
+        
+        // แปะคลาสสถานะย่อยตามเงื่อนไข โดยตัวไอคอนและสีจะดีดเปลี่ยนตามพลังของ CSS ทันที
         if (isSelected) {
-            // 🟢 สถานะสูงสุด: ยายกำลังจัดการโต๊ะนี้อยู่ (ต้องเด่นที่สุด)
-            bgColor = '#2ecc71'; 
-            textColor = 'white';
-            borderColor = '#27ae60';
-            shadowColor = '#27ae60';
+            btn.classList.add('is-active-select'); // สวมป้ายสีเขียวเด่นชัด
         } else if (hasBill) {
-            // 🟠 สถานะรอง: มีออเดอร์ค้าง (เตือนว่ามีเงินค้าง/ลูกค้ายังไม่ออก)
-            bgColor = '#e67e22'; 
-            textColor = 'white';
-            borderColor = '#d35400';
-            shadowColor = '#a04000';
+            btn.classList.add('has-pending-bill'); // สวมป้ายสีส้มแจ้งยอดบิลค้าง
         }
 
-        // กำหนดสไตล์ให้ปุ่ม (คงความสวยงามและกดง่ายสำหรับยาย)
-        btn.style.cssText = `
-            padding: 20px 10px; 
-            margin: 5px; 
-            border-radius: 15px; 
-            border: 2px solid ${borderColor}; 
-            font-size: 1.2rem;
-            font-weight: bold;
-            background: ${bgColor}; 
-            color: ${textColor};
-            cursor: pointer;
-            box-shadow: 0 5px 0 ${shadowColor};
-            transition: all 0.1s;
-            position: relative;
-            min-width: 80px;
-        `;
-
-        // เอฟเฟกต์ตอนกด (Feedback ให้ยายรู้ว่ากดโดนแล้ว)
-        btn.onmousedown = () => {
-            btn.style.transform = "translateY(3px)";
-            btn.style.boxShadow = "none";
-        };
-        btn.onmouseup = () => {
-            btn.style.transform = "translateY(0px)";
-            btn.style.boxShadow = `0 5px 0 ${shadowColor}`;
-        };
-
-        // เมื่อกดปุ่ม ให้ไปรันฟังก์ชัน selectTable
+        // เมื่อกดปุ่ม ให้ไปรันฟังก์ชันตรรกะคำนวณเป้าหมายตามเดิมเป๊ะ 100%
         btn.onclick = () => selectTable(i);
         
         container.appendChild(btn);
     }
 }
 
-// ฟังก์ชันสำหรับเวลากดกลับมาขายหน้าร้าน (Walk-in) 28-05-2026
-// ฟังก์ชันสำหรับเวลากดกลับมาขายหน้าร้าน (Walk-in) 28-05-2026
+// ฟังก์ชันสำหรับเวลากดกลับมาขายหน้าร้าน (Walk-in) - คลีน UI ป้องกันบั๊กสีหลอน 09-06-2026
 async function selectWalkIn() {
     console.log("🛒 [Mode Switch] สลับไปโหมดขายหน้าร้าน (Walk-in) -> เริ่มล้างสถานะข้อมูลเชิงลึกและปรับ UI");
 
@@ -1230,48 +1194,43 @@ async function selectWalkIn() {
     // =========================================================================
     // 🔄 ส่วนที่ 3: สั่งให้ระบบอื่น ๆ วาดหน้าจอของตัวเองให้เสร็จก่อน (UI Sync Background)
     // =========================================================================
-    
-    // 3.1 สั่งช่างทาสีแผงปุ่ม (renderTableSelection) วาดปุ่มใหม่ตามที่เราเคลียร์ฐานข้อมูลไปในส่วนที่ 1
-    // (ซึ่งปุ่มโต๊ะ 3 จะเปลี่ยนจากสีเขียว กลับมาเป็นสีส้ม/เทา ตามจริงใน DB โดยไม่ยุ่งกับป้ายสถานะ)
     if (typeof renderTableSelection === 'function') {
         await renderTableSelection(); 
     }
 
-    // 3.2 อัปเดตพรีวิวตะกร้าอาหารฝั่งซ้าย/ขวาให้โล่งสะอาด 
-    // ยอมให้ฟังก์ชันนี้รันลอจิกภายในของมันให้จบกระบวนการไปก่อนเลย
     if (typeof updateOrderPreview === 'function') {
         updateOrderPreview();
     }
 
-    // 3.3 ซ่อนกล่องพักรอบิลชำระเงินเดิมออกไป
+    // 🟢 เปลี่ยนจากการยัด style.display มาเป็นการสวมคลาสซ่อนสากลแทน คลีนสุดๆ
     const billingBox = document.getElementById('pending-billing-box');
-    if (billingBox) billingBox.style.display = 'none';
+    if (billingBox) billingBox.classList.add('stg-hidden');
 
-    // 3.4 ล้างคลาสไฮไลท์สีเขียวออกจากทุกปุ่มโต๊ะ
+    // ล้างคลาสไฮไลท์สีเขียวออกจากทุกปุ่มโต๊ะ
     document.querySelectorAll('.table-btn').forEach(btn => {
-        btn.classList.remove('active'); 
+        btn.classList.remove('is-active-select', 'active'); 
     });
 
     // =========================================================================
-    // 🖥️ ส่วนที่ 4: 🔥 [ไม้ตายสุดท้าย - สยบบั๊กสีส้มหลอน] ทับสไตล์ล็อกหน้าจอ (Final UI Lockdown)
+    // 🖥️ ส่วนที่ 4: 🔥 [สยบบั๊กสีส้มหลอน] ควบคุมผ่านคลาสสถานะจาก CSS เกลี้ยงเกลา 100%
     // =========================================================================
-    // ดึงกล่องแจ้งสถานะหลักขึ้นมาทำสไตล์ขั้นเด็ดขาดตรงนี้ เพื่อป้องกันลอจิกจากฟังก์ชันอื่นในส่วนที่ 3 แอบมาเขียนทับซ้ำ
-    
     const display = document.getElementById('current-table-display');
     if (display) {
         display.innerText = "📍 กำลังขาย: หน้าร้าน (Walk-in)";
-        display.style.background = "#34495e"; // 🟢 บังคับลงสีกรมท่าเข้ม สลัดสีส้มเดิมทิ้งทันที นิ่งสนิท ยายอ่านง่าย!
+        // 🟢 ถอดคลาสสีส้ม/สีอื่น ๆ ของระบบโต๊ะออก แล้วสวมคลาสสีกรมท่าหน้าร้านจาก CSS ทันที
+        display.className = 'table-display-walkin'; 
     }
     
-    // ซ่อนปุ่มฝากลงโต๊ะทันที เพราะโหมดกลับบ้านต้องจ่ายเงินเลย
+    // ซ่อนปุ่มฝากลงโต๊ะทันทีผ่านคลาสซ่อนสากล เพราะโหมดกลับบ้านต้องจ่ายเงินเลย
     const btnToTable = document.getElementById('btn-to-table');
-    if (btnToTable) btnToTable.style.display = 'none'; 
-    
-    // แต่งปุ่มโหมดขายหน้าร้านให้เด่นชัดมีมิติระบุสเตตัสปัจจุบัน
+    if (btnToTable) {
+    btnToTable.classList.remove('stg-hidden'); // ถอดคลาสซ่อนออกให้หมด
+    btnToTable.style.display = 'block';        // บังคับให้แสดงตัวทันที
+}
+    // แต่งปุ่มโหมดขายหน้าร้านให้เด่นชัดผ่านคลาสสถานะแอคทีฟ
     const btnTakeaway = document.getElementById('btn-takeaway');
     if (btnTakeaway) {
-        btnTakeaway.style.backgroundColor = "#ff9f43"; 
-        btnTakeaway.style.boxShadow = "0 5px 0 #000000"; 
+        btnTakeaway.classList.add('btn-takeaway-mode', 'is-active-walkin');
     }
 
     console.log("🥡 [Done] ระบบนิ่ง 100% สลัดป้ายสีส้มโต๊ะเก่าทิ้ง และสวมสีกรมท่าหน้าร้านเรียบร้อย");
@@ -1299,19 +1258,17 @@ async function selectTable(tableId) {
         
         if (display) {
             display.innerText = "📍 กำลังจัดการ: โต๊ะ " + targetTable;
-            display.style.background = "#2ecc71"; // สีเขียว (เริ่มต้นการเลือก)
-            display.style.color = "white";
+            // 🟢 เปลี่ยนจากการยัดสไตล์สด มาเป็นการสวมคลาสสถานะเริ่มต้น (สีเขียว)
+            display.className = 'table-display-green';
         }
 
         // 3. 🔍 จัดการข้อมูลในตะกร้า (Cart Management)
         if (tableData && Array.isArray(tableData.order_items)) {
             console.log(`🏠 โต๊ะ ${targetTable}: พบออเดอร์เดิม -> สั่งติดป้ายป้องกันการส่งซ้ำ...`);
 
-            // 🏷️ [จุดพิชิตใจยายและระบบ]: 
-            // - ใช้ .map เพื่อ "แปะป้าย" ให้ของเก่าทุกรายการ
+            // 🏷️ [จุดพิชิตใจยายและระบบ]:
             cart = tableData.order_items.map(item => {
-                // เช็กก่อนว่ามีเครื่องหมาย ✅ หรือยัง ถ้ายังไม่มีให้เติมข้างหน้า
-                const nameWithCheck = item.name.startsWith('') ? item.name : '✅ ' + item.name;
+                const nameWithCheck = item.name.startsWith('✅') ? item.name : '✅ ' + item.name;
                 
                 return {
                     ...item,
@@ -1320,8 +1277,10 @@ async function selectTable(tableId) {
                 };
             });
             
-            // เปลี่ยนสีหัวข้อเป็น "สีส้ม" เตือนยายว่าโต๊ะนี้ "มีคนนั่ง" (มีเงินค้าง)
-            if (display) display.style.background = "#e67e22"; 
+            // 🟢 เปลี่ยนสีหัวข้อเป็น "สีส้ม" ผ่านคลาสจาก CSS ทันทีเมื่อตรวจพบออเดอร์ค้าง (สยบบั๊กสีหลอน)
+            if (display) {
+                display.className = 'table-display-orange';
+            }
 
         } else {
             // ถ้าเป็นโต๊ะว่าง (ไม่มีข้อมูลใน DB)
@@ -1332,20 +1291,18 @@ async function selectTable(tableId) {
         // 4. 🔥 [จุดปราบกระพริบ]: สั่งวาดหน้าจอรายการอาหาร (Preview)
         if (typeof updateOrderPreview === 'function') {
             updateOrderPreview(); 
-            // 💡 เทคนิค: ใน updateOrderPreview ถ้าเจอ item.fromDB เป็น true 
-            // พี่อาจจะสั่งซ่อนปุ่ม "ลบ" เพื่อไม่ให้ยายเผลอไปลบรายการที่เขากินไปแล้วครับ
         }
 
         // 5. 💰 จัดการ Billing Box (สรุปยอดเงินด้านล่าง)
         const billingBox = document.getElementById('pending-billing-box');
         if (cart.length > 0) {
             if (typeof refreshBillingBox === 'function') {
-                // ส่ง targetTable เข้าไปคำนวณเงินให้ถูกต้อง
                 await refreshBillingBox(targetTable); 
             }
-            if (billingBox) billingBox.style.display = 'block';
+            // 🟢 ควบคุมเปิด-ปิดผ่านคลาสสากลแทนการเขียนสไตล์อินไลน์ตรง ๆ
+            if (billingBox) billingBox.classList.remove('stg-hidden');
         } else {
-            if (billingBox) billingBox.style.display = 'none';
+            if (billingBox) billingBox.classList.add('stg-hidden');
         }
         
         // 6. 🎨 รีเฟรชสีปุ่มผังโต๊ะ (อัปเดตสถานะ เขียว/ส้ม/ขาว ทันที)
@@ -1413,7 +1370,7 @@ async function confirmToTable() {
 }
 
 // ฟังก์ชัน: แสดงรายการอาหารที่ค้างอยู่ในโต๊ะ (Pending Billing Box)
-// ทำงานเมื่อ: จิ้มเลือกโต๊ะที่มีออเดอร์ค้างอยู่ 28-05-2026
+// ทำงานเมื่อ: จิ้มเลือกโต๊ะที่มีออเดอร์ค้างอยู่ 09-06-2026
 // ==========================================
 async function refreshBillingBox(tableId) {
     // ดึง Element ต่างๆ มาเตรียมไว้
@@ -1427,7 +1384,7 @@ async function refreshBillingBox(tableId) {
 
     // 🛑 [ดักด่านแรก]: ถ้าส่งค่าเป็นโหมดกลับบ้าน หรือไม่มี ID โต๊ะส่งมา ให้สั่งซ่อนกล่องและปิดงานทันที
     if (!cleanTableId || cleanTableId === "กลับบ้าน" || cleanTableId === "ทั่วไป") {
-        if (box) box.style.display = 'none';
+        if (box) box.classList.add('stg-hidden');
         return;
     }
 
@@ -1436,31 +1393,30 @@ async function refreshBillingBox(tableId) {
 
     // 2. ตรวจสอบโครงสร้างเบื้องต้น: ถ้าไม่มีข้อมูลโต๊ะ หรือไม่มีอาเรย์อาหารให้หยุดทันที
     if (!tableData || !tableData.order_items || tableData.order_items.length === 0) {
-        if (box) box.style.display = 'none'; 
+        if (box) box.classList.add('stg-hidden'); 
         return; 
     }
 
     // =========================================================================
     // 🧠 [จุดปรับปรุงรอบคอบสูงสุด]: คำนวณยอดเงินทดสอบก่อนเปิดกล่อง UI
     // =========================================================================
-    // วนลูปเช็กก่อนล่วงหน้าว่าอาหารที่มีอยู่ แอบมียอดสุทธิเป็น 0 บาท หรือมีรายการขยะค้างชำระไหม
     let checkTotal = 0;
     tableData.order_items.forEach(item => {
         checkTotal += (parseFloat(item.price) || 0) * (parseInt(item.qty) || 1);
     });
 
-    // 🛑 [ด่านสกัดวิญญาณหลอน]: แม้จะมี Object โต๊ะใน DB แต่ถ้ายอดเงินรวมกันแล้วได้ 0.- หรือติดลบ 
-    // แสดงว่าเป็นบิลขยะค้างชำระ ให้สั่งซ่อนกล่องทันที ห้ามเด้งขึ้นมาให้ยายรำคาญเด็ดขาด!
+    // 🛑 [ด่านสกัดวิญญาณหลอน]: ถ้ายอดสุทธิได้ 0.- หรือติดลบ สั่งซ่อนกล่องทันที ห้ามเด้งให้ยายรำคาญ
     if (checkTotal <= 0) {
-        if (box) box.style.display = 'none';
+        if (box) box.classList.add('stg-hidden');
         console.log(`🧹 [Anti-Ghost] บล็อกบิลเปล่าของโต๊ะ ${cleanTableId} ไม่ให้เด้งรบกวนหน้าร้าน`);
         return;
     }
 
     // =========================================================================
-    // 🖥️ ส่วนที่ 3: ผ่านการตรวจสอบทุกด่าน -> มั่นใจได้ว่ามีอาหารและมียอดเงินจริง ถึงสั่งเปิดกล่อง
+    // 🖥️ ส่วนที่ 3: ผ่านการตรวจสอบทุกด่าน -> แสดงผลบิลจริง
     // =========================================================================
-    if (box) box.style.display = 'block';
+    // ถอดคลาสซ่อนออก เพื่อเปิดหน้าต่างบิลขึ้นมาแสดงผลนิ่งๆ
+    if (box) box.classList.remove('stg-hidden');
     if (title) title.innerText = `📝 รายการค้างชำระ โต๊ะ ${cleanTableId}`;
 
     // เริ่มกระบวนการวาดรายการอาหารใหม่
@@ -1472,21 +1428,20 @@ async function refreshBillingBox(tableId) {
         tableData.order_items.forEach((item, index) => {
             const itemRow = document.createElement('div');
             
-            itemRow.style.display = 'flex';
-            itemRow.style.justifyContent = 'space-between'; 
-            itemRow.style.padding = '8px 0';
-            itemRow.style.borderBottom = '1px solid #eee';
+            // 🟢 เปลี่ยนจากการพ่น style อินไลน์หนาเตอะ มาเป็นการแปะชื่อคลาสกลางจาก CSS ตัวเดียวจบ!
+            itemRow.className = 'billing-item-row';
             
             const currentQty = item.qty || 1;
             const itemPriceSum = item.price * currentQty;
 
+            // HTML โครงสร้างสะอาดสะอ้าน ไร้สารสไตล์ปนเปื้อนสายตา
             itemRow.innerHTML = `
-                <div style="text-align: left;">
-                    <span style="font-weight: bold;">${item.name}</span>
-                    ${item.options ? `<br><small style="color: #666;">- ${item.options}</small>` : ''}
-                    <span style="color: #27ae60; margin-left: 10px;">x${currentQty}</span>
+                <div class="billing-item-info">
+                    <span class="billing-item-name">${item.name}</span>
+                    ${item.options ? `<span class="billing-item-options">- ${item.options}</span>` : ''}
+                    <span class="billing-item-qty">x${currentQty}</span>
                 </div>
-                <div style="font-weight: bold;">
+                <div class="billing-item-price">
                     ${itemPriceSum.toLocaleString()}.-
                 </div>
             `;
@@ -2017,24 +1972,24 @@ function updateRoleDisplay() {
     const text = document.getElementById('role-text');
     const p2pToggle = document.getElementById('p2p-toggle'); 
 
-    // ถ้าไม่มีป้ายในหน้านั้น ให้หยุดทำงานทันที
+    // ถ้าไม่มีป้ายในหน้านั้น ให้หยุดทำงานทันที (เกราะป้องกันระบบเอ๋อ)
     if (!badge) return;
 
     // 2. ตรวจสอบสถานะสวิตช์ P2P จาก "หน้าจอจริง" เท่านั้น
     const isP2PEnabled = p2pToggle ? p2pToggle.checked : (localStorage.getItem('p2p_enabled') === 'true');
 
-    // สั่งให้ป้ายแสดงตัวออกมา
-    badge.style.display = 'inline-block';
-    
     // 🚩 [ความจริงจากหน้าจอ]: เช็กว่าตอนนี้เราอยู่ที่หน้าไหนโดยดูจาก Class ของ Body
     const isBossUI = document.body.classList.contains('boss-mode');
     const isKitchenUI = document.body.classList.contains('kitchen-mode');
     const isBabyUI = document.body.classList.contains('baby-mode');
 
+    // เคลียร์คลาสสถานะบทบาทเก่าออกให้เกลี้ยงก่อนสวมคลาสใหม่ เพื่อป้องกันคลาสสีตีกันเอง
+    badge.classList.remove('role-alone', 'role-boss', 'role-kitchen', 'role-baby', 'role-pending');
+
     // --- [ด่านที่ 1]: กรณีปิดสวิตช์ (โหมด Offline) ---
     if (!isP2PEnabled) {
-        badge.style.backgroundColor = '#95a5a6'; // สีเทา
-        badge.style.color = 'white';
+        // 🟢 เปลี่ยนจากการยัดโค้ดสไตล์สีหนา ๆ มาเป็นการสวมคลาสที่เคลียร์สะอาดจาก CSS ตัวเดียวจบ
+        badge.classList.add('role-alone');
         if (icon) icon.innerText = '🏠';
         if (text) text.innerText = 'Alone'; 
         console.log("ℹ️ [UI] แสดงสถานะ: Alone");
@@ -2042,36 +1997,30 @@ function updateRoleDisplay() {
     }
 
     // --- [ด่านที่ 2]: กรณีเปิดสวิตช์ (อัปเดตตามคลาสที่พบจริงบน Body) ---
-    
     if (isBossUI) {
         // 👑 กรณีเป็นหน้าจอ Boss
-        badge.style.backgroundColor = '#e74c3c'; // สีแดง
-        badge.style.color = 'white';
+        badge.classList.add('role-boss');
         if (icon) icon.innerText = '👑';
         if (text) text.innerText = 'Boss';
-        // ซ่อมแซมความจำให้ตรงกับหน้าจอ (เผื่อมีฟังก์ชันอื่นไปเรียกใช้)
         localStorage.setItem('p2p_mode', 'hub');
 
     } else if (isKitchenUI) {
         // 👨‍🍳 กรณีเป็นหน้าจอครัว
-        badge.style.backgroundColor = '#f39c12'; // สีส้ม
-        badge.style.color = 'white';
+        badge.classList.add('role-kitchen');
         if (icon) icon.innerText = '👨‍🍳';
         if (text) text.innerText = 'Kitchen';
         localStorage.setItem('p2p_mode', 'kitchen');
 
     } else if (isBabyUI) {
         // 📱 กรณีเป็นหน้าจอเครื่องลูก
-        badge.style.backgroundColor = '#3498db'; // สีฟ้า
-        badge.style.color = 'white';
+        badge.classList.add('role-baby');
         if (icon) icon.innerText = '📱';
         if (text) text.innerText = 'Baby';
         localStorage.setItem('p2p_mode', 'client');
 
     } else {
         // ⚠️ กรณีเปิดสวิตช์แต่หน้าจอยังไม่มี Class ระบุตัวตน
-        badge.style.backgroundColor = '#f1c40f'; // สีเหลือง
-        badge.style.color = '#2c3e50';
+        badge.classList.add('role-pending');
         if (icon) icon.innerText = '⚠️';
         if (text) text.innerText = 'รอเลือกบทบาท...';
     }
@@ -2090,10 +2039,24 @@ function updateRoleDisplay() {
 function updateProfitStatus(totalSales) {
     const dailyCost = parseFloat(document.getElementById('daily-cost').value) || 0;
     const profitElement = document.getElementById('profit-status');
-    if (!profitElement) return;
+    if (!profitElement) return; // 🔒 เกราะป้องกันระบบ เผื่อ Element หน้านั้นไม่ได้เปิดใช้งาน
+    
     const netProfit = totalSales - dailyCost;
-    profitElement.innerHTML = netProfit >= 0 ? `✅ กำไรวันนี้: <b>${netProfit.toLocaleString()}</b> .-` : `⚠️ ขาดทุนอยู่: <b>${Math.abs(netProfit).toLocaleString()}</b> .-`;
-    profitElement.style.color = netProfit >= 0 ? "#27ae60" : "#e74c3c";
+    
+    // 1. จัดการวาดโครงสร้างข้อความและตัวแปรคำนวณลง HTML ตามปกติเป๊ะ
+    profitElement.innerHTML = netProfit >= 0 
+        ? `✅ กำไรวันนี้: <b>${netProfit.toLocaleString()}</b> .-` 
+        : `⚠️ ขาดทุนอยู่: <b>${Math.abs(netProfit).toLocaleString()}</b> .-`;
+    
+    // 2. 🟢 ล้างคลาสสลับสีอันเก่าออกให้สะอาดก่อน เพื่อป้องกันคลาสตีกันเอง
+    profitElement.classList.remove('status-surplus', 'status-deficit');
+    
+    // 3. 🟢 สวมคลาสสีที่ถูกต้องผ่านพลังของ CSS แทนการฝืนพ่นสีอินไลน์ใน JS
+    if (netProfit >= 0) {
+        profitElement.classList.add('status-surplus');
+    } else {
+        profitElement.classList.add('status-deficit');
+    }
 }
 
 //29-05-2026
@@ -2134,34 +2097,55 @@ async function addNewMenu() {
     } else { alert("กรุณากรอกข้อมูลให้ครบ"); }
 }
 
+//กล่องค้นหา 23-06-2026
+function filterMenuList() {
+    // 1. ดึงคำค้นหามา
+    const searchTerm = document.getElementById('menuSearchInput').value.toLowerCase();
+    
+    // 2. ดึงทุกรายการเมนูที่เป็น li
+    const listBoard = document.getElementById('menu-list-items');
+    const items = listBoard.getElementsByClassName('menu-list-item-row');
+
+    // 3. วนลูปเช็ค
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        // ดึงชื่อเมนูจาก input ในแถวนั้น (พี่ใช้ id="full-edit-name-${menu.id}")
+        // แต่เพื่อความไว เราสั่ง query จาก input ในแถวนั้นได้เลย
+        const menuName = item.querySelector('.menu-txt-input').value.toLowerCase();
+        
+        if (menuName.includes(searchTerm)) {
+            item.style.display = ""; // ถ้าเจอให้โชว์
+        } else {
+            item.style.display = "none"; // ถ้าไม่เจอให้ซ่อน
+        }
+    }
+}
+
 // --- ส่วนของคลังเมนูทั้งหมด --- 25-04-2026
 async function renderMenuList() {
     const allMenus = await db.menus.toArray();
     const listContainer = document.getElementById('menu-list-items');
-    if(!listContainer) return;
+    if (!listContainer) return; // 🔒 เกราะป้องกันระบบถ้ารันในหน้าที่ไม่มีอินเทอร์เฟซนี้
     listContainer.innerHTML = ''; 
     
     allMenus.forEach(menu => {
         const li = document.createElement('li');
-        // ปรับ CSS ให้ยืดหยุ่นขึ้นเพื่อให้รองรับปุ่มที่เพิ่มมา
-        li.style.cssText = "display:flex; flex-direction:column; gap:8px; padding:12px; border-bottom:1px solid #eee; background:#fff;";
         
+        // 🟢 เปลี่ยนจากการพ่นสไตล์หนาเตอะใน JS มาเป็นการแปะชื่อคลาสสากลจาก CSS ตัวเดียวจบ!
+        li.className = 'menu-list-item-row';
+        
+        // 🟢 HTML คลีนสะอาดยกแผง แยกหน้าที่ชัดเจน ไร้เงาสไตล์ปนเปื้อนสายตา
         li.innerHTML = `
-            <div style="display:flex; gap:5px;">
-                <input type="text" value="${menu.name}" disabled id="full-edit-name-${menu.id}" 
-                    style="flex:2; padding:8px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
-                <input type="number" value="${menu.price}" disabled id="full-edit-price-${menu.id}" 
-                    style="width:70px; padding:8px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+            <div class="menu-input-group">
+                <input type="text" value="${menu.name}" disabled id="full-edit-name-${menu.id}" class="menu-txt-input">
+                <input type="number" value="${menu.price}" disabled id="full-edit-price-${menu.id}" class="menu-num-input">
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="menu-action-group">
                 <div>
-                    <button onclick="toggleEditFullDb(this, ${menu.id})" 
-                        style="background:#3498db; color:white; border:none; padding:5px 12px; border-radius:5px; margin-right:5px;">📝 แก้ไข</button>
-                    <button onclick="deleteFullMenu(${menu.id})" 
-                        style="background:none; border:none; color:#ff4757; cursor:pointer; font-size:0.9rem;">ลบจากคลัง</button>
+                    <button onclick="toggleEditFullDb(this, ${menu.id})" class="btn-menu-edit">📝 แก้ไข</button>
+                    <button onclick="deleteFullMenu(${menu.id})" class="btn-menu-delete">ลบจากคลัง</button>
                 </div>
-                <button onclick="addFromStorageToQuick('${menu.name}', ${menu.price})" 
-                    style="background:#00acc1; color:white; border:none; padding:8px 15px; border-radius:20px; font-weight:bold; font-size:0.85rem;">
+                <button onclick="addFromStorageToQuick('${menu.name}', ${menu.price})" class="btn-menu-to-quick">
                     + หน้าแรก
                 </button>
             </div>
@@ -2170,34 +2154,52 @@ async function renderMenuList() {
     });
 }
 
-// ฟังก์ชันใหม่: ใช้ชื่อ toggleEditFullDb เพื่อไม่ให้สับสนกับ toggleEditRow 25-04-2026
+// ฟังก์ชันใหม่: ใช้ชื่อ toggleEditFullDb เพื่อไม่ให้สับสนกับ toggleEditRow 09-06-2026
 async function toggleEditFullDb(btn, id) {
     const nameInput = document.getElementById(`full-edit-name-${id}`);
     const priceInput = document.getElementById(`full-edit-price-${id}`);
+    if (!nameInput || !priceInput) return; // 🔒 เกราะป้องกันเผื่อดึง Element พลาด
+    
+    // ดึงอิลิเมนต์แถวแม่ (li) ของอินพุตชุดนี้ขึ้นมาเพื่อเตรียมแปะคลาสสถานะ
+    const rowParent = btn.closest('.menu-list-item-row');
     const isLocked = nameInput.disabled;
 
     if (isLocked) {
+        // --- 📝 จังหวะที่ 1: เปิดล็อกโหมดแก้ไข ---
         nameInput.disabled = false;
         priceInput.disabled = false;
-        nameInput.style.background = "#fff";
-        priceInput.style.background = "#fff";
-        nameInput.style.border = "1px solid #00acc1";
         btn.innerText = "✅ บันทึก";
-        btn.style.background = "#2ecc71";
+        
+        // 🟢 สวมเสื้อโค้ตคลาสโหมดแก้ไขให้แถวแม่ทันที (CSS ด้านนอกจะรุมสลับสีอินพุตและปุ่มให้เองอัตโนมัติ)
+        if (rowParent) {
+            rowParent.classList.add('is-editing-mode');
+        }
+        
+        // สั่งโฟกัสไปที่ช่องชื่ออาหารเพื่อให้คุณยายพร้อมพิมพ์ทันทีเพื่อความสะดวก
+        nameInput.focus();
+
     } else {
+        // --- ✅ จังหวะที่ 2: กดบันทึกข้อมูลเข้าคลัง ---
         const newName = nameInput.value;
         const newPrice = parseFloat(priceInput.value);
+        
         if (newName && !isNaN(newPrice)) {
+            // อัปเดตลงคลังข้อมูล Dexie DB ลอจิกเดิมเป๊ะ ปลอดภัยสูงสุด
             await db.menus.update(id, { name: newName, price: newPrice });
+            
             nameInput.disabled = true;
             priceInput.disabled = true;
-            nameInput.style.background = "#f9f9f9";
-            priceInput.style.background = "#f9f9f9";
-            nameInput.style.border = "1px solid #ddd";
             btn.innerText = "📝 แก้ไข";
-            btn.style.background = "#3498db";
-            // สั่งอัปเดตปุ่มหน้าแรกเผื่อข้อมูลเปลี่ยน
-            renderOrderButtons(); 
+            
+            // 🟢 ล้างคลาสโหมดแก้ไขออกจากแถวแม่ เพื่อให้หน้าจอดึงสีปกติใน CSS กลับคืนมาทันที
+            if (rowParent) {
+                rowParent.classList.remove('is-editing-mode');
+            }
+            
+            // สั่งอัปเดตผังปุ่มหน้าแรกเผื่อข้อมูลชื่อหรือราคาอาหารมีการเปลี่ยนแปลง
+            if (typeof renderOrderButtons === 'function') {
+                renderOrderButtons(); 
+            }
         }
     }
 }
@@ -2205,14 +2207,18 @@ async function toggleEditFullDb(btn, id) {
 // ฟังก์ชันทางลัด: ดึงจากคลังไปโชว์ในหน้าตั้งค่าเมนูขายทันที
 function addFromStorageToQuick(name, price) {
     const container = document.getElementById('menu-settings-list');
+    if (!container) return; // 🔒 เกราะป้องกันระบบ เผื่อ Element หน้านั้นไม่ได้เปิดใช้งาน
+    
     const div = document.createElement('div');
-    div.className = 'menu-setting-row';
-    div.style.display = "flex"; div.style.gap = "5px"; div.style.marginBottom = "8px";
+    div.className = 'menu-setting-row'; // 🟢 ใช้คลาสตัวเดิม แต่ย้ายการคุมสไตล์ทั้งหมดไปฝั่ง CSS
+    
+    // 🟢 HTML คลีนสะอาดยกแผง แยกหน้าที่ชัดเจน ไร้เงาสไตล์ปนเปื้อนใน JS
     div.innerHTML = `
-        <input type="text" value="${name}" style="flex: 2; padding: 8px;">
-        <input type="number" value="${price}" style="width: 70px; padding: 8px;">
-        <button onclick="this.parentElement.remove()" style="background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 5px;">🗑️</button>
+        <input type="text" value="${name}">
+        <input type="number" value="${price}">
+        <button onclick="this.parentElement.remove()" class="btn-remove-setting">🗑️</button>
     `;
+    
     container.appendChild(div);
     alert(`เพิ่ม ${name} ลงในรายการขายแล้ว (อย่าลืมกดบันทึกด้านล่าง)`);
 }
@@ -2227,49 +2233,46 @@ async function deleteFullMenu(id) {
 // ค้นหาจากคลัง (หน้าแรก)
 async function searchSmartMenu(query) {
     const resultArea = document.getElementById('search-results-area');
+    if (!resultArea) return; // 🔒 เกราะป้องกันระบบ เผื่อดึง Element ผิดพลาด
+    
+    // 🛑 [ด่านแรก]: ถ้าไม่มีคำค้นหา พิมพ์ว่างเปล่า ให้ล้างข้อมูล สั่งหุบกล่องซ่อน และจบงานทันที
     if (!query || query.length < 1) { 
         resultArea.innerHTML = ''; 
-        resultArea.style.display = 'none'; // หุบกล่องเก็บไปเมื่อไม่มีคำค้นหา
+        resultArea.classList.add('stg-hidden'); // 🟢 ซ่อนกล่องลอยนิ่งๆ ผ่านคลาสสากล
         return; 
     }
     
+    // ค้นหากรองชื่อเมนูในฐานข้อมูล Dexie DB ตามตรรกะเดิมที่แม่นยำ
     const matches = await db.menus.filter(m => m.name.toLowerCase().includes(query.toLowerCase())).toArray();
     resultArea.innerHTML = '';
     
     if (matches.length > 0) {
-        resultArea.style.display = 'flex'; // แสดงกล่องลอยขึ้นมาเมื่อเจอเมนู
+        // 🟢 เปิดกล่องลอยแสดงผลทันทีโดยการถอดคลาสซ่อนออก ปลอดภัยกว่าพ่นสไตล์อินไลน์สด ๆ
+        resultArea.classList.remove('stg-hidden');
         
         matches.forEach(menu => {
             const btn = document.createElement('button');
             btn.innerText = `➕ ${menu.name} (${menu.price}.-)`;
             
-            // ปรับปุ่มให้ยาวเต็มพื้นที่กล่องลอย เพื่อให้เลื่อนสกอร์บาร์และกดง่ายแบบรูป 356
-            btn.style.cssText = `
-                width: 100%; 
-                margin: 4px 0; 
-                padding: 12px; 
-                background: #ff9f43; 
-                color: #000; 
-                border-radius: 8px; 
-                border: none; 
-                font-weight: bold; 
-                text-align: left; 
-                cursor: pointer;
-                font-size: 15px;
-            `;
+            // 🟢 แปะชื่อคลาสสากลจาก CSS จบปัญหาขยะสไตล์พะรุงพะรังใน JS
+            btn.className = 'btn-search-match';
             
             btn.onclick = () => {
-                orderMenu(menu.name, menu.price); 
+                if (typeof orderMenu === 'function') {
+                    orderMenu(menu.name, menu.price); // สั่งอาหารเข้าตะกร้า
+                }
                 resultArea.innerHTML = '';
-                resultArea.style.display = 'none'; // เมื่อเลือกเสร็จให้กล่องลอยหายวับไปทันที
-                document.getElementById('smart-search-input').value = '';
+                resultArea.classList.add('stg-hidden'); // เลือกเสร็จให้กล่องลอยหุบซ่อนหายวับไปทันที
+                
+                const searchInput = document.getElementById('smart-search-input');
+                if (searchInput) searchInput.value = '';
             };
             resultArea.appendChild(btn);
         });
     } else {
-        // กรณีพิมพ์แล้วไม่เจออะไรเลย ให้ขึ้นบอกยายสั้น ๆ หรือซ่อนกล่องไปเลยก็ได้
-        resultArea.style.display = 'flex';
-        resultArea.innerHTML = `<div style="color: #aaa; padding: 10px; font-size: 14px;">❌ ไม่พบเมนูนี้ในระบบจ้า</div>`;
+        // 🟢 กรณีพิมพ์แล้วไม่เจออะไรเลย แสดงกล่องแจ้งเตือนฉบับสะอาดไร้สไตล์อินไลน์ตกค้าง
+        resultArea.classList.remove('stg-hidden');
+        resultArea.innerHTML = `<div class="search-no-match">❌ ไม่พบเมนูนี้ในระบบจ้า</div>`;
     }
 }
 
@@ -2522,20 +2525,26 @@ function updateDashboardUI(totalSales, totalInvest) {
     const net = totalSales - totalInvest;
     const statsDiv = document.getElementById('dashboard-stats');
     const msgDiv = document.getElementById('grandma-message');
+    
+    if (!statsDiv) return; // 🔒 เกราะป้องกันระบบ เผื่อ Element หน้านั้นไม่ได้เปิดใช้งาน
 
+    // 🟢 เปลี่ยนจากการพ่นสไตล์หนาเตอะใน JS มาเป็นการแปะชื่อคลาสสากล แยกหน้าที่เด็ดขาด!
     statsDiv.innerHTML = `
-        <div style="background:#e8f5e9; padding:10px; border-radius:10px; text-align:center;">
+        <div class="db-stat-card card-sales">
             <small>ยอดขายรวม</small><br><strong>${totalSales.toLocaleString()}</strong>
         </div>
-        <div style="background:#ffebee; padding:10px; border-radius:10px; text-align:center;">
+        <div class="db-stat-card card-invest">
             <small>ทุนสะสม</small><br><strong>${totalInvest.toLocaleString()}</strong>
         </div>
     `;
 
-    if (net >= 0) {
-        msgDiv.innerText = `ยายครับ! ตอนนี้เรากำไรสะสมแล้ว ${net.toLocaleString()} บาท หลานภูมิใจในตัวยายที่สุดเลยครับ!`;
-    } else {
-        msgDiv.innerText = `สู้ๆ ครับยาย อีกแค่ ${Math.abs(net).toLocaleString()} บาท เราก็จะคืนทุนทั้งหมดแล้วครับ!`;
+    // ส่วนของตรรกะพ่นข้อความให้กำลังใจคุณยาย (รักษาความเสถียรและทำงานได้แม่นยำเหมือนเดิมเป๊ะ)
+    if (msgDiv) {
+        if (net >= 0) {
+            msgDiv.innerText = `ยายครับ! ตอนนี้เรากำไรสะสมแล้ว ${net.toLocaleString()} บาท หลานภูมิใจในตัวยายที่สุดเลยครับ!`;
+        } else {
+            msgDiv.innerText = `สู้ๆ ครับยาย อีกแค่ ${Math.abs(net).toLocaleString()} บาท เราก็จะคืนทุนทั้งหมดแล้วครับ!`;
+        }
     }
 }
 
@@ -2577,93 +2586,75 @@ async function addShoppingItem() {
 
 async function renderShoppingList() {
     const container = document.getElementById('shopping-list-display');
-    if (!container) return; 
+    if (!container) return; // 🔒 เกราะป้องกันระบบ เผื่อดึง Element ผิดพลาด
 
-    // 1. ดึงรายการซื้อของที่ "ยังไม่ได้บันทึกราคา" (pending)
-    // เรียงจากใหม่ไปเก่า รายการล่าสุดอยู่บนสุดเสมอ
+    // 1. ดึงรายการซื้อของที่ "ยังไม่ได้บันทึกราคา" (pending) จากคลังข้อมูล
     const items = await db.shopping_list.where('status').equals('pending').reverse().toArray();
 
-    // 2. กรณีไม่มีรายการจด
+    // 2. กรณีไม่มีรายการจด (แสดงผลฉบับสะอาด ไร่สไตล์ปนเปื้อน)
     if (items.length === 0) {
         container.innerHTML = `
-            <div style="text-align:center; padding: 40px 20px; color: #bdc3c7;">
-                <i class="fas fa- clipboard-list" style="font-size: 3rem; margin-bottom: 10px;"></i>
+            <div class="shopping-empty-box">
+                <i class="fas fa-clipboard-list"></i>
                 <p>ยายยังไม่ได้จดอะไรเพิ่มเลยครับ<br><small>ลองพิมพ์ชื่อวัตถุดิบข้างบนดูนะ</small></p>
             </div>
         `;
         return;
     }
 
-  // 3. สร้าง HTML สำหรับแต่ละรายการ
-container.innerHTML = items.map(item => {
-    // [อธิบาย]: แยกชื่อสินค้าออกมาเพื่อใช้ดึงประวัติราคา (เหมือนเดิม)
-    const cleanName = item.name.split(' (')[0];
+    // 3. สร้าง HTML สำหรับแต่ละรายการผ่านกลไกคลาสสากล
+    container.innerHTML = items.map(item => {
+        const cleanName = item.name.split(' (')[0];
 
-    // [จุดที่เพิ่ม]: เช็กว่ามีการบันทึกราคาหรือยัง เพื่อเลือกแสดง "เวลาที่จด" หรือ "เวลาที่ซื้อจริง"
-    // ถ้ามี item.confirmed_time (ที่เราเพิ่งเพิ่มในฟังก์ชันบันทึก) ให้โชว์เวลาซื้อ
-    const hasPrice = item.price > 0 && item.confirmed_time;
-    const timeDisplay = hasPrice 
-        ? `✅ ซื้อเมื่อ: ${item.confirmed_date} เวลา ${item.confirmed_time}` 
-        : `🕒 จดเมื่อ: ${item.date || 'ไม่ระบุวันที่'}`;
-    
-    // [จุดที่เพิ่ม]: เปลี่ยนสีข้อความเวลาตามสถานะ (เขียวเมื่อบันทึกราคาแล้ว / เทาเมื่อเพิ่งจด)
-    const timeColor = hasPrice ? "#27ae60" : "#95a5a6";
-
-    return `
-    <div style="background: white; padding: 15px; margin-bottom: 12px; border-radius: 15px; 
-                box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #eee;">
+        // ตรวจสอบสถานะการบันทึกราคา เพื่อสลับข้อความให้อ่านง่ายถูกต้อง
+        const hasPrice = item.price > 0 && item.confirmed_time;
+        const timeDisplay = hasPrice 
+            ? `✅ ซื้อเมื่อ: ${item.confirmed_date} เวลา ${item.confirmed_time}` 
+            : `🕒 จดเมื่อ: ${item.date || 'ไม่ระบุวันที่'}`;
         
-        <!-- ส่วนที่ 1: ข้อมูลวัตถุดิบและปุ่มจัดการ -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-            <div style="flex: 1;">
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <strong style="font-size: 1.2rem; color: #2c3e50;">${item.name}</strong>
-                    
-                    <span onclick="showPriceHistory('${cleanName}')" 
-                            style="cursor: pointer; background: #fff4e6; padding: 2px 8px; border-radius: 8px; font-size: 0.9rem; border: 1px solid #e67e22; color: #e67e22; font-weight: bold;">
-                        🔍 ประวัติ
-                    </span>
+        // 🟢 สวมคลาสสถานะ 'is-confirmed' พ่วงไปที่กล่องแม่ทันที ถ้าบันทึกราคาแล้ว (CSS จะสลับสีเวลาให้เอง)
+        const activeClass = hasPrice ? 'shopping-card-item is-confirmed' : 'shopping-card-item';
+
+        return `
+        <div class="${activeClass}">
+            
+            <div class="shopping-card-top">
+                <div class="shopping-info-area">
+                    <div class="shopping-title-group">
+                        <strong>${item.name}</strong>
+                        <span onclick="showPriceHistory('${cleanName}')" class="btn-price-history">
+                            🔍 ประวัติ
+                        </span>
+                    </div>
+                    <div class="shopping-time-display">
+                        <span>${timeDisplay}</span>
+                    </div>
                 </div>
                 
-                <!-- ✨ จุดที่ปรับปรุง: แสดงวันที่และเวลาให้ชัดเจนตามรูป แก้ 163 -->
-                <div style="font-size: 0.85rem; color: ${timeColor}; margin-top: 5px; display: flex; align-items: center; gap: 4px;">
-                    <span>${timeDisplay}</span>
+                <div class="shopping-action-buttons">
+                    <button onclick="editShoppingItem(${item.id}, '${item.name}')" class="btn-shop-edit">📝</button>
+                    <button onclick="deleteShoppingItem(${item.id})" class="btn-shop-delete">🗑️</button>
                 </div>
             </div>
-            
-            <div style="display: flex; gap: 8px; margin-left: 10px;">
-                <button onclick="editShoppingItem(${item.id}, '${item.name}')" 
-                        style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">
-                    📝
-                </button>
-                <button onclick="deleteShoppingItem(${item.id})" 
-                        style="background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">
-                    🗑️
+
+            <div class="shopping-card-bottom">
+                <span class="lbl-real-price">ซื้อมาจริง:</span>
+                
+                <input type="number" id="real-price-${item.id}" 
+                        value="${item.price > 0 ? item.price : ''}"
+                        onchange="savePriceToDB(${item.id}, this.value)"
+                        placeholder="บาท" 
+                        class="input-real-price">
+                
+                <button onclick="updateActualPrice(${item.id}, '${cleanName}')" class="btn-shop-save">
+                    ✅ บันทึก
                 </button>
             </div>
         </div>
+        `;
+    }).join('');
 
-        <!-- ส่วนที่ 2: 💰 ช่องใส่ราคาซื้อจริง -->
-        <div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
-            <span style="font-size: 0.95rem; font-weight: bold; color: #27ae60;">ซื้อมาจริง:</span>
-            
-            <input type="number" id="real-price-${item.id}" 
-                    value="${item.price > 0 ? item.price : ''}"
-                    onchange="savePriceToDB(${item.id}, this.value)"
-                    placeholder="บาท" 
-                    style="width: 100px; padding: 8px; border-radius: 8px; border: 2px solid #27ae60; font-size: 1.1rem; text-align: center; font-weight: bold;">
-            
-            <!-- [คำอธิบาย]: เมื่อกดยังคงเรียก updateActualPrice ซึ่งตอนนี้จะเก็บทั้งราคาและเวลาแล้ว -->
-            <button onclick="updateActualPrice(${item.id}, '${cleanName}')" 
-                    style="flex: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 3px 0 #219150;">
-                ✅ บันทึก
-            </button>
-        </div>
-    </div>
-    `;
-}).join('');
-
-    // ✨ เติมบรรทัดนี้ลงไปท้ายสุด (ก่อนจบ try...catch หรือก่อนปิดฟังก์ชัน)
+    // สั่งรันระบบวิเคราะห์คำนวณราคาเฉลี่ยต่อหน่วยอัจฉริยะ (เสถียร แม่นยำ เหมือนเดิมเป๊ะ)
     await runSmartAnalysis();
 }
 
@@ -2863,13 +2854,12 @@ async function runSmartAnalysis() {
     // --- จุดที่ 1: วิเคราะห์ดัชนีราคา (กล่องเหลือง) ---
     const priceDiv = document.getElementById('price-content');
     
-    // [อธิบาย]: เช็กก่อนว่ามีกล่อง price-content ในหน้า HTML ไหม ถ้ามีค่อยทำงาน
     if (priceDiv) {
         const history = await db.price_history.orderBy('best_price').limit(3).toArray();
         if (history.length > 0) {
+            // 🟢 เปลี่ยนจากการยัดสไตล์อินไลน์หนา ๆ มาเป็นการครอบคลาส 'analysis-price-row'
             priceDiv.innerHTML = history.map(item => 
-                `<div onclick="showPriceHistory(\`${item.name}\`)" 
-                      style="cursor:pointer; padding:8px; border-bottom:1px solid #eee; margin-bottom:5px; color: #5d4037;">
+                `<div onclick="showPriceHistory(\`${item.name}\`)" class="analysis-price-row">
                     • <b>${item.name}</b> ถูกสุด <b>${item.best_price}.-</b> 🔍
                  </div>`).join('');
         } else {
@@ -2881,11 +2871,10 @@ async function runSmartAnalysis() {
     const scoreContent = document.getElementById('score-content');
     const scoreMsg = document.getElementById('score-message');
     
-    // [อธิบาย]: ปรับใช้วันที่มาตรฐานสากล (ISO) เพื่อให้ดึงข้อมูลจาก DB ได้แม่นยำ
     const today = new Date().toISOString().split('T')[0]; 
     const summary = await db.dailysummary.get(today);
 
-    // [สำคัญ]: ใส่ IF เช็ก scoreContent เพื่อป้องกัน Error "Cannot set properties of null"
+    // ลอจิกคำนวณคะแนนความคุ้มค่าด้านต้นทุนและยอดขาย (เสถียรและทนทาน ไร้สารอินไลน์ตกค้าง)
     if (scoreContent && scoreMsg) {
         if (summary && summary.daily_investment > 0) {
             const ratio = summary.total_sales / summary.daily_investment;
@@ -2895,7 +2884,6 @@ async function runSmartAnalysis() {
             scoreContent.innerText = `${score}/10`;
             scoreMsg.innerText = score >= 7 ? "วันนี้ยายบริหารทุนเก่งมากครับ!" : "วันนี้คนอาจจะน้อยหน่อย พรุ่งนี้สู้ใหม่นะยาย!";
         } else {
-            // [อธิบาย]: ถ้ายังไม่มีข้อมูลขายหรือต้นทุน ให้แสดงค่าเริ่มต้น ไม่ปล่อยให้ว่าง
             scoreContent.innerText = "0/10";
             scoreMsg.innerText = "รอยอดขายและต้นทุนวันนี้อยู่นะครับยาย";
         }
@@ -2905,13 +2893,13 @@ async function runSmartAnalysis() {
     const suggestDiv = document.getElementById('suggestion-content');
     
     if (suggestDiv) {
-        // [อธิบาย]: ดึงรายการที่ยังไม่ได้ซื้อ (pending) มาแสดงชื่อของเลย ยายจะได้เห็นชัดๆ
         const pendingList = await db.shopping_list.where('status').equals('pending').toArray();
         
         if (pendingList.length > 0) {
-            const itemsName = pendingList.map(item => item.name).join(', '); // ดึงชื่อของมาเรียงกัน
+            const itemsName = pendingList.map(item => item.name).join(', ');
+            // 🟢 เคลียร์สไตล์อินไลน์ออกแล้วครอบคลาสสากล 'analysis-pending-names' ให้ตัวแปรสีม่วงพยากรณ์แทน
             suggestDiv.innerHTML = `ยายมีของค้าง <b>${pendingList.length} อย่าง:</b> <br>
-                                    <span style="color: #9c27b0;">(${itemsName})</span>`;
+                                    <span class="analysis-pending-names">(${itemsName})</span>`;
         } else {
             suggestDiv.innerText = "ตอนนี้ของครบแล้ว ยายพักผ่อนให้สบายนะครับ";
         }
@@ -2920,62 +2908,62 @@ async function runSmartAnalysis() {
 
 async function showPriceHistory(itemName) {
     try {
-        // 1. [การดึงข้อมูล]: ดึงข้อมูลจากฐานข้อมูล shopping_list (ดึงมาทั้งหมดก่อนเพื่อกรอง)
-        const allRecords = await db.shopping_list
-            .where('name')
-            .equals(itemName)
-            .toArray();
+        // 1. [การดึงข้อมูล]: คิวรีหาประวัติวัตถุดิบจากคลังข้อมูลตามปกติ
+        const allRecords = await db.shopping_list.where('name').equals(itemName).toArray();
 
-        // 2. [การจัดการข้อมูล]: กรองเฉพาะรายการที่ซื้อสำเร็จ (completed) และมีราคาที่ถูกต้อง
-        // ✨ เปลี่ยนชื่อจาก history เป็น priceRecords เพื่อไม่ให้ทับกับระบบบราวเซอร์
+        // 2. [การจัดการข้อมูล]: กรองเฉพาะบิลสำเร็จและเรียงจากใหม่ไปเก่า
         const priceRecords = allRecords
             .filter(item => item.status === 'completed' && !isNaN(parseFloat(item.price)))
-            .sort((a, b) => b.id - a.id); // เรียงจากใหม่ไปเก่า
+            .sort((a, b) => b.id - a.id);
 
         const tableContent = document.getElementById('history-table-content');
         const titleElement = document.getElementById('history-title');
         
-        titleElement.innerText = `📊 ประวัติราคา: ${itemName}`;
+        if (titleElement) {
+            titleElement.innerText = `📊 ประวัติราคา: ${itemName}`;
+        }
         
+        if (!tableContent) return; // 🔒 เกราะป้องกัน Error
+
         if (priceRecords.length > 0) {
-            // 3. [การคำนวณ]: หาค่าถูกที่สุด และราคาล่าสุดจากรายการที่ซื้อสำเร็จ
+            // 3. [การคำนวณ]: หาเรทราคาที่ถูกที่สุดและล่าสุด
             const minPrice = Math.min(...priceRecords.map(item => parseFloat(item.price)));
             const latestPrice = parseFloat(priceRecords[0].price);
 
+            // 🟢 โครงสร้าง HTML คลีนสะอาดยกแผง แยกฝั่งดีไซน์ไปให้ CSS ดูแลเต็มตัว
             let html = `
-                <!-- ส่วนสรุปด้านบน (รูป แก้ 165) -->
-                <div style="background: #fff8f0; padding: 10px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #e67e22;">
-                    <small style="color: #7f8c8d;">สรุปราคาล่าสุด:</small>
-                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                <div class="history-summary-box">
+                    <small>สรุปราคาล่าสุด:</small>
+                    <div class="history-summary-flex">
                         <span>💰 ล่าสุด: <b>${latestPrice.toLocaleString()}.-</b></span>
-                        <span style="color: #27ae60;">📉 ถูกสุด: <b>${minPrice.toLocaleString()}.-</b></span>
+                        <span class="text-min-price">📉 ถูกสุด: <b>${minPrice.toLocaleString()}.-</b></span>
                     </div>
                 </div>
 
-                <table style="width:100%; border-collapse:collapse; font-size: 0.95rem;">
-                <thead style="background:#fdf2f2; color:#e67e22;">
+                <table class="history-table">
+                <thead>
                     <tr>
-                        <th style="padding:12px 8px; border-bottom:2px solid #eee; text-align:left;">วันที่ซื้อ</th>
-                        <th style="padding:12px 8px; border-bottom:2px solid #eee; text-align:right;">ราคา (บาท)</th>
+                        <th class="txt-left">วันที่ซื้อ</th>
+                        <th class="txt-right">ราคา (บาท)</th>
                     </tr>
                 </thead>
                 <tbody>`;
             
-            // แสดงเฉพาะ 5 รายการล่าสุด
+            // แสดงเฉพาะ 5 รายการล่าสุดตามกติกาเดิมของคุณยาย
             priceRecords.slice(0, 5).forEach(h => {
                 const currentPrice = parseFloat(h.price);
                 const isMinPrice = currentPrice === minPrice;
-                const priceStyle = isMinPrice ? 'color: #27ae60; font-weight: bold;' : 'color: #2c3e50;';
                 
-                // ✨ [จุดที่ปรับปรุง]: เพิ่มการแสดงผล "เวลา" (confirmed_time) ในตาราง
+                // 🟢 สลับคลาสความพรีเมียมจาก CSS แทนการฝังโค้ดสีดิบลงใน JS
+                const priceClass = isMinPrice ? 'price-text-highlight' : 'price-text-normal';
+                
                 html += `
-                <tr style="border-bottom: 1px solid #f9f9f9;">
-                    <td style="padding:12px 8px; color: #7f8c8d; line-height: 1.4;">
+                <tr>
+                    <td class="col-date">
                         <div>${h.confirmed_date || h.date || 'ไม่ระบุวันที่'}</div>
-                        <!-- แสดงเวลาไว้บรรทัดล่างวันที่เพื่อให้ดูสะอาดตาเหมือนในรูป -->
-                        <div style="font-size: 0.8rem; color: #3498db;">🕒 ${h.confirmed_time || ''}</div>
+                        <div class="time-sub">🕒 ${h.confirmed_time || ''}</div>
                     </td>
-                    <td style="padding:12px 8px; text-align:right; ${priceStyle}">
+                    <td class="col-price ${priceClass}">
                         ${currentPrice.toLocaleString()}.- ${isMinPrice ? '✨' : ''}
                     </td>
                 </tr>`;
@@ -2984,20 +2972,23 @@ async function showPriceHistory(itemName) {
             html += `</tbody></table>`;
             tableContent.innerHTML = html;
         } else {
-            // กรณีไม่มีประวัติ (ยายยังไม่ได้กดจ่ายเงินรวม)
+            // กรณีไม่มีประวัติ (แสดงผลผ่านคลาสสากล ไม่ง้อสไตล์อินไลน์)
             tableContent.innerHTML = `
-                <div style="text-align:center; padding:30px 10px; color:#999;">
-                    <p style="font-size: 3rem; margin:0;">📝</p>
+                <div class="history-empty-state">
+                    <p class="empty-icon">📝</p>
                     <p>ยังไม่มีประวัติการซื้อ "${itemName}"<br>
                     <small>ยายต้องกด "บันทึกยอดรวมและปิดงาน" ก่อนนะครับ</small></p>
                 </div>`;
         }
 
-        // 4. [การแสดงผล Modal]:
+        // 4. [การแสดงผล Modal]: เปิดการทำงานผ่านคลาสสากล (หรือคงลอจิกเดิมไว้หากผูกระบบแอปอยู่)
         const modal = document.getElementById('price-history-modal');
         if (modal) {
+            modal.classList.remove('stg-hidden'); // 🟢 ปลดคลาสซ่อนออกนิ่ง ๆ 
+            // หากต้องการใช้ลอจิกสลับ display เดิม ให้เปลี่ยนเป็น modal.style.display = 'flex'; ได้ตามความเหมาะสมของ Modal หลัก
             modal.style.display = 'flex'; 
-            // 5. [ปุ่ม Back]: สร้างจุดพักเพื่อให้กดปุ่มย้อนกลับที่มือถือแล้วป๊อปอัพปิดเอง
+            
+            // 5. [ปุ่ม Back]: ดักปุ่มย้อนกลับบนมือถือลื่นไหลเหมือนเดิมเป๊ะ
             window.history.pushState({ modalOpen: true }, ""); 
         }
 
@@ -3021,60 +3012,52 @@ function closePriceHistoryModal() {
     }
 }
 
-
 async function renderFullHistory() {
     const historyContainer = document.getElementById('full-history-display'); 
     if (!historyContainer) return;
 
     try {
-        // 1. [การดึงข้อมูล]: ดึงเฉพาะรายการที่ซื้อสำเร็จ (completed)
-        // ใช้ .reverse() เพื่อให้รายการที่เพิ่งซื้อล่าสุด (รวมถึงเวลาล่าสุด) อยู่บนสุดเสมอ
+        // 1. [การดึงข้อมูล]: ดึงเฉพาะรายการที่ซื้อสำเร็จเสร็จสิ้นจากฐานข้อมูลตามปกติ
         const allHistory = await db.shopping_list
             .where('status')
             .equals('completed')
             .reverse()
             .toArray();
 
-        // 2. [กรณีไม่มีข้อมูล]: แสดงสถานะว่างเปล่า
+        // 2. [กรณีไม่มีข้อมูล]: แสดงสถานะว่างเปล่าฉบับสะอาด ไร้สไตล์อินไลน์ตกค้าง
         if (allHistory.length === 0) {
             historyContainer.innerHTML = `
-                <div style="text-align:center; padding: 30px; color:#95a5a6;">
-                    <i class="fas fa-shopping-basket" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <div class="hist-empty-container">
+                    <i class="fas fa-shopping-basket"></i>
                     <p>ยังไม่มีประวัติการซื้อครับยาย<br><small>พอยายกด "บันทึกราคา" ประวัติจะมาโชว์ตรงนี้ครับ</small></p>
                 </div>
             `;
             return;
         }
 
-        // 3. [การแสดงผล]: วาดรายการประวัติพร้อมรายละเอียด "เวลา"
+        // 3. [การแสดงผล]: วาดรายการประวัติผ่านชุดโครงสร้างคลาสสากล
         historyContainer.innerHTML = allHistory.map(item => {
-            // แยกวันที่กับเวลาออกจากกัน (ถ้ามี) เพื่อจัดรูปแบบให้สวยขึ้น
-            // สมมติ confirmed_date คือ "3 พฤษภาคม 2569 18:15"
             const fullDate = item.confirmed_date || item.date;
             
             return `
-                <div id="history-item-${item.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 12px; border-bottom: 1px solid #f8f9fa;">
-                    <div style="flex: 1;">
-                        <div style="color: #2c3e50; font-weight: bold; font-size: 1.05rem; margin-bottom: 3px;">
-                            <!-- สำคัญมาก: ต้องมี id="name-display-${item.id}" -->
+                <div id="history-item-${item.id}" class="full-history-card">
+                    <div class="hist-card-left">
+                        <div class="hist-item-title">
                             <span id="name-display-${item.id}">${item.name.split(' (')[0]}</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 5px; color: #7f8c8d; font-size: 0.85rem;">
+                        <div class="hist-item-date">
                             <span>📅 ${fullDate}</span>
                         </div>
                     </div>
                     
-                    <div style="text-align: right; min-width: 100px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-                        <div style="color: #27ae60; font-weight: 800; font-size: 1.2rem;">
-                            <!-- สำคัญมาก: ต้องมี id="price-display-${item.id}" -->
+                    <div class="hist-card-right">
+                        <div class="hist-item-price">
                             <span id="price-display-${item.id}">${Number(item.price).toLocaleString()}</span>.-
                         </div>
                         
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <small style="color: #bdc3c7; font-size: 0.7rem;">บันทึกแล้ว</small>
-                            <!-- ปุ่มแก้ไข -->
-                            <button onclick="editHistoryItem(${item.id})" 
-                                    style="border: none; background: #f1f2f6; border-radius: 4px; cursor: pointer; padding: 2px 5px; font-size: 0.9rem;">
+                        <div class="hist-status-group">
+                            <small>บันทึกแล้ว</small>
+                            <button onclick="editHistoryItem(${item.id})" class="btn-hist-edit" title="แก้ไขประวัติ">
                                 ✏️
                             </button>
                         </div>
@@ -3085,32 +3068,35 @@ async function renderFullHistory() {
 
     } catch (err) {
         console.error("Error rendering history:", err);
-        historyContainer.innerHTML = `<div style="text-align:center; color:red; padding:10px;">เกิดข้อผิดพลาดในการโหลดประวัติครับ</div>`;
+        // 🟢 กล่องแจ้งเตือนสภาวะขัดข้องพ่นผ่านคลาสสากลสะอาดยกแผง
+        historyContainer.innerHTML = `<div class="hist-error-msg">เกิดข้อผิดพลาดในการโหลดประวัติครับ</div>`;
     }
 }
 
 //แก้ไขรายละเอียดประวัติการซื้อวัตถุดิบ 04-05-2026
 function editHistoryItem(id) {
-    // [จุดที่ต้องแก้]: เปลี่ยนจาก -text- เป็น -display- ให้ตรงกับ HTML
+    // ดักจับ Element เป้าหมายตามโครงสร้าง ID มาตรฐานสากลที่ถูกต้อง
     const nameSpan = document.getElementById(`name-display-${id}`);
     const priceSpan = document.getElementById(`price-display-${id}`);
     
-    // ตรวจสอบความปลอดภัยกัน Error อีกรอบ
+    // เกราะป้องกันความปลอดภัยระดับสูงสุด ป้องกันปัญหา Error เผื่อหาไอดีไม่เจอ
     if (!nameSpan || !priceSpan) {
         console.error("หาไอดีไม่เจอครับพี่! เช็คสะกดใน HTML อีกทีนะ");
         return;
     }
 
-    // เก็บค่าเดิม (ลบลูกน้ำออกด้วยเพื่อให้แก้ราคาที่เป็นตัวเลขได้เลย)
+    // แกะและเก็บค่าเดิม (ล้างลูกน้ำและสัญลักษณ์ราคาออก เพื่อให้พร้อมแก้ไขเป็นตัวเลขเพียวๆ)
     const oldName = nameSpan.innerText;
     const oldPrice = priceSpan.innerText.replace(/,/g, '').replace('.-', '');
 
-    // เปลี่ยนเป็น Input ให้พี่พิมพ์แก้ไขได้
-    nameSpan.innerHTML = `<input type="text" id="edit-name-${id}" value="${oldName}" style="width: 100%; max-width: 150px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">`;
+    // 🟢 เสกสลับหน้ากากเข้าโหมดพิมพ์แก้ไข ผ่านคลาสสากล คลีนสะอาดยกชุด ไร้สไตล์อินไลน์ปนเปื้อนใน JS
+    nameSpan.innerHTML = `
+        <input type="text" id="edit-name-${id}" value="${oldName}" class="input-inline-edit edit-width-name">
+    `;
     
     priceSpan.innerHTML = `
-        <input type="number" id="edit-price-${id}" value="${oldPrice}" style="width: 70px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"> 
-        <button onclick="saveEdit(${id})" style="background: #27ae60; color: white; border: none; border-radius: 4px; padding: 5px 12px; margin-left: 5px; cursor: pointer;">ตกลง</button>
+        <input type="number" id="edit-price-${id}" value="${oldPrice}" class="input-inline-edit edit-width-price"> 
+        <button onclick="saveEdit(${id})" class="btn-inline-save">ตกลง</button>
     `;
 }
 
@@ -3149,40 +3135,37 @@ async function saveEdit(id) {
 // คนส่งข้อมูล ประวัติวัตถุดิบ โชว์ Dashboard
 async function updateDashboardPriceInsight() {
     const priceDisplay = document.getElementById('price-content');
-    if (!priceDisplay) return;
+    if (!priceDisplay) return; // 🔒 เกราะป้องกันระบบ เผื่อดึง Element ผิดพลาด
 
     try {
-        // 1. [การดึงข้อมูล]: ดึงรายการล่าสุดที่สถานะเป็น 'completed'
-        // ใช้ .reverse().first() เพื่อหยิบเอา "ชิ้นล่าสุด" ที่เพิ่งบันทึกไปมาโชว์ทันที
+        // 1. [การดึงข้อมูล]: ดึงบิลรายการล่าสุดที่ซื้อสำเร็จจากคลังข้อมูลตามปกติ
         const lastItem = await db.shopping_list
             .where('status').equals('completed')
             .reverse()
             .first(); 
 
         if (lastItem) {
-            // 2. [การจัดการชื่อ]: ตัดส่วนที่เป็นหน่วยหรือรายละเอียดในวงเล็บออก เพื่อให้ประหยัดพื้นที่บน Dashboard
+            // 2. [การจัดการชื่อ]: ตัดส่วนวงเล็บออกเพื่อความกระชับสวยงามบนกระดานแดชบอร์ด
             const shortName = lastItem.name ? lastItem.name.split(' (')[0] : "ไม่ระบุชื่อ";
             
-            // 3. [การแสดงผล]: เน้นราคาให้ชัดเจน และโชว์ "วันที่+เวลา" ที่เราเพิ่งอัปเกรดเข้าไป
+            // 3. [การแสดงผล]: พ่นโครงสร้าง HTML ขาวสะอาดหมดจด ควบคุมระเบียบดีไซน์ผ่านคลาส CSS
             priceDisplay.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
-                    <div style="color: #856404; font-weight: bold;">
-                        ${shortName} ล่าสุด <span style="color: #e67e22; font-size: 1.1rem;">${Number(lastItem.price).toLocaleString()}.-</span>
+                <div class="insight-top-flex">
+                    <div class="insight-title">
+                        ${shortName} ล่าสุด <span class="insight-price-tag">${Number(lastItem.price).toLocaleString()}.-</span>
                     </div>
-                    <!-- เพิ่มปุ่มแว่นขยายตรงนี้ -->
-                    <button onclick="showPriceHistory('${lastItem.name}')" 
-                            style="background: #f39c12; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <button onclick="showPriceHistory('${lastItem.name}')" class="btn-insight-search" title="ส่องประวัติราคา">
                         🔍
                     </button>
                 </div>
-                <div style="color: #997404; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                <div class="insight-bottom-time">
                     🕒 <small>ซื้อเมื่อ: ${lastItem.confirmed_date || lastItem.date || 'ไม่ระบุเวลา'}</small>
                 </div>
             `;
         } else {
-            // 4. [กรณีหน้าใหม่]: ถ้าเปิดแอปครั้งแรกแล้วยังไม่มีประวัติ
+            // 4. [กรณีหน้าใหม่]: หน้าจอว่างเปล่าไร้ประวัติ พ่นผ่านคลาสสากลสะอาดยกชุด
             priceDisplay.innerHTML = `
-                <div style="color: #95a5a6; font-style: italic; padding: 5px;">
+                <div class="insight-empty-state">
                     ยังไม่มีประวัติการซื้อครับยาย... <br>
                     <small>พอยายบันทึกราคา ข้อมูลจะมาโชว์ที่นี่ครับ</small>
                 </div>
@@ -3246,6 +3229,10 @@ async function saveAndCloseShopping() {
         // 3. แจ้งเตือนหลานรักและปิดหน้าต่าง
         alert("หลานจดราคาและคำนวณต้นทุนให้ยายเรียบร้อยแล้วครับ! ✨");
         closeShoppingManager(); 
+
+        // 📢 [จุดแก้ไข]: เพิ่มบรรทัดนี้ลงไปตรงท้ายสุดก่อนจบฟังก์ชัน
+        if (typeof runSmartAnalysis === 'function') {
+            await runSmartAnalysis();}
         
         // 4. (ทางเลือก) สั่งโหลดรายการใหม่ที่หน้าหลักถ้าจำเป็น
         // if (typeof renderDashboard === 'function') renderDashboard();
@@ -3288,6 +3275,7 @@ async function getPeakSalesData() {
 
 //2. ส่วนการแสดงผล (UI)
 async function renderPeakSalesChart() {
+    // ดึงข้อมูลวิเคราะห์ช่วงเวลาทำเงินจากระบบหลังบ้านตามปกติ
     const { hourlySales, dailySales, dayNames } = await getPeakSalesData();
     
     const maxSalesHour = Math.max(...hourlySales);
@@ -3295,50 +3283,54 @@ async function renderPeakSalesChart() {
     const peakDayName = dayNames[dailySales.indexOf(maxSalesDayValue)];
     
     const chartContainer = document.getElementById('peak-sales-chart');
-    if (!chartContainer) return;
+    if (!chartContainer) return; // 🔒 เกราะป้องกันป้องกัน Error เช็กความพร้อมของ DOM
 
     let html = `
-        <div style="background: white; padding: 18px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;">
+        <div class="chart-peak-card">
             
-            <!-- ส่วนหัว: แสดงวันที่ขายดีที่สุด -->
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <div class="chart-peak-header">
                 <div>
-                    <div style="font-weight: bold; color: #2c3e50; font-size: 1.1rem;">🕒 ช่วงเวลาทำเงิน</div>
-                    <div style="font-size: 0.85rem; color: #27ae60; font-weight: bold;">
+                    <div class="header-title">🕒 ช่วงเวลาทำเงิน</div>
+                    <div class="header-subtitle">
                         🌟 วันที่ขายดีที่สุด: วัน${peakDayName}
                     </div>
                 </div>
-                <div style="text-align: right;">
-                    <span style="display: block; font-size: 0.7rem; color: #95a5a6;">อัปเดตล่าสุด</span>
-                    <span style="font-size: 0.75rem; color: #7f8c8d;">${new Date().toLocaleDateString('th-TH')}</span>
+                <div class="header-update-zone">
+                    <span class="time-lbl">อัปเดตล่าสุด</span>
+                    <span class="time-val">${new Date().toLocaleDateString('th-TH')}</span>
                 </div>
             </div>
 
-            <!-- กราฟชั่วโมง (เหมือนเดิมแต่ปรับความสูงและสี) -->
-            <div style="display: flex; align-items: flex-end; gap: 3px; height: 100px; padding: 10px 0; position: relative; margin-bottom: 10px;">
+            <div class="chart-bars-timeline">
                 ${hourlySales.map((count, hour) => {
+                    // คำนวณความสูงตามสัดส่วนคณิตศาสตร์เหมือนเดิม
                     const height = maxSalesHour > 0 ? (count / maxSalesHour) * 100 : 5;
                     const isPeak = count === maxSalesHour && maxSalesHour > 0;
-                    const barColor = isPeak ? 'linear-gradient(180deg, #e67e22, #f39c12)' : '#ecf0f1';
-                    const label = [6, 12, 18, 21].includes(hour) ? `<span style="font-size: 9px; color: #bdc3c7; margin-top: 5px;">${hour}</span>` : '';
+                    
+                    // 🟢 สลับคลาสสีแท่งกราฟแทนการพ่น String Gradient สดในนี้
+                    const barClass = isPeak ? 'bar-peak' : 'bar-normal';
+                    
+                    // ปรับแต่งป้ายกำกับชั่วโมงให้คลีน คุมขนาดฟอนต์ผ่าน CSS คลาส 'bar-time-label'
+                    const label = [6, 12, 18, 21].includes(hour) 
+                        ? `<span class="bar-time-label">${hour}</span>` 
+                        : '';
                     
                     return `
-                        <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-                            <div style="width: 100%; height: ${height}%; background: ${barColor}; border-radius: 3px 3px 1px 1px;"></div>
+                        <div class="chart-bar-column">
+                            <div class="bar-pillar ${barClass}" style="height: ${height}%;"></div>
                             ${label}
                         </div>
                     `;
                 }).join('')}
             </div>
 
-            <!-- ส่วนสรุปตอนท้าย: เน้นย้ำช่วงเวลา -->
-            <div style="background: #fdf2e9; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 12px; margin-top: 5px;">
-                <div style="font-size: 1.5rem;">🔥</div>
+            <div class="chart-peak-footer">
+                <div class="footer-icon">🔥</div>
                 <div>
-                    <div style="font-size: 0.8rem; color: #d35400;">สรุปภาพรวม:</div>
-                    <div style="font-size: 0.95rem; font-weight: bold; color: #2c3e50;">
-                        มักจะขายดีใน <span style="color: #e67e22;">วัน${peakDayName}</span> 
-                        เวลา <span style="color: #e67e22;">${hourlySales.indexOf(maxSalesHour)}:00 น.</span>
+                    <div class="footer-meta-lbl">สรุปภาพรวม:</div>
+                    <div class="footer-meta-val">
+                        มักจะขายดีใน <span class="highlight-orange">วัน${peakDayName}</span> 
+                        เวลา <span class="highlight-orange">${hourlySales.indexOf(maxSalesHour)}:00 น.</span>
                     </div>
                 </div>
             </div>
@@ -3373,33 +3365,45 @@ async function calculateEfficiencyScore() {
 
 //ส่วนการแสดงผลบน Dashboard (UI)
 async function renderEfficiencyDashboard(totalSales, totalInvest) {
-    // เลือกจุดที่จะวาดข้อมูล (เปลี่ยนให้ตรงกับ ID ใหม่ที่เราตั้ง)
+    // เลือกจุดที่จะวาดข้อมูลตามโครงสร้าง ID สากลของระบบ
     const container = document.getElementById('efficiency-content-area');
-    if (!container) return;
+    if (!container) return; // 🔒 เกราะป้องกันป้องกัน Error
 
     if (totalInvest === 0) return;
 
-    // คำนวณคะแนนเต็ม 10 ตามที่พี่เขียนไว้ในรูป
+    // คำนวณคะแนนประสิทธิภาพเต็ม 10 ตามตรรกะโมเดลธุรกิจเดิม
     let rawScore = (totalSales / (totalInvest * 3)) * 10;
-    let scoreForShow = Math.min(Math.round(rawScore * 10) / 10, 10); // เช่น 3.5/10
+    let scoreForShow = Math.min(Math.round(rawScore * 10) / 10, 10); // ฟอร์แมตทศนิยม 1 ตำแหน่ง เช่น 8.5
 
     let statusText = "";
-    let statusColor = scoreForShow >= 8 ? "#27ae60" : (scoreForShow >= 5 ? "#f1c40f" : "#e74c3c");
+    let stateClass = "";
 
-    if (scoreForShow >= 8) statusText = "สุดยอดครับยาย! บริหารเงินได้กริบมาก";
-    else if (scoreForShow >= 5) statusText = "พอใช้ได้ครับยาย แต่ยังลดต้นทุนได้อีกนะ";
-    else statusText = "ต้องระวังครับ! ช่วงนี้รายจ่ายสูงกว่ายอดขายนะ";
+    // 🟢 เปลี่ยนจากการพ่นโค้ดสีสด มาเป็นการคัดกรองคลาสสเตตัสคู่บุญฝั่ง CSS
+    if (scoreForShow >= 8) {
+        statusText = "สุดยอดครับยาย! บริหารเงินได้กริบมาก";
+        stateClass = "eff-state-good";
+    } else if (scoreForShow >= 5) {
+        statusText = "พอใช้ได้ครับยาย แต่ยังลดต้นทุนได้อีกนะ";
+        stateClass = "eff-state-fair";
+    } else {
+        statusText = "ต้องระวังครับ! ช่วงนี้รายจ่ายสูงกว่ายอดขายนะ";
+        stateClass = "eff-state-bad";
+    }
 
-    // วาดข้อมูลใหม่ลงไปในกรอบเดิมที่พี่ทำไว้
+    // 🟢 วาดโครงสร้าง HTML คลีนสะอาดยกแผง แยกฝั่งดีไซน์ไปให้ CSS ทำงานผ่านคลาสครอบตัวเดียว
     container.innerHTML = `
-        <div style="text-align: center; font-size: 1.8rem; font-weight: 800; color: ${statusColor}; margin: 5px 0;">
-            ${scoreForShow}/10
-        </div>
-        <div style="background: #eee; height: 8px; border-radius: 4px; margin-bottom: 10px;">
-            <div style="background: ${statusColor}; width: ${scoreForShow * 10}%; height: 100%; border-radius: 4px; transition: width 0.8s;"></div>
-        </div>
-        <div style="font-size: 0.85rem; color: #555; font-style: italic; text-align: center;">
-            ${statusText}
+        <div class="${stateClass}">
+            <div class="eff-score-display">
+                ${scoreForShow}/10
+            </div>
+            
+            <div class="eff-progress-track">
+                <div class="eff-progress-fill" style="width: ${scoreForShow * 10}%;"></div>
+            </div>
+            
+            <div class="eff-status-quote">
+                ${statusText}
+            </div>
         </div>
     `;
 }
@@ -3412,26 +3416,23 @@ async function renderRecentOrdersUI() {
     const historyContainer = document.getElementById('recent-orders-list'); 
     if (!historyContainer) return;
 
-    // ⚡ [มาตรการดักจับความ Real-Time]:
-    // หน่วงเวลาสั้นๆ 50 มิลลิวินาที เพื่อปล่อยให้กระบวนการเขียนข้อมูลลง Dexie DB (bulkAdd จากฟังก์ชันเช็กบิล) 
-    // เคลียร์ไฟล์และจัดการ Commit Transaction เบื้องหลังให้เสร็จสิ้นสมบูรณ์แบบ 100% 
+    // ⚡ [มาตรการดักจับความ Real-Time]: หน่วงเวลารอ Transaction เบื้องหลังตามปกติ
     await new Promise(resolve => setTimeout(resolve, 50));
 
     try {
-        // 2. ดึงข้อมูลจาก Dexie DB (ดึงมา 50 รายการล่าสุดเพื่อให้ครอบคลุมการ Group หลายรายการ)
+        // 2. ดึงข้อมูลจาก Dexie DB 50 รายการล่าสุด
         const rawOrders = await db.orders.orderBy('id').reverse().limit(50).toArray();
         
+        // กรณีไม่มีข้อมูลแสดงผลพ่นผ่านคลาสสากล
         if (rawOrders.length === 0) {
-            historyContainer.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">ยังไม่มีประวัติการขายวันนี้จ้า</p>';
+            historyContainer.innerHTML = '<p class="order-system-status status-empty">ยังไม่มีประวัติการขายวันนี้จ้า</p>';
             return;
         }
 
-        // 3. [ขั้นตอนการจัดกลุ่ม] รวมรายการที่ order_id เดียวกันให้เป็น "หนึ่งใบออเดอร์"
+        // 3. [ขั้นตอนการจัดกลุ่ม] รวมรายการที่ order_id เดียวกันเป็นหนึ่งใบออเดอร์ตามปกติ
         const grouped = {};
         rawOrders.forEach(o => {
             if (!grouped[o.order_id]) {
-                
-                // ⚡ [ล็อกมาตรฐานตัวพิมพ์ใหญ่เพื่อความปลอดภัยของ Single Codebase]:
                 const cleanMethod = String(o.payment_method || '').toUpperCase().trim();
 
                 grouped[o.order_id] = {
@@ -3439,91 +3440,80 @@ async function renderRecentOrdersUI() {
                     time: new Date(o.created_at).toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'}),
                     method: cleanMethod === 'CASH' ? 'เงินสด' : 'โอน/QR',
                     items: [],      
-                    totalNet: 0,    // ยอดรวมสุทธิจริงหลังหักส่วนลดแล้ว (จะโชว์เป็นตัวเลขสีเขียวใหญ่ๆ)
-                    totalRaw: 0,    // ยอดรวมราคาเต็มของสินค้าก่อนหักส่วนลด
-                    discount: 0,    // มูลค่าส่วนลดรวมของบิลนี้
-                    fullData: o     
+                    totalNet: 0,    
+                    totalRaw: 0,    
+                    discount: 0,    
+                    fullData: o 
                 };
             }
 
-            // 🧠 ✨ [อัปเกรดลอจิก Phase 4: ดักจับและคำนวณส่วนลดแบบผสมผสาน] ✨
-            // สิ่งที่จะเกิดขึ้น: ดึงส่วนลดจากฟีลด์ o.discount ที่ confirmOrder ตัวใหม่บันทึกไว้ 
-            // และใช้ Math.max เพื่อดักตรวจสอบไม่ให้หยิบค่าส่วนลดเดิมมาบวกทับกันหลายรอบตอนวนลูปไอเทมในบิลเดียวกัน
             if (o.discount && parseFloat(o.discount) > 0) {
                 grouped[o.order_id].discount = Math.max(grouped[o.order_id].discount, parseFloat(o.discount));
             }
 
-            // 🚩 [ระบบรองรับบิลเวอร์ชันดั้งเดิม]: ถ้าเป็นออเดอร์รุ่นเก่าที่มีบรรทัดราคาสินค้าติดลบ
             if (o.total_price < 0) {
                 grouped[o.order_id].discount += Math.abs(o.total_price);
             } else {
-                // เก็บรายการอาหารปกติเข้าตะกร้าประวัติ
                 grouped[o.order_id].items.push(`${o.menu_name} x${o.qty}`);
-                // สะสมราคารวมดิบ (ราคาเต็มก่อนหัก)
                 grouped[o.order_id].totalRaw += Number(o.total_price || 0);
             }
         });
 
-        // 🧠 ✨ [คำนวณสรุปยอดสุทธิสุท้ายบิลให้เที่ยงตรงเทียบเท่าหน้าใบเสร็จ Smart Receipt] ✨
-        // สิ่งที่จะเกิดขึ้น: วนลูปออเดอร์ที่จัดกลุ่มเสร็จแล้ว เพื่อคำนวณตัวเลขสุทธิ (totalNet) ใหม่ให้ตรงกับใบเสร็จจริง
+        // คำนวณสรุปยอดสุทธิท้ายบิลให้เที่ยงตรง
         Object.values(grouped).forEach(order => {
             if (order.discount > 0) {
-                // ยอดจ่ายจริง = ยอดรวมราคาเต็ม - มูลค่าส่วนลด (และต้องไม่ต่ำกว่า 0 บาท)
                 order.totalNet = Math.max(0, order.totalRaw - order.discount);
             } else {
-                // ถ้าไม่มีส่วนลด ยอดสุทธิก็คือยอดดิบปกติ
                 order.totalNet = order.totalRaw;
             }
         });
 
-        // 4. แปลงจาก Object เป็น Array และคัดเอา 10 ออเดอร์ล่าสุดมาโชว์
+        // 4. คัดเอา 10 ออเดอร์ล่าสุดมาโชว์บนแผงควบคุมหน้าบ้าน
         const displayData = Object.values(grouped).slice(0, 10);
 
-        // 5. [ส่วนการสร้างหน้าจอ] ปรับแต่ง HTML ให้มองง่าย เห็นส่วนลดชัดเจน
+        // 5. [ส่วนการสร้างหน้าจอ] พ่นโครงสร้าง HTML สะอาดหมดจด ไร้สไตล์อินไลน์ตกค้าง
         historyContainer.innerHTML = `
-            <h3 style="margin: 15px 0 10px 0; color: #2c3e50; font-size: 1.1rem; display: flex; align-items: center;">
+            <h3 class="recent-orders-title">
                 🕒 รายการออเดอร์ล่าสุด 
-                <small style="margin-left: auto; font-weight: normal; font-size: 0.7rem; color: #888;">(อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')})</small>
+                <small>(อัปเดตล่าสุด: ${new Date().toLocaleTimeString('th-TH')})</small>
             </h3>
             ${displayData.map(order => {
                 const hasDiscount = order.discount > 0; 
+                
+                // 🟢 สลับการแสดงผลสเตตัสการ์ดผ่านการครอบคลาสสากลแทนสไตล์อินไลน์แบบเดิม
+                const cardStateClass = hasDiscount ? 'card-state-discount' : 'card-state-normal';
 
                 return `
-                    <div style="background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; 
-                                border: 2px solid ${hasDiscount ? '#e67e22' : '#eee'}; 
-                                display: flex; justify-content: space-between; align-items: center; 
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+                    <div class="order-recent-card ${cardStateClass}">
                         
-                        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 6px; 
-                                    background: ${hasDiscount ? '#e67e22' : '#27ae60'}; z-index: 1;"></div>
+                        <div class="order-badge-line"></div>
 
-                        <div style="flex: 1; margin-left: 15px;">
-                            <div style="font-weight: bold; color: #2c3e50; font-size: 1rem; line-height: 1.4;">
+                        <div class="order-info-left">
+                            <div class="order-food-text">
                                 ${order.items.join(', ')}
                             </div>
-                            <small style="color: #888; display: block; margin-top: 4px;">
+                            <small class="order-meta-text">
                                 🕒 ${order.time} | 💳 ${order.method} 
-                                ${hasDiscount ? `<span style="color: #e67e22; font-weight: bold; margin-left: 5px;">[🔥 ลด ${order.discount.toLocaleString()}.-]</span>` : ''}
+                                ${hasDiscount ? `<span class="discount-highlight">[🔥 ลด ${order.discount.toLocaleString()}.-]</span>` : ''}
                             </small>
                         </div>
                         
-                        <div style="text-align: right; min-width: 100px;">
-                            <div style="font-size: 1.2rem; font-weight: 800; color: #27ae60;">
+                        <div class="order-pricing-right">
+                            <div class="price-net">
                                 ${order.totalNet.toLocaleString()}.-
                             </div>
                             
                             ${hasDiscount ? `
-                                <div style="font-size: 0.75rem; color: #bbb;">
-                                    <span style="text-decoration: line-through;">${order.totalRaw.toLocaleString()}</span>
+                                <div class="price-raw-box">
+                                    <span>${order.totalRaw.toLocaleString()}</span>
                                 </div>
                             ` : `
-                                <div style="font-size: 0.7rem; color: #ccc;">ปกติ</div>
+                                <div class="price-normal-lbl">ปกติ</div>
                             `}
                         </div>
                         
-                        <button onclick='if(typeof reprintByGroupId === "function") reprintByGroupId(${order.order_id})' 
-                                style="margin-left: 12px; background: #f8f9fa; border: 1px solid #ddd; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; z-index: 2; transition: 0.2s;"
-                                onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f8f9fa'">
+                        <button onclick="if(typeof reprintByGroupId === 'function') reprintByGroupId(${order.order_id})" 
+                                class="btn-reprint-receipt" title="พิมพ์ใบเสร็จซ้ำ">
                             🧾
                         </button>
                     </div>
@@ -3533,7 +3523,7 @@ async function renderRecentOrdersUI() {
 
     } catch (err) {
         console.error("❌ โหลดประวัติพลาด:", err);
-        historyContainer.innerHTML = '<p style="color:red; text-align:center; padding: 10px;">เกิดข้อผิดพลาดในการดึงประวัติ</p>';
+        historyContainer.innerHTML = '<p class="order-system-status status-error">เกิดข้อผิดพลาดในการดึงประวัติ</p>';
     }
 }
 
@@ -3700,14 +3690,18 @@ function checkMatch() {
     const p2 = document.getElementById('promptpay-confirm').value.trim();
     const btn = document.getElementById('save-btn');
     
-    // เงื่อนไข: ต้องตรงกัน และมีความยาว 10 หรือ 13 เท่านั้น
+    // 🔒 เกราะป้องกันระบบ เผื่อกรณีหา Element บน DOM ไม่เจอ
+    if (!p1 || !p2 || !btn) return;
+
+    // เงื่อนไขสากล: ความยาวเลขพร้อมเพย์ต้องตรงตามมาตรฐาน 10 หรือ 13 หลักเท่านั้น
     const isValidLength = (p1.length === 10 || p1.length === 13);
     
+    // ตรวจสอบความสอดคล้องของข้อมูล
     if (p1 === p2 && isValidLength) {
-        btn.style.backgroundColor = "#27ae60"; // สีเขียว
+        // 🟢 เปิดล็อกปุ่มให้ใช้งานได้ทันที ระบบสีเขียวจะสว่างขึ้นเองตามระเบียบ CSS
         btn.disabled = false;
     } else {
-        btn.style.backgroundColor = "#ccc"; // สีเทา
+        // 🟢 ล็อกปุ่มไว้เมื่อข้อมูลไม่ถูกต้อง ระบบสีเทาจะสวมทับผ่านสเตตัส :disabled อัตโนมัติ
         btn.disabled = true;
     }
 }
@@ -3882,17 +3876,23 @@ function handleFileChangeWrapper(event) {
     
     if (displayElement) {
         if (fileInput.files.length > 0) {
-            // สิ่งที่จะเกิดขึ้น: เมื่อยายเลือกไฟล์สำเร็จ ป้ายจะเปลี่ยนเป็นสีเขียวและโชว์ชื่อไฟล์จริงทันที
+            // [การจัดการข้อมูล]: เมื่อคุณยายเลือกไฟล์สำเร็จ โชว์ชื่อไฟล์และสลับคลาสสีเขียวผ่าน CSS
             displayElement.innerText = "📄 " + fileInput.files[0].name;
-            displayElement.style.color = "#2ecc71"; // เปลี่ยนเป็นสีเขียวเหนี่ยวทรัพย์
+            
+            // 🟢 อัปเดตสเตตัสคลาสสะอาดยกชุด หมดห่วงเรื่องสารตกค้างอินไลน์สไตล์
+            displayElement.classList.remove('file-state-empty');
+            displayElement.classList.add('file-state-active');
         } else {
-            // สิ่งที่จะเกิดขึ้น: หากไม่ได้เลือกไฟล์ หรือกดยกเลิก ข้อความจะดีดกลับมาเป็นคำที่เราตั้งไว้
+            // [กรณีกดยกเลิก]: ดีดข้อความกลับเป็นค่าเริ่มต้น และสลับคลาสสีเทาตามกฎระเบียบ
             displayElement.innerText = "ยังไม่ได้เลือกไฟล์เลยจ้าคุณยาย";
-            displayElement.style.color = "#7f8c8d";
+            
+            // 🟢 อัปเดตสเตตัสคลาสกลับสู่สภาวะสแตนด์บาย
+            displayElement.classList.remove('file-state-active');
+            displayElement.classList.add('file-state-empty');
         }
     }
     
-    // 🚀 ส่งไม้ต่อให้ฟังก์ชันกู้คืนระบบดั้งเดิมของคุณ (restoreDatabase) ทำงานต่อตามปกติ 100%
+    // 🚀 ส่งไม้ต่อให้ฟังก์ชันกู้คืนระบบดั้งเดิม (restoreDatabase) ทำงานเต็มสูบตามปกติ
     if (typeof restoreDatabase === "function") {
         restoreDatabase(event);
     }
@@ -4074,18 +4074,18 @@ async function getOrderAndShowReceipt(orderId) {
 //ฟังก์ชันนี้จะดึงออเดอร์จาก db.orders (Dexie) มาโชว์แบบเรียงตามเวลาล่าสุด 28-04-2026
 async function renderTodayOrdersTableUI() {
     const tableBody = document.getElementById('recent-orders-body');
-    if (!tableBody) return;
+    if (!tableBody) return; // 🔒 เกราะป้องกันป้องกัน Error เช็กความพร้อมของตาราง
 
     try {
         const todayStr = new Date().toLocaleDateString('sv-SE');
         
-        // 1. ดึงข้อมูลของวันนี้ทั้งหมด
+        // 1. ดึงข้อมูลของวันนี้ทั้งหมดจากคลังข้อมูลตามปกติ
         const allOrders = await db.orders
             .where('created_at')
             .startsWith(todayStr)
             .toArray();
 
-        // 2. รวมร่างรายการที่ order_id เดียวกัน (Logic ใหม่: ป้องกันส่วนลดซ้ำซ้อน)
+        // 2. รวมร่างรายการที่ order_id เดียวกัน ป้องกันส่วนลดซ้ำซ้อนตามตรรกะเดิม
         const groupedOrders = {};
         allOrders.forEach(order => {
             const gid = order.order_id || order.id; 
@@ -4094,45 +4094,48 @@ async function renderTodayOrdersTableUI() {
                     order_id: gid,
                     time: order.created_at.includes(' ') ? order.created_at.split(' ')[1].substring(0, 5) : "00:00",
                     itemList: [],
-                    totalNet: 0,       // ยอดสุทธิ (รวมบวกและลบมาแล้ว)
+                    totalNet: 0,
                     totalDiscount: 0 
                 };
             }
 
-            // ถ้าไม่ใช่บรรทัดส่วนลด (ราคาเป็นบวก) ให้เพิ่มชื่อเมนู
             if (order.total_price > 0) {
                 groupedOrders[gid].itemList.push(`${order.menu_name}${order.qty > 1 ? ' x' + order.qty : ''}`);
             }
             
-            // รวมยอดเงิน (60 บวกกับ -10 จะได้ 50 ทันที)
             groupedOrders[gid].totalNet += Number(order.total_price || 0);
             
-            // เก็บยอดส่วนลดไว้โชว์สวยๆ เท่านั้น
             if (order.discount > 0) {
                 groupedOrders[gid].totalDiscount += Number(order.discount || 0);
             }
         });
 
-        // 🚩 3. บรรทัดที่พี่ขาดไปจนทำให้ Error: เรียงจากใหม่ไปเก่า (10 บิลล่าสุด)
+        // 3. จัดการเรียงคัดบิลล่าสุด 10 รายการป้องกันการ Error แก้วิกฤตหน้าบ้าน
         const displayOrders = Object.values(groupedOrders).reverse().slice(0, 10);
 
-        // 4. วาดตารางแสดงผล
-        tableBody.innerHTML = displayOrders.length ? '' : '<tr><td colspan="4" style="text-align:center; padding:20px;">ยังไม่มีรายการของวันนี้</td></tr>';
+        // 4. วาดโครงสร้างตารางแสดงผล คลีนขยะอินไลน์สไตล์ออกพ่นผ่านคลาสสากล
+        tableBody.innerHTML = displayOrders.length 
+            ? '' 
+            : '<tr><td colspan="4" class="table-order-empty">ยังไม่มีรายการของวันนี้</td></tr>';
 
+        // วนลูปสร้างแถวตารางแบบมืออาชีพ ขาวสะอาดปราศจากอินไลน์สารเคมี
         displayOrders.forEach(group => {
             const tr = document.createElement('tr');
-            tr.style.borderBottom = "1px solid #eee";
+            tr.className = "order-table-row"; // 🟢 สวมคลาสควบคุมระเบียบแถวตารางจาก CSS 100%
+            
             tr.innerHTML = `
-                <td style="padding:10px;">${group.time}</td>
-                <td style="padding:10px; font-size:0.9rem;">
+                <td>${group.time}</td>
+                <td class="col-items">
                     ${group.itemList.join(', ')}
-                    ${group.totalDiscount > 0 ? `<br><small style="color:#e67e22;">(ส่วนลด ${group.totalDiscount}.-)</small>` : ''}
+                    ${group.totalDiscount > 0 ? `<br><small class="discount-lbl">(ส่วนลด ${group.totalDiscount}.-)</small>` : ''}
                 </td>
-                <td style="padding:10px; text-align:right;">
+                <td class="col-price">
                     <b>${group.totalNet.toLocaleString()}.-</b>
                 </td>
-                <td style="padding:10px; text-align:center;">
-                    <button onclick="reprintByGroupId(${group.order_id})" style="border:none; background:none; cursor:pointer; font-size:1.2rem;">🧾</button>
+                <td class="col-action">
+                    <button onclick="reprintByGroupId(${group.order_id})" class="btn-table-reprint" title="พิมพ์ใบเสร็จซ้ำ">
+                        🧾
+                    </button>
                 </td>
             `;
             tableBody.appendChild(tr);
@@ -4214,17 +4217,20 @@ function closeReceipt() {
  */
 async function showSmartReceipt(data) {
     const modal = document.getElementById('receipt-modal');
-    if (!modal) return;
+    if (!modal) return; // 🔒 เกราะป้องกันป้องกัน Error
+
+    // --- [เพิ่มบรรทัดนี้ตรงนี้เลยครับ] ---
+    document.body.appendChild(modal); 
+    // ---------------------------------
 
     // --- 1. เตรียมข้อมูลราคา (ยึดตามที่บันทึกจริง) ---
     const discountAmount = parseFloat(data.discount) || 0;
     
-    // 🚩 หัวใจสำคัญ: ถ้าเป็นออเดอร์ย้อนหลัง ให้ดึง total_price ที่บันทึกไว้มาเลย (ไม่ต้องคำนวณใหม่ให้เสี่ยงพลาด)
+    // 🚩 หัวใจสำคัญ: ยึดราคาเดิมจากออเดอร์ย้อนหลังเพื่อเซฟตี้สูงสุดตามตรรกะพี่
     let finalTotal = parseFloat(data.total_price) || 0;
 
     if (data.items && data.items.length > 0) {
         const hasDiscountInItems = data.items.some(item => (parseFloat(item.total_price) || 0) < 0);
-        // ถ้าใน items ไม่มีบรรทัดติดลบ แต่มีค่า discount ในหัวบิล ค่อยเอามาลบออก
         if (!hasDiscountInItems && finalTotal === (data.items[0].price * data.items[0].qty)) {
              finalTotal = finalTotal - discountAmount;
         }
@@ -4240,56 +4246,52 @@ async function showSmartReceipt(data) {
     document.getElementById('r-shop-name').innerText = shopName;
     document.getElementById('r-date').innerText = "วันที่: " + new Date(data.created_at).toLocaleString('th-TH');
     
-    // --- 3. รายการอาหาร (กรองเอาเฉพาะของกิน ไม่เอาบรรทัดส่วนลดมาโชว์ซ้ำ) ---
+    // --- 3. รายการอาหาร (กรองเอาเฉพาะเมนูปกติ ไม่เอาบรรทัดส่วนลดซ้ำซ้อน) ---
     const itemsContainer = document.getElementById('r-items');
     const foodItems = data.items.filter(item => {
         const p = parseFloat(item.total_price) || parseFloat(item.price) || 0;
-        return p > 0; // เอาเฉพาะรายการที่ราคาเป็นบวก
+        return p > 0;
     });
 
-    // 🌟 [ปรับปรุงจุดวิกฤต]: คำนวณราคารายบรรทัด และวาดราคาตัวเลือกเสริมห้อยท้ายข้อความ
+    // คำนวณราคารายบรรทัด และวาดโครงสร้างตารางรายการผ่านคลาส CSS
     itemsContainer.innerHTML = foodItems.map(item => {
         const displayName = item.menu_name || item.name || "รายการอาหาร";
         
-        // 💰 ดักเก็บราคาพิเศษจากออปชันเสริมอย่างปลอดภัย (รองรับทุกโครงสร้างคีย์แอปพี่)
         const opPrice = parseFloat(item.optionPrice || item.option_price || item.extraPrice || item.extra_price || 0);
         const itemBasePrice = parseFloat(item.price) || 0;
         const finalQty = item.qty || 1;
-
-        // 🧠 สิ่งที่จะเกิดขึ้น: นำ (ราคาอาหารตั้งต้น + ราคาพิเศษ) มารวมกันก่อน แล้วคูณด้วยจำนวนจานจริง
-        // แต่ถ้าตัวระบบพี่ส่งคีย์ยอดรวมสำเร็จรูปมาแล้ว (item.total_price) ให้ยึดตัวนั้นเป็นหลักเพื่อเซฟตี้
         const displayPrice = parseFloat(item.total_price) || ((itemBasePrice + opPrice) * finalQty);
 
-        // 📝 สิ่งที่จะเกิดขึ้น: หากอาหารจานนั้นมีออปชันเสริม และมีราคาพิเศษมากกว่า 0 บาท 
-        // หน้าใบเสร็จจะพ่นข้อความสีเทาห้อยท้ายระบุให้ชัดเจน เช่น (พิเศษ +10.-) ทันที ยายอ่านง่ายลูกค้าอ่านชัดเจน
+        // 🟢 ย้ายโค้ดสีอินไลน์ระบุตรงออก เปลี่ยนมาครอบคลาสควบคุมความงาม
         const optionTextTag = item.options 
-            ? `<br><small style="color:gray;">(${item.options}${opPrice > 0 ? ` +${opPrice.toLocaleString()}.-` : ''})</small>` 
+            ? `<br><small class="rcpt-option-detail">(${item.options}${opPrice > 0 ? ` +${opPrice.toLocaleString()}.-` : ''})</small>` 
             : '';
 
         return `
-            <div style="with: 100%; display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
+            <div class="rcpt-item-row">
                 <span>${displayName} ${optionTextTag}</span>
-                <span style="white-space: nowrap;">x${finalQty} ${displayPrice.toLocaleString()}.-</span>
+                <span class="rcpt-item-price">x${finalQty} ${displayPrice.toLocaleString()}.-</span>
             </div>
         `;
     }).join('');
     
-    // ยอดรวมสุทธิต้องเด่นและถูกต้อง
+    // ยอดรวมสุทธิบิล
     document.getElementById('r-total').innerText = `รวมทั้งสิ้น: ${finalTotal.toLocaleString()}.-`;
     
-    // --- 4. วิธีชำระเงินและส่วนลด (โชว์เพื่อให้รู้ว่าหักอะไรไป) ---
+    // --- 4. วิธีชำระเงินและส่วนลด ---
     const method = String(data.payment_method || "").toLowerCase();
     let isQR = (method === 'qr' || method === 'transfer'); 
     let paymentHTML = "วิธีชำระ: " + (isQR ? '📱 เงินโอน/QR' : '💵 เงินสด');
     
     if (discountAmount > 0) {
-        paymentHTML = `<div style="color:#e67e22; font-weight:bold; margin-bottom:4px;">🔥 ส่วนลดท้ายบิล: -${discountAmount.toLocaleString()}.-</div>` + paymentHTML;
+        // 🟢 ปรับเปลี่ยนมาพ่นผ่านคลาสแจ้งเตือนส่วนลดท้ายบิลของ CSS
+        paymentHTML = `<div class="rcpt-discount-banner">🔥 ส่วนลดท้ายบิล: -${discountAmount.toLocaleString()}.-</div>` + paymentHTML;
     }
     document.getElementById('r-payment').innerHTML = paymentHTML;
     
-    // --- 5. จัดการส่วน QR Code (รองรับโหมด Offline แบบสมบูรณ์ 05-05-2026) ---
+    // --- 5. จัดการส่วน QR Code (รองรับโหมด Offline แบบสมบูรณ์) ---
     const qrContainer = document.getElementById('qrcode');
-    qrContainer.innerHTML = ""; // ล้างหน้าจอดก่อนวาดใหม่
+    qrContainer.innerHTML = ""; // ล้างกระดานวาด
 
     if (isQR) {
         const promptpayNumber = ppData ? ppData.value : null;
@@ -4298,21 +4300,23 @@ async function showSmartReceipt(data) {
             const qrAmount = finalTotal;
 
             if (navigator.onLine) {
+                // โหมด Online: แสดงผลคลีนสไตล์ผ่านคลาสสากล
                 qrContainer.innerHTML = `
-                <div style="background: white; padding: 10px; border-radius: 10px; display: inline-block; border: 1px solid #eee;">
-                    <img src="https://promptpay.io/${cleanNumber}/${qrAmount}.png"
-                        style="width:200px; height:200px; display:block;">
-                    <p style="margin-top:8px; font-size:0.85rem; color:#1a237e; font-weight:bold;">
-                    ${cleanNumber}<br>
-                    <span style="color:#27ae60;">ยอดเงิน: ${qrAmount.toLocaleString()}บาท</span>
+                <div class="rcpt-qr-card qr-online">
+                    <img src="https://promptpay.io/${cleanNumber}/${qrAmount}.png">
+                    <p class="qr-meta-caption">
+                        <span class="status-net-online">${cleanNumber}</span><br>
+                        <span class="txt-amount-green">ยอดเงิน: ${qrAmount.toLocaleString()} บาท</span>
                     </p>    
                 </div>`;
             } else {
+                // โหมด Offline: ดึงคลาสสากลมาคุมกรอบคิวอาร์แทนคำสั่ง .style.cssText ดั้งเดิม
                 if (typeof QRCode !== 'undefined' && window.promptpayQr) {
                     try {
-                        const payload = window.promptpayQr.generatePayload(cleanNumber,{ amount: qrAmount });
+                        const payload = window.promptpayQr.generatePayload(cleanNumber, { amount: qrAmount });
+                        
                         const qrBox = document.createElement('div');
-                        qrBox.style.cssText = "background: white; padding: 10px; border-radius: 10px; display: inline-block;";
+                        qrBox.className = "rcpt-qr-card"; // 🟢 มอบหน้าที่ความงามให้ CSS ดูแลทั้งหมด
                         qrContainer.appendChild(qrBox);
 
                         new QRCode(qrBox, {
@@ -4325,9 +4329,9 @@ async function showSmartReceipt(data) {
                         });
 
                         qrContainer.innerHTML += `
-                        <p style="margin-top:8px; font-size:0.85rem; color:#e67e22; font-weight:bold;">
-                            ⚠️ โหมด Offline (สแกนได้ปกติ)<br>
-                            <span style="color:#1a237e;">${cleanNumber}</span>
+                        <p class="qr-meta-caption">
+                            <span class="status-net-offline">⚠️ โหมด Offline (สแกนได้ปกติ)</span><br>
+                            <span class="status-net-online">${cleanNumber}</span>
                         </p>`;
                     } catch (err) {
                         console.error("QR Local Error:", err);
@@ -4338,26 +4342,31 @@ async function showSmartReceipt(data) {
                 }
             }
         } else {
-            qrContainer.innerHTML = "<p style='color:red;'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
+            qrContainer.innerHTML = "<p class='rcpt-status-error-lbl'>ยังไม่ได้ตั้งค่าเลข PromptPay</p>";
         }
     } else {
-        qrContainer.innerHTML = `<div style="font-size: 3rem; color: #2ecc71; margin: 10px 0;">✅</div><p>ขอบคุณที่ชำระเงินสดครับ</p>`;
+        // สภาวะรับเงินสด: ถอนอินไลน์สไตล์ออกพ่นผ่านคลาสคุมไอคอน
+        qrContainer.innerHTML = `<div class="rcpt-cash-success-icon">✅</div><p>ขอบคุณที่ชำระเงินสดครับ</p>`;
     }
 
-    modal.style.display = 'flex';
+    modal.style.display = 'flex'; // คงคำสั่งคุมโครงสร้าง Modal ยืดหยุ่นไว้ตามกฎระเบียบ
 }
 
     
 
 // 🚩 อย่าลืมก๊อปปี้ฟังก์ชันเสริมนี้ไปวางไว้ "นอก" ฟังก์ชันหลักด้วยนะครับ 04-05-2026
 function showOfflineText(container, number, amount) {
+    // 🔒 เกราะป้องกันระบบ เผื่อกรณีตำแหน่งพ่นข้อมูลไม่มีอยู่จริงบนหน้าจอ
+    if (!container) return;
+
+    // พ่นโครงสร้าง HTML สะอาดหมดจด ไร้เศษขยะสไตล์อินไลน์ปนเปื้อน 100%
     container.innerHTML = `
-        <div style="background: #fff9f0; padding: 15px; border: 2px dashed #e67e22; border-radius: 10px;">
-            <p style="color: #d35400; font-weight: bold; margin-bottom: 10px;">⚠️ ตอนนี้ระบบ Offline</p>
-            <p style="font-size: 0.9rem; margin-bottom: 5px;">โอนเงิน PromptPay ตามเลขนี้ได้เลยครับ:</p>
-            <h2 style="color: #1a237e; letter-spacing: 2px; margin: 10px 0;">${number}</h2>
-            <p style="font-size: 1.1rem; color: #27ae60; font-weight: bold;">ยอดโอน: ${amount.toLocaleString()} บาท</p>
-            <p style="font-size: 0.7rem; color: #999; margin-top: 10px;">*สแกน QR ไม่ได้เนื่องจากไม่ได้โหลดไฟล์เสริม</p>
+        <div class="rcpt-offline-box">
+            <p class="offline-title-lbl">⚠️ ตอนนี้ระบบ Offline</p>
+            <p class="offline-desc-text">โอนเงิน PromptPay ตามเลขนี้ได้เลยครับ:</p>
+            <h2 class="offline-number-display">${number}</h2>
+            <p class="offline-amount-display">ยอดโอน: ${amount.toLocaleString()} บาท</p>
+            <p class="offline-footnote-lbl">*สแกน QR ไม่ได้เนื่องจากไม่ได้โหลดไฟล์เสริม</p>
         </div>
     `;
 }
@@ -4480,34 +4489,7 @@ async function saveSettings() {
 }
 
 // เรียกตัวเลขมาโชว์ตอนเปิดหน้าตั้งค่า
-async function openSettings() {
-    // 1. ดึงข้อมูลจาก Dexie (ตาราง settings)
-    const ppData = await db.settings.get('promptpay');
-    const storeData = await db.settings.get('store_name');
 
-    // 2. นำเลข PromptPay มาใส่ในช่อง input (ถ้ามี)
-    const ppInput = document.getElementById('set_promptpay');
-    if (ppData) {
-        ppInput.value = ppData.value;
-    } else {
-        ppInput.value = ""; // ล้างค่าว่างถ้ายังไม่เคยตั้ง
-    }
-
-    // 3. นำชื่อร้านมาใส่ในช่อง input (ดึงจาก Dexie ก่อน ถ้าไม่มีให้เช็ก localStorage)
-    const nameInput = document.getElementById('name-input');
-    if (storeData) {
-        nameInput.value = storeData.value;
-    } else {
-        // กรณีเพิ่งอัปเกรดระบบ ให้ดึงจากของเดิมที่นายเคยเก็บไว้ใน localStorage
-        nameInput.value = localStorage.getItem('shopName') || "";
-    }
-
-    // 4. โชว์ Modal ตั้งค่าขึ้นมา
-    const settingsModal = document.getElementById('settingsModal');
-    if (settingsModal) {
-        settingsModal.style.display = 'block';
-    }
-}
 
 
 

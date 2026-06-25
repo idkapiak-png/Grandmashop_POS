@@ -9,7 +9,7 @@
     <!--สำหรับ iphone เพิ่มเติม 09-05-2026-->
    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="กะเพรานับยอด">
+    <meta name="apple-mobile-web-app-title" content="ร้านยายขายทุกอย่าง">
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <!--05-05-2026 เชื่อมระบบ P2P-->
@@ -36,774 +36,672 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=14.8"></script>
+    <script src="Standalone.js?v=14.8" defer></script>
 
-
-    <!--ทำให้ตั๋วคิวดูมี Animation 10-05--2026-->
-    <style>
-        /* วางต่อท้ายในนี้ได้เลยครับ */
-        @keyframes slideIn {
-            from { 
-                opacity: 0; 
-                transform: translateY(-20px); 
-            }
-            to { 
-                opacity: 1; 
-                transform: translateY(0); 
-            }
-        }
-
-        /* แถม: ใส่คลาสนี้เพื่อให้ตั๋วเรียกใช้ animation ได้สมบูรณ์ */
-        .kitchen-ticket {
-            animation: slideIn 0.4s ease-out;
-        }
-    </style>
     <!---------------------------------------------------------------------->
 
 </head>
 
 <body>
-    <!--Pull-to-refresh ล็อคไม่ให้ Redresh เอง 06-05-2026-->
-    <style>
-        body {
-            /* คำสั่งนี้คือพระเอกครับ */
-            /* มันจะบอกว่า "ถ้าเลื่อนมาสุดขอบบน/ล่างแล้ว ให้หยุดแค่นั้น ห้ามเด้งหรือดึงต่อ" */
-            overscroll-behavior-y: contain;
-        }
-    </style>
 
-    <div id="front-page">
-        <header>
-            <div id="break-even-box" style="margin-bottom: 20px; text-align: right; background: #f8f9fa; padding: 10px; border-radius: 8px;">
-                <label for="daily-cost" style="font-weight: bold; color: #2c3e50;">💰 ทุนวันนี้: </label>
-                <input type="number" id="daily-cost" placeholder="วันนี้ลงทุนไปเท่าไหร่?" 
-                        style="width: 100px; padding: 5px; border: 1px solid #ddd; border-radius: 5px; text-align: center;" 
-                        onchange="saveCostAndRefresh()">
-                <span style="font-weight: bold;"> .-</span>
+    <!--Header mobile-->
+    <div class="app-container">
+  
+  <header class="app-header">
+
+    <div class="header-top">
+        <h1 id="name-main">ร้านยายขายทุกอย่าง</h1>
+        <button class="app-setting-trigger-btn" onclick="showSetting()">⚙️</button>
+    </div>
+
+    <div class="header-bottom">
+        <div class="left-status-group">
+            <div id="role-badge">
+                <span id="role-icon"></span> 
+                <span id="role-text"></span>
             </div>
 
-            <h1 id="name-main">ร้านยายขายทุกอย่าง</h1>
+            <div class="status-badge-wrapper">
+                <span id="current-table-display" class="status-badge-capsule">
+                📍ขาย:หน้าร้าน(Walk-in)
+                </span>
+            </div>
+        </div>
+         
+            <!-- กล่องคำนวณทุนวันนี้ 07-06-2026 -->
+            <div id="break-even-box" class="breakeven-container">
+                <label for="daily-cost" class="breakeven-label">💰ทุนวันนี้: </label>
+                <input type="number" id="daily-cost" class="breakeven-input" placeholder="วันนี้ลงทุนไปเท่าไหร่?" onchange="saveCostAndRefresh()">
+                <span class="breakeven-currency"> .-</span>
+            </div>
 
-            <div id="sales-summary" style="text-align: center; background: white; padding: 15px; border-radius: 15px;">
-                <p style="margin: 0;">💰 ยอดขายวันนี้:</p>
+    </div>
 
-                <!--แถบสถานะ (Status Bar) P2P 12-05-2026-->
-                <!-- ป้ายแสดงบทบาทเครื่อง (Role Badge) -->
-                <div id="role-badge" style="
-                    position: absolute;
-                    top: -50px; /* ปรับระดับให้ตรงกับลูกศรในรูป */
-                    left: 0px;
-                    padding: 4px 10px;
-                    border-radius: 20px;
-                    font-size: 11px;
-                    font-weight: bold;
-                    letter-spacing: 0.5px;
-                    display: none; /* ซ่อนไว้ก่อนจนกว่าจะเลือกโหมด */
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                    z-index: 100;
-                ">
-                    <span id="role-icon"></span> 
-                    <span id="role-text"></span>
-                </div>
+            
+            
+    
+
+           
+
+   
+  </header>
+
+  <!--content mobile-->
+
+  <main class="app-content">
+    
+    <div id="front-page" class="page-section active">
+
+               <div id="front-page">
+        <header>
+
+            
+
+            
+
+            <!-- กล่องยอดขายวันนี้ 08-06-2026 -->
+            <div id="sales-summary">
+                <p class="sales-title">💰 ยอดขายวันนี้:</p>
+
                 
-                <div id="total-sales-display" style="font-size: 2.5rem; font-weight: bold; color: #2ecc71; margin: 5px 0;">0.-</div>
+                
+                <div id="total-sales-display">0.-</div>
 
-                <div style="display: inline-block; border: 2px solid #00acc1; border-radius: 8px; padding: 5px 15px; margin-bottom: 15px; font-size: 0.9rem; color: #555;">
+                <div class="payment-method-box">
                     💵 เงินสด: <span id="cash-display">0</span> | 📱 โอน: <span id="qr-display">0</span>
                 </div>
 
-                <div id="profit-status" style="display: inline-block; width: 100%;">
-                    <div style="background: #fff5f5; color: #e74c3c; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                <div id="profit-status">
+                    <div class="profit-waiting-badge">
                         ⚠️ รอคำนวณกำไร...
                     </div>
                 </div>
             </div>
 
-            <!--ดูสรุปภาพรวมธุรกิจ (มุมหลานรัก)  03-05--2026-->
-            <button onclick="openGrandmaDashboard()" style="width: 100%; margin-top: 15px; padding: 12px; background: #333333; color: #e2ff42; border: 1px solid #e2ff42; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <!--ดูสรุปภาพรวมธุรกิจ (มุมหลานรัก)  08-06--2026-->
+            <button onclick="openGrandmaDashboard()" class="grandma-dashboard-btn">
                 🚀 ดูสรุปภาพรวมธุรกิจ (มุมหลานรัก)
             </button>
 
            
 
-            <!-- Dashboard Modal Overlay -->
-            <div id="dashboard-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; overflow-y:auto; padding: 20px 10px;">
-                <div style="background: white; width: 100%; max-width: 500px; margin: auto; border-radius: 20px; padding: 20px; position: relative;">
-                    <span onclick="closeDashboard()" style="position: absolute; right: 20px; top: 15px; font-size: 24px; cursor: pointer;">✕</span>
+            <!-- Dashboard Modal Overlay 08-06-2026 -->
+            <div id="dashboard-modal" class="gma-modal-overlay">
+                <div class="gma-modal-content">
+                    <span onclick="closeDashboard()" class="gma-modal-close-btn">✕</span>
                     
-                    <h2 style="text-align: center; color: #2c3e50; margin-bottom: 20px;">🏠 มุมหลานรักของยาย</h2>
+                    <h2 class="gma-modal-title">🏠 มุมหลานรักของยาย</h2>
 
-                     <!--ระบบ "ช่วงเวลา" (Time Filtering) 06-05-2026-->
-                    <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 15px;">
-                        <button onclick="openGrandmaDashboard(7)" style="padding: 5px 12px; border-radius: 15px; border: 1px solid #2ecc71; background: white; color: #27ae60; cursor: pointer; font-size: 0.8rem;">7 วัน</button>
-                        <button onclick="openGrandmaDashboard(30)" style="padding: 5px 12px; border-radius: 15px; border: 1px solid #2ecc71; background: white; color: #27ae60; cursor: pointer; font-size: 0.8rem;">30 วัน</button>
-                        <button onclick="openGrandmaDashboard(365)" style="padding: 5px 12px; border-radius: 15px; border: 1px solid #2ecc71; background: white; color: #27ae60; cursor: pointer; font-size: 0.8rem;">1 ปี</button>
-                        <button onclick="openGrandmaDashboard('all')" style="padding: 5px 12px; border-radius: 15px; border: 1px solid #2ecc71; background: #2ecc71; color: white; cursor: pointer; font-size: 0.8rem;">ทั้งหมด</button>
+                    <div class="gma-filter-group">
+                        <button onclick="openGrandmaDashboard(7)" class="gma-filter-btn">7 วัน</button>
+                        <button onclick="openGrandmaDashboard(30)" class="gma-filter-btn">30 วัน</button>
+                        <button onclick="openGrandmaDashboard(365)" class="gma-filter-btn">1 ปี</button>
+                        <button onclick="openGrandmaDashboard('all')" class="gma-filter-btn btn-active">ทั้งหมด</button>
                     </div>
                     
-                    <!-- ส่วนแสดงกราฟ (ใช้ Canvas สำหรับ Chart.js) -->
-                    <div style="width: 100%; height: 250px; margin-bottom: 25px;">
+                    <div class="gma-chart-container">
                         <canvas id="businessHeartChart"></canvas>
                     </div>
 
-                    <!-- การ์ดสรุปตัวเลข -->
-                    <div id="dashboard-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                        <!-- ข้อมูลจะถูกเติมด้วย JS -->
-                    </div>
+                    <div id="dashboard-stats" class="gma-stats-grid">
+                        </div>
 
-                    <!-- ข้อความจากหลานรัก -->
-                    <div id="grandma-message" style="background: #f0f7f8; padding: 15px; border-radius: 12px; border-left: 5px solid #00acc1; font-style: italic; color: #555;">
+                    <div id="grandma-message" class="gma-warm-message">
                         "กำลังประมวลผลข้อมูลให้ยายอยู่นะครับ..."
                     </div>
 
-                    <!--คำนวณวัตถุดิบ-->
-                    <!-- ส่วนการวิเคราะห์เชิงลึก (อ่านง่ายสไตล์ยาย) -->
-                    <div id="smart-analysis" style="margin-top: 25px; border-top: 2px dashed #eee; padding-top: 20px;">
-                        <h3 style="text-align: center; color: #00acc1; font-size: 1.1rem;">💡 ข้อมูลช่วยยายตัดสินใจ</h3>
+                    <div id="smart-analysis" class="gma-analysis-section">
+                        <h3 class="gma-analysis-title">💡 ข้อมูลช่วยยายตัดสินใจ</h3>
+
+                             <!-- 2. หน้าต่างเจาะลึกประวัติราคา (แก้ไขให้เด้งแน่นอน) 08-06-2026 -->
+                            <div id="price-history-modal" class="prc-hist-overlay">
+                                <div class="prc-hist-container">
+                                    
+                                    
+                                    <!-- หัวข้อและปุ่มปิด -->
+                                    <div class="prc-hist-header">
+                                            <h3 id="history-title" class="prc-hist-title">📊 ประวัติราคา</h3>
+                                            <button type="button" class="prc-hist-close-btn" onclick="closePriceHistoryModal()">✕</button>
+                                    </div>
+
+                                    <div id="history-table-content" class="prc-hist-body-content">
+                                        <!-- ข้อมูลจากฟังก์ชัน showPriceHistory จะมาลงตรงนี้ -->
+                                    </div>
+                                    
+                                </div>
+                            </div>
                         
-                        <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
-    
-                            <!-- 1. ดัชนีราคา (Price Insight) -->
-                            <div id="price-insight-card" style="background: #fff9db; padding: 15px; border-radius: 12px; border-left: 5px solid #f1c40f;">
-                                <strong style="color: #856404;">🛒 ราคาน่ารู้:</strong>
-                                <div id="price-content" style="font-size: 0.9rem; margin-top: 5px;">กำลังดึงข้อมูลราคาล่าสุด...</div>
+                        <div class="gma-analysis-grid">
+
+                            <div id="price-insight-card" class="gma-card card-yellow">
+                                <strong class="card-title-yellow">🛒 ราคาน่ารู้:</strong>
+                                <div id="price-content" class="card-body-text">กำลังดึงข้อมูลราคาล่าสุด...</div>
                             </div>
 
-                            <!-- 2. คะแนนความเก่ง/ความเป็นเนื้อเป็นตัว (Efficiency Score) -->
-                            <!-- หมายเหตุ: ผมรวมไว้ที่เดียว และใช้ ID "efficiency-content-area" เป็นจุดลงข้อมูลจาก JS -->
-                            <div id="efficiency-card" style="background: #e3f2fd; padding: 15px; border-radius: 12px; border-left: 5px solid #2196f3;">
-                                <strong style="color: #0d47a1;">🏆 คะแนนการบริหารวันนี้:</strong>
-
-                                <!-- 🚩 จุดที่เพิ่ม: ใส่ ID ให้ตรงกับที่เรียกใน JavaScript -->
-                                <div id="score-content" style="font-size: 2.5rem; font-weight: bold; color: #d32f2f; margin: 10px 0;">
-                                    0/10
-                                </div>
+                            <div id="efficiency-card" class="gma-card card-blue">
+                                <strong class="card-title-blue">🏆 คะแนนการบริหารวันนี้:</strong>
                                 
-                                <!-- 🚩 จุดที่เพิ่ม: ใส่ ID สำหรับข้อความแนะนำจากหลานรัก -->
-                                <div id="score-message" style="font-size: 0.9rem; color: #555;">
-                                    กำลังคำนวณคะแนน...
-                                </div>
+                                <div id="score-content" class="gma-big-score">0/10</div>
+                                
+                                <div id="score-message" class="card-body-text">กำลังคำนวณคะแนน...</div>
                                 
                                 <div id="efficiency-content-area">
-                                    <!-- ส่วนนี้จะถูก JavaScript เขียนทับด้วยคะแนนและ Progress Bar -->
-                                    <div style="text-align: center; font-size: 1.5rem; font-weight: bold; margin: 5px 0;">--/10</div>
-                                    <div style="font-size: 0.85rem; color: #555; font-style: italic; text-align: center;">กำลังประมวลผลความเฮง...</div>
+                                    <div class="gma-score-placeholder">--/10</div>
+                                    <div class="gma-text-placeholder">กำลังประมวลผลความเฮง...</div>
                                 </div>
                             </div>
 
-                            <!-- 3. ของที่ต้องซื้อ (Smart Suggestion) -->
-                            <div id="shopping-suggestion-card" style="background: #f3e5f5; padding: 15px; border-radius: 12px; border-left: 5px solid #9c27b0;">
-                                <strong style="color: #4a148c;">📝 เตรียมตัวไปตลาด:</strong>
-                                <div id="suggestion-content" style="font-size: 0.9rem; margin-top: 5px;">กำลังตรวจสอบสต็อกสินค้า...</div>
+                            <div id="shopping-suggestion-card" class="gma-card card-purple">
+                                <strong class="card-title-purple">📝 เตรียมตัวไปตลาด:</strong>
+                                <div id="suggestion-content" class="card-body-text">กำลังตรวจสอบสต็อกสินค้า...</div>
                             </div>
 
-                            <!-- 4. วิเคราะห์ช่วงเวลาทำเงิน -->
-                            <div id="peak-sales-card" style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 5px;">
-                                <strong style="color: #2c3e50; font-size: 0.95rem;">🕒 วิเคราะห์ช่วงเวลาทำเงิน</strong>
-                                <div id="peak-sales-chart" style="margin-top: 10px;">
-                                    <!-- กราฟจะถูกวาดที่นี่ -->
-                                    <p style="color: #999; font-size: 0.8rem; text-align: center;">กำลังวิเคราะห์ข้อมูลการขาย...</p>
+                            <div id="peak-sales-card" class="gma-card card-white">
+                                <strong class="card-title-dark">🕒 วิเคราะห์ช่วงเวลาทำเงิน</strong>
+                                <div id="peak-sales-chart" class="gma-peak-chart-area">
+                                    <p class="gma-analyzing-text">กำลังวิเคราะห์ข้อมูลการขาย...</p>
                                 </div>
                             </div>
 
-                            <!-- ลบส่วน efficiency-card อันเก่าที่ซ้ำด้านล่างออกเรียบร้อยแล้ว เพื่อไม่ให้ ID ชนกันครับ -->
                         </div>
                     </div>
 
                 </div>
-
             </div>
+
+
             <h2 id="menu-name">กะเพรารสเด็ด</h2>
 
-            <!--เพิ่มเติม 29-05-2026 เพิ่มระบบค้นหา--> 
-            <div class="search-container" style="margin: 15px; text-align: center; position: relative; z-index: 100;">
+            <!--เพิ่มเติม 08-06-2026 เพิ่มระบบค้นหา--> 
+            <div class="search-container">
                 <input type="text" 
                     id="smart-search-input" 
+                    class="search-input-field"
                     oninput="searchSmartMenu(this.value)" 
-                    placeholder="🔍 พิมพ์ชื่อเมนูเพื่อค้นหา..." 
-                    style="width: 90%; padding: 12px; border-radius: 25px; border: 2px solid #e2ff42; font-size: 16px; outline: none; box-sizing: border-box;">
+                    placeholder="🔍 พิมพ์ชื่อเมนูเพื่อค้นหา...">
                 
-                <div id="search-results-area" style="
-                    position: absolute; 
-                    top: 100%; 
-                    left: 5%; 
-                    width: 90%; 
-                    max-height: 250px; 
-                    overflow-y: auto; 
-                    background: #2c2c2c; 
-                    border: 1px solid #444; 
-                    border-radius: 12px; 
-                    margin-top: 5px; 
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
-                    display: none; 
-                    flex-direction: column; 
-                    padding: 5px; 
-                    box-sizing: border-box;">
-                </div>
+                <div id="search-results-area" class="search-dropdown-results stg-hidden"></div>
             </div>
 
-            <!-- เพิ่มปุ่มนี้เข้าไปในส่วนที่แสดงปุ่มโต๊ะของคุณยายครับ 30-04-2026 -->
-            <div class="mode-selector" style="margin-bottom: 15px; display: flex; gap: 10px;">
-                <button id="btn-takeaway" onclick="selectWalkIn()" style="flex: 1; padding: 15px; background-color: #58baf7; color: black; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer;">
+
+
+            <!-- เพิ่มปุ่มนี้เข้าไปในส่วนที่แสดงปุ่มโต๊ะของคุณยายครับ 08-06-2026 -->
+            <div class="mode-selector">
+                <button id="btn-takeaway" class="takeaway-mode-btn" onclick="selectWalkIn()">
                     🍳 ขายหน้าร้าน (กลับบ้าน)
                 </button>
             </div>
 
-            <div id="Order-menu" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                </div>
+            <!-- ORDER MENU PANEL (ส่วนกล่องแสดงรายการปุ่มเมนูอาหาร) 08-06-2026 -->
+            <div id="Order-menu" class="menu-items-grid">
+            </div>
 
             <div id="options-display">
-                <h3 style="color: #ff9f43;">ส่วนเพิ่มเติม</h3>
+                <h3 class="options-main-title">ส่วนเพิ่มเติม</h3>
                 <div id="dynamic-options-list">
                     </div>
             </div>
 
-            <button onclick="showSetting()" style="position: absolute; top: 10px; right: 10px; font-size: 20px; border: none; background: none; cursor: pointer;">⚙️</button>
 
-            <!--29-05-2026-->
+             <!--08-06-2026-->
            <div id="universal-counter">
-                <p style="font-weight: bold;">
+                <p class="counter-text-line">
                     <span id="display-label">📊 วันนี้ใช้ไปแล้ว</span>: 
                     <span id="total-count">0</span> 
                     <span id="display-unit">ฟอง</span>
                 </p>
             </div>
-
             <br>
-            <div id="order-preview-box" style="background: #fff3cd; padding: 15px; border-radius: 10px; margin: 15px; border: 1px dashed #ffa502;">
-                <strong>📝 รายการที่เลือก:</strong>
-                <p id="order-detail">ยังไม่ได้เลือกเมนู</p>
-                <p id="order-total-price" style="font-weight: bold; color: #ff4757; font-size: 1.2rem;">รวม: 0.-</p>
 
-                <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin: 15px 0;">
-                    <span style="font-weight: bold;">จำนวน:</span>
-                    <button type="button" onclick="changeQty(-1)" style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ddd; background: #ff4757; color: white; font-size: 1.2rem;">-</button>
-                    <span id="order-qty" style="font-size: 1.5rem; font-weight: bold; min-width: 30px; text-align: center;">1</span>
-                    <button type="button" onclick="changeQty(1)" style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ddd; background: #2ed573; color: white; font-size: 1.2rem;">+</button>
-                    <span style="font-weight: bold;">จาน</span>
+           <div id="order-preview-box" class="preview-main-card">
+                <strong class="preview-title">📝 รายการที่เลือก:</strong>
+                <p id="order-detail" class="preview-menu-name">ยังไม่ได้เลือกเมนู</p>
+                <p id="order-total-price" class="preview-price-text">รวม: 0.-</p>
+
+                <div class="preview-qty-control-row">
+                    <span class="preview-qty-label">จำนวน:</span>
+                    
+                    <button type="button" class="qty-btn btn-decrease" onclick="changeQty(-1)">-</button>
+                    <span id="order-qty" class="preview-qty-number">1</span>
+                    <button type="button" class="qty-btn btn-increase" onclick="changeQty(1)">+</button>
+                    
+                    <span class="preview-qty-label">จาน</span>
                 </div>
             </div>
-
-            <div style="padding: 0 15px;">
-                <button type="button" onclick="resetOrder()" style="background: #ccc; color: #333; border: none; padding: 10px; border-radius: 8px; cursor: pointer; width: 100%; margin-bottom: 10px;">
+  
+            <div class="reset-order-wrapper">
+                <button type="button" class="reset-order-btn" onclick="resetOrder()">
                     ❌ ล้างรายการออเดอร์
                 </button>
-                
             </div>
 
-            <!--กล่องเก็บบิล 29-04-2026-->
-            <div id="pending-billing-box" style="margin: 20px 0; padding: 15px; border-radius: 15px; background: #f9f9f9; border: 2px dashed #ddd; display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h3 id="billing-table-title" style="margin: 0; color: #2c3e50;">📝 รายการโต๊ะ --</h3>
-                    <button onclick="closeBillingBox()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            <!--กล่องเก็บบิล 08-06-2026-->
+            <div id="pending-billing-box" class="billing-main-panel">
+                <div class="billing-header-row">
+                    <h3 id="billing-table-title" class="billing-title">📝 รายการโต๊ะ --</h3>
+                    <button onclick="closeBillingBox()" class="billing-close-btn">✕</button>
                 </div>
-    
-                <div id="billing-items-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;">
-                    </div>
 
-                <div style="border-top: 2px solid #eee; padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <span style="font-size: 0.9rem; color: #7f8c8d;">ยอดรวมปัจจุบัน:</span><br>
-                        <strong id="billing-total-amount" style="font-size: 1.4rem; color: #2c3e50;">0.-</strong>
+                <div id="billing-items-list" class="billing-scroller-area"></div>
+
+                <div class="billing-footer-row">
+                    <div class="billing-total-group">
+                        <span class="billing-total-label">ยอดรวมปัจจุบัน:</span><br>
+                        <strong id="billing-total-amount" class="billing-total-price">0.-</strong>
                     </div>
-                    <button onclick="checkoutTable()" style="background: #e67e22; color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <button onclick="checkoutTable()" class="billing-checkout-btn">
                         💰 เช็คบิลเก็บเงิน
                     </button>
                 </div>
             </div>
 
-            <!--"พื้นที่วางปุ่มโต๊ะ 29-04-2026-->
-            <div id="table-selection-area" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 10px; background: #fff; border-radius: 10px; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);">
-                <p style="color: #999; font-size: 0.8rem;">กรุณาตั้งค่าจำนวนโต๊ะที่หน้าหลังบ้านก่อนครับ</p>
+            <!--"พื้นที่วางปุ่มโต๊ะ 08-06-2026-->
+            <div id="table-selection-area" class="table-zone-container">
+                <p class="table-zone-placeholder">กรุณาตั้งค่าจำนวนโต๊ะที่หน้าหลังบ้านก่อนครับ</p>
             </div>
 
-            <div style="margin-bottom: 15px;">
-                <span id="current-table-display" style="background: #34495e; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem;">
-                    📍 กำลังขาย: หน้าร้าน (Walk-in)
-                </span>
-            </div>
+            
 
-            <div id="payment-group" style="margin-top: 10px;">
-                <button id="btn-to-table" onclick="saveOrderToTable()" style="width: 100%; background: #2980b9; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; display: none;">
-                    📥 ฝากลงโต๊ะ
-                </button>
+            
 
-                <div style="display: flex; gap: 10px;">
-                    <button id="btn-pay-cash" onclick="confirmOrder('cash')" style="flex: 1; background: #27ae60; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold;">
-                        💵 เงินสด
-                    </button>
-                    <button id="btn-pay-transfer" onclick="confirmOrder('transfer')" style="flex: 1; background: #034de2; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold;">
-                        📱 เงินโอน/QR
-                    </button>
-                </div>
-            </div>
-
-            <!--โชว์สถานะการส่ง P2P 10-05-2026-->
-            <div id="warp-status-bar" style="display: flex; align-items: center; justify-content: center; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; margin-top: 10px;">
-                    <div id="status-dot" style="width: 12px; height: 12px; background-color: #bdc3c7; border-radius: 50%; margin-right: 10px; transition: all 0.3s ease;"></div>
-                    <span id="status-text" style="font-weight: bold; color: #6c757d; font-size: 0.9em;">ระบบวาร์ป: พร้อมส่งออเดอร์</span>
-            </div>                   
-
-            <div style="margin-top: 30px; padding: 0 15px;">
-                <button id="btn-close-day" onclick="handleCloseDay()" 
-                        style="background-color: #e74c3c; color: white; padding: 15px; border: none; border-radius: 10px; font-size: 18px; cursor: pointer; width: 100%;">
-                    🏁 ปิดยอดประจำวัน
-                </button>
-            </div>
+           
         </header>
     </div>
 
-   <!--********************************************************************************************************************************************************************************-->
 
-  <style>
-    /* ระบบกันลืม + กันท่อ P2P หลุด: เตือนก่อนปิดหรือรีเฟรชหน้าจอ */
-    body {
-        overscroll-behavior-y: contain; 
-    }
+      
+      </div>
 
-    /* คุมรายละเอียดปลีกย่อยในหน้า Back-page */
-    #back-page {
-        user-select: none;              /* กันกดค้างเลือกข้อความ */
-        touch-action: pan-x pan-y;      /* เลื่อนขึ้นลงซ้ายขวาได้ปกติ แต่ห้ามดึงแรงๆ เพื่อรีเฟรช */
-        -webkit-user-select: none;      /* สำหรับ iPhone/Safari */
-    }
-</style>
+    <div id="bank-page" class="page-section">
 
-    <div id="back-page" style="display: none; padding: 20px;"> 
-    <h2>⚙️ ตั้งค่าระบบ</h2>
+         <div id="back-page" style="display: none;"> 
+    
 
-    <!--ตั้งค่าเลขบัญชี QR Code 30-04-2026-->
-    <button onclick="openPromptPayModal()" style="width: 100%; padding: 15px; background: #23508c; color: white; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 20px; font-size: 1rem;">
-    📱 ตั้งค่าเลข PromptPay รับเงินโอน
+    <!--ตั้งค่าเลขบัญชี QR Code 08-06-2026-->
+    <button class="promptpay-config-btn" onclick="openPromptPayModal()">
+        📱 ตั้งค่าเลข PromptPay รับเงินโอน
     </button>
 
-    <!--ระบบ ยกเลิกตั้งค่า  Promptpay 30-04-2026-->
-    <button onclick="clearSecurityData()" 
-        style="width: 100%; padding: 12px; background: #f1f3f5; color: #e74c3c; border: 1px solid #e74c3c; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px;">
-    🔄 ล้างรหัสและเลข PromptPay ให้เป็นค่าว่าง
+    <!--ระบบ ยกเลิกตั้งค่า  Promptpay 08-06-2026-->
+    <button class="security-reset-btn" onclick="clearSecurityData()">
+        🔄 ล้างรหัสและเลข PromptPay ให้เป็นค่าว่าง
     </button>
 
-    <!--05-05-2026 เชื่อมระบบ P2P-->
-    <div id="p2p-control-panel" style="background: #ecf0f1; padding: 15px; border-radius: 8px; margin-top: 10px;">
-        <h4>📡 ระบบเชื่อมต่อร้านค้า</h4>
+
+    <!--08-06-2026 เชื่อมระบบ P2P-->
+    <div id="p2p-control-panel" class="p2p-main-card">
+        <h4 class="p2p-main-title">📡 ระบบเชื่อมต่อร้านค้า</h4>
         
-        <!-- สวิตช์หลัก -->
-        <label class="switch">
-            <!-- 🚩 เมื่อติ๊กเข้าหรือออก จะเรียกฟังก์ชัน toggleP2P ทันที -->
+        <label class="switch p2p-switch-label">
             <input type="checkbox" id="p2p-toggle" onchange="toggleP2P()">
             <span class="slider"></span> เปิดใช้งานระบบเครือข่าย
         </label>
 
-        <div id="p2p-settings" style="margin-top: 10px;"> <!-- ลบ display: none ออก -->
-            <input type="text" id="shop-id-input" placeholder="ระบุชื่อร้าน (เช่น Grandma01)">
-            <button onclick="setupAsHub()" style="background: #27ae60; color: white;">เป็นเครื่องแม่ (Hub)</button>
-            <button onclick="setupAsClient()" style="background: #2980b9; color: white;">เป็นเครื่องลูก (Client)</button>
-            <button onclick="setupAsKitchen()" style="background: #f39c12; color: white;">เป็นจอครัว (Kitchen)</button>
+        <div id="p2p-settings" class="p2p-settings-group">
+            <input type="text" id="shop-id-input" class="p2p-id-field" placeholder="ระบุชื่อร้าน (เช่น Grandma01)">
+            
+            <div class="p2p-buttons-row">
+                <button class="p2p-btn btn-hub-mode" onclick="setupAsHub()">เป็นเครื่องแม่ (Hub)</button>
+                <button class="p2p-btn btn-client-mode" onclick="setupAsClient()">เป็นเครื่องลูก (Client)</button>
+                <button class="p2p-btn btn-kitchen-mode" onclick="setupAsKitchen()">เป็นจอครัว (Kitchen)</button>
+            </div>
         </div>
     </div>
+  
     
-     <!--โชว์ตั๋วอาหาร-09-05-2026->
-    <div id="kitchen-ticket-container">ทดสอบโชว์ตรงนี้</div>
+    <!--...................................................................-->
 
-    < !--AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-->
 
-    <!-- Modal สำหรับตั้งค่า PromptPay 30-04-2026 -->
-    <div id="ppModal" style="display:none; position:fixed; z-index:999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
-        <div style="background:white; margin:15% auto; padding:20px; border-radius:15px; width:90%; max-width:400px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-            <h3 style="margin-top:0;">🔐 ตั้งค่าการรับเงิน</h3>
+
+    <!-- Modal สำหรับตั้งค่า PromptPay 08-06-2026 -->
+    <div id="ppModal" class="modal-overlay">
+        <div class="modal-card">
+            <h3 class="modal-title">🔐 ตั้งค่าการรับเงิน</h3>
             
-            <label style="font-size: 0.9rem; color: #666;">เลข PromptPay ใหม่:</label>
-            <input type="number" id="promptpay-input" oninput="checkMatch()" 
-                placeholder="10 หรือ 13 หลัก" 
-                style="width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 1.1rem;">
+            <label class="modal-field-label">เลข PromptPay ใหม่:</label>
+            <input type="number" id="promptpay-input" class="modal-text-field" oninput="checkMatch()" placeholder="10 หรือ 13 หลัก">
 
-            <label style="font-size: 0.9rem; color: #666;">ยืนยันเลขอีกครั้ง:</label>
-            <input type="number" id="promptpay-confirm" oninput="checkMatch()" 
-                placeholder="พิมพ์เลขเดิมซ้ำอีกครั้ง" 
-                style="width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 1.1rem;">
+            <label class="modal-field-label">ยืนยันเลขอีกครั้ง:</label>
+            <input type="number" id="promptpay-confirm" class="modal-text-field" oninput="checkMatch()" placeholder="พิมพ์เลขเดิมซ้ำอีกครั้ง">
 
-            <div style="margin-top: 15px; display: flex; gap: 10px;">
-                <button onclick="closePromptPayModal()" style="flex:1; padding:12px; background:#eee; border:none; border-radius:8px;">ยกเลิก</button>
-                <button id="save-btn" onclick="secureSavePromptPay()" disabled 
-                        style="flex:1; padding:12px; background:#ccc; color:white; border:none; border-radius:8px; font-weight:bold;">บันทึก</button>
+            <div class="modal-actions-row">
+                <button class="modal-btn btn-modal-cancel" onclick="closePromptPayModal()">ยกเลิก</button>
+                <button id="save-btn" class="modal-btn btn-modal-save" onclick="secureSavePromptPay()" disabled>บันทึก</button>
             </div>
         </div>
     </div>
 
     <!--******************-->
-    <label for="name-input" style="display: block; margin-bottom: 5px; font-weight: bold;">ชื่อร้าน:</label>
-    <input type="text" id="name-input" placeholder="ระบุชื่อร้าน" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc;">
+    <div class="config-field-group">
+        <label for="name-input" class="config-field-label">ชื่อร้าน:</label>
+        <input type="text" id="name-input" class="config-input-text" placeholder="ระบุชื่อร้าน">
+    </div>
 
-    <label for="menu-input" style="display: block; margin-bottom: 5px; font-weight: bold;">หัวข้อเมนู (เช่น กะเพรารสเด็ด):</label>
-    <input type="text" id="menu-input" placeholder="ระบุหัวข้อเมนู" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc;"> 
-
+   <div class="config-field-group">
+        <label for="menu-input" class="config-field-label">หัวข้อเมนู (เช่น กะเพรารสเด็ด):</label>
+        <input type="text" id="menu-input" class="config-input-text" placeholder="ระบุหัวข้อเมนู">
+    </div>
     <hr>
+
     <h4>🍳 จัดการส่วนเพิ่มเติม (Options)</h4>
     <div id="options-settings-list"></div>
-    <button type="button" onclick="addOptionField()" style="margin-top: 10px; background: #3498db; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%;">
+    <button type="button" class="add-option-trigger-btn" onclick="addOptionField()">
         ➕ เพิ่มตัวเลือกใหม่ (ไข่ดาว, พิเศษ)
     </button>
 
     <hr>
     <h4>📋 จัดการรายการเมนูขาย</h4>
     <div id="menu-settings-list"></div>
-    <button type="button" onclick="addMenuField()" 
-            style="margin-top: 10px; background: #2ed573; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%;">
+    <button type="button" class="add-menu-row-trigger-btn" onclick="addMenuField()">
         ➕ เพิ่มแถวเมนูใหม่
     </button>
 
-    <!--กล่องเลือกโต๊ะ & ที่พักบิล 29-04-2026-->
-    <div class="setting-item" style="margin-top: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 10px;">
-        <label>🔢 จำนวนโต๊ะในร้าน:</label>
-        <input type="number" id="table-count-input" placeholder="เช่น 10" style="width: 60px; padding: 5px;">
-        <button onclick="saveTableSettings()" style="background: #27ae60; color: white; border: none; padding: 5px 10px; border-radius: 5px;">ตกลง</button>
+    <!--กล่องเลือกโต๊ะ & ที่พักบิล 08-06-2026-->
+    <div class="setting-item table-config-card">
+        <label class="table-config-label">🔢 จำนวนโต๊ะในร้าน:</label>
+        <input type="number" id="table-count-input" class="table-config-input" placeholder="เช่น 10">
+        <button class="table-config-btn" onclick="saveTableSettings()">ตกลง</button>
     </div>
-    
-    <!--เพิ่มเติม 1-05-2026 เพิ่มระบบหลังบ้านเมนู-->
-    <button onclick="openMenuManager()" style="
 
-    width: 100%; 
+    <!--เพิ่มเติม 08-06-2026 เพิ่มระบบหลังบ้านเมนู-->
+    <button class="menu-manager-trigger-btn" onclick="openMenuManager()">
+        📋 จัดการรายการเมนูทั้งหมด
+    </button>
 
-    padding: 12px; 
-
-    margin-top: 10px; 
-
-    background-color: #576574; 
-
-    color: white; 
-
-    border: none; 
-
-    border-radius: 8px; 
-
-    font-weight: bold; 
-
-    cursor: pointer;
-
-    box-shadow: 0 0px #2c3e50;
-
-    display: block;
-
-    ">
-
-    📋 จัดการรายการเมนูทั้งหมด</button>
-
-    <!--การเพิ่มปุ่มเปิดหน้าจอครัว 05-05-2026-->
+    <!--การเพิ่มปุ่มเปิดหน้าจอครัว 08-06-2026-->
     <!-- ปุ่มสลับไปหน้าครัว -->
-    <button onclick="showKitchen()" style="width: 100%; background: #e67e22; color: white; padding: 10px; border: none; border-radius: 5px;">
+    <button class="kds-mode-trigger-btn" onclick="showKitchen()">
         👨‍🍳 โหมดห้องครัว (KDS)
     </button>
 
-    <!-- หน้าจอครัว (ซ่อนไว้ก่อนในตอนแรก) -->
-    <div id="kitchen-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fbfcfd; z-index: 9999; overflow-y: auto;">
-        <div style="padding: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; color: white;">
-                <h2>👨‍🍳 รายการอาหารที่ต้องทำ</h2>
-                <button onclick="hideKitchen()" style="background: #c0392b; color: white; border: none; padding: 10px 20px; border-radius: 5px;">❌ ปิดหน้าครัว</button>
+    <!-- หน้าจอครัว (ซ่อนไว้ก่อนในตอนแรก) 08-06-2026 -->
+    <div id="kitchen-screen" class="kds-screen-overlay">
+        <div class="kds-screen-padding">
+            
+            <div class="kds-screen-header">
+                <h2 class="kds-screen-title">👨‍🍳 รายการอาหารที่ต้องทำ</h2>
+                <button class="kds-close-btn" onclick="hideKitchen()">❌ ปิดหน้าครัว</button>
             </div>
-            <hr>
-            <!-- ตรงนี้คือจุดที่ "ตั๋วอาหาร" จะมาเรียงกัน -->
-            <div id="kitchen-ticket-container" style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px;">
-                <!-- ตั๋วอาหารจะถูกสร้างด้วย JavaScript -->
-            </div>
+            
+            <hr class="kds-screen-divider">
+            
+            <div id="kitchen-ticket-container" class="kds-tickets-board">
+                </div>
+
         </div>
     </div>
 
-    <div id="menu-manager-section" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 1000; overflow-y: auto; padding: 20px; box-sizing: border-box;">
+    <div id="menu-manager-section" class="menu-mgmt-overlay">
     
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>เพิ่ม/ลบ เมนูทั้งหมด</h2>
-        <button onclick="closeMenuManager()" style="background: #ff5252; color: white; border: none; padding: 10px 15px; border-radius: 5px;">❌ ปิด</button>
-    </div>
+        <div class="menu-mgmt-header">
+            <h2 class="menu-mgmt-title">เพิ่ม/ลบ เมนูทั้งหมด</h2>
+            <button class="menu-mgmt-close-btn" onclick="closeMenuManager()">❌ ปิด</button>
+        </div>
 
-    <div style="background: #f1f8f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-        <input type="text" id="new-menu-name" placeholder="ชื่อเมนู (เช่น กะเพราเนื้อ)" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px;">
-        <input type="number" id="new-menu-price" placeholder="ราคา (เช่น 60)" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px;">
-        <button onclick="addNewMenu()" style="width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 5px; font-weight: bold;">➕ บันทึกเมนูใหม่</button>
-    </div>
+        <div class="menu-mgmt-form-card">
+            <input type="text" id="new-menu-name" class="menu-mgmt-input" placeholder="ชื่อเมนู (เช่น กะเพราเนื้อ)">
+            <input type="number" id="new-menu-price" class="menu-mgmt-input" placeholder="ราคา (เช่น 60)">
+            <button class="menu-mgmt-save-btn" onclick="addNewMenu()">➕ บันทึกเมนูใหม่</button>
+        </div>
 
-    <h3>รายการเมนูของฉัน</h3>
-    <ul id="menu-list-items" style="list-style: none; padding: 0;">
-        </ul>
-</div>
+        <!--กล่องค้นหา 23-06-2026-->
+        <div class="menu-search-wrapper">
+            <input type="text" id="menuSearchInput" class="menu-mgmt-input" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหาเมนู..." onkeyup="filterMenuList()">
+        </div>
+
+        <h3 class="menu-mgmt-subtitle">รายการเมนูของฉัน</h3>
+        
+        <ul id="menu-list-items" class="menu-mgmt-list-board">
+            </ul>
+    </div>
 
     <hr>
     <h4>📊 ตั้งค่าการนับยอดสะสมพิเศษ</h4>
-    
-    <label for="counter-label-input" style="display: block; margin-bottom: 5px; font-weight: bold;">สิ่งที่ต้องการนับ (เช่น ไข่ดาว, แก้ว):</label>
-    <input type="text" id="counter-label-input" placeholder="เช่น ไข่ดาว" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc;">
 
-    <label for="counter-unit-input" style="display: block; margin-bottom: 5px; font-weight: bold;">หน่วยนับ (เช่น ฟอง, แก้ว, ถุง):</label>
-    <input type="text" id="counter-unit-input" placeholder="เช่น ฟอง" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc;">
+    <div class="config-field-group">
+        <label for="counter-label-input" class="config-field-label">สิ่งที่ต้องการนับ (เช่น ไข่ดาว, แก้ว):</label>
+        <input type="text" id="counter-label-input" class="config-input-text" placeholder="เช่น ไข่ดาว">
+    </div>
 
-    <div id="dashboard-section" style="margin-top: 30px; padding: 15px; background: #fff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📊 สรุปยอดขาย 7 วันล่าสุด</h3>
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; text-align: center;">
+    <div class="config-field-group">
+        <label for="counter-unit-input" class="config-field-label">หน่วยนับ (เช่น ฟอง, แก้ว, ถุง):</label>
+        <input type="text" id="counter-unit-input" class="config-input-text" placeholder="เช่น ฟอง">
+    </div>
+
+    <div id="dashboard-section" class="dash-main-card">
+        <h3 class="dash-main-title">📊 สรุปยอดขาย 7 วันล่าสุด</h3>
+        
+        <div class="dash-table-responsive">
+            <table class="dash-data-table sales-summary-table">
                 <thead>
-                    <tr style="background: #3498db; color: white;">
-                        <th style="padding: 12px; border: 1px solid #ddd;">วันที่</th>
-                        <th style="padding: 12px; border: 1px solid #ddd;">ยอดขาย (฿)</th>
-                        <th style="padding: 12px; border: 1px solid #ddd;">
+                    <tr class="dash-table-header-blue">
+                        <th class="dash-th">วันที่</th>
+                        <th class="dash-th">ยอดขาย (฿)</th>
+                        <th class="dash-th">
                             <span id="dashboard-unit-header">สิ่งที่นับ</span> (<span id="dashboard-unit-name">หน่วยนับ</span>)
                         </th>
                     </tr>
                 </thead>
                 <tbody id="dashboard-table-body">
-                </tbody>
-            </table>
-        </div>
-
-        <!--ปรับส่วนหน้า Dashboard ให้แสดง "รายการออเดอร์ล่าสุด" 28-04-2026-->
-        <div id="recent-orders-list" style="margin-top:20px;">
-            <h3 style="margin-top:20px;">รายการออเดอร์วันนี้</h3>
-            <table style="width:100%; border-collapse: collapse; font-size: 0.9rem; background: white; border-radius: 8px;">
-                <thead>
-                    <tr style="border-bottom: 2px solid #eee; background: #f8f9fa;">
-                        <th style="padding:10px; text-align:left;">เวลา</th>
-                        <th style="padding:10px; text-align:left;">เมนู</th>
-                        <th style="padding:10px; text-align:right;">ยอด</th>
-                        <th style="padding:10px; text-align:center;">ใบเสร็จ</th>
-                    </tr>
-                </thead>
-                <tbody id="recent-orders-body">
                     </tbody>
             </table>
         </div>
-        
-        <div style="display: flex; gap: 10px; margin-top: 15px;">
-            <button onclick="loadDashboardData()" style="flex: 1; padding: 10px; background: #2ecc71; color: white; border: none; border-radius: 5px;">🔄 อัปเดตตาราง</button>
-            <button onclick="exportToCSV()" style="flex: 1; padding: 10px; background: #3498db; color: white; border: none; border-radius: 5px;">📥 โหลด CSV</button>
-        </div>
-    </div> 
 
-         <!--ช่องกรอกส่วนลดใน 30-04-2026-->
-                <div style="background: #fff9db; padding: 15px; border-radius: 12px; border: 1px solid #ffe066; margin: 20px 0;">
-                    <h4 style="margin-top: 0; color: #f59f00;">🎯 ตั้งค่าส่วนลด (Promotion)</h4>
+        <!--ปรับส่วนหน้า Dashboard ให้แสดง "รายการออเดอร์ล่าสุด" 08-06-2026-->
+        <div id="recent-orders-list" class="dash-orders-zone">
+            <h3 class="dash-subtitle">รายการออเดอร์วันนี้</h3>
+            <div class="dash-table-responsive">
+                <table class="dash-data-table recent-orders-table">
+                    <thead>
+                        <tr class="dash-table-header-gray">
+                            <th class="dash-th th-left">เวลา</th>
+                            <th class="dash-th th-left">เมนู</th>
+                            <th class="dash-th th-right">ยอด</th>
+                            <th class="dash-th th-center">ใบเสร็จ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-orders-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="dash-actions-row">
+            <button class="dash-btn btn-dash-refresh" onclick="loadDashboardData()">🔄 อัปเดตตาราง</button>
+            <button class="dash-btn btn-dash-export" onclick="exportToCSV()">📥 โหลด CSV</button>
+        </div>
+    </div>
+
+         <!--ช่องกรอกส่วนลดใน 08-06-2026-->
+                <div class="promo-config-card">
+                    <h4 class="promo-config-title">🎯 ตั้งค่าส่วนลด (Promotion)</h4>
                     
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">ส่วนลดท้ายบิลอัตโนมัติ:</label>
+                    <label class="promo-config-label">ส่วนลดท้ายบิลอัตโนมัติ:</label>
                     
-                    <div style="display: flex; gap: 8px;">
-                        <!-- 1. ช่องกรอก: เพิ่ม min="0" เพื่อกันค่าติดลบ และเปลี่ยน placeholder -->
-                        <input type="number" id="set_discount" placeholder="0" min="0" 
-                            style="flex: 2; padding: 12px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 1rem;">
+                    <div class="promo-input-row">
+                        <input type="number" id="set_discount" class="promo-input-number" placeholder="0" min="0">
                         
-                        <!-- 2. ตัวเลือกประเภท: ใช้ ID discount_type เพื่อนำไปเช็คใน JS -->
-                        <select id="discount_type" 
-                                style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: white; font-weight: bold; cursor: pointer;">
+                        <select id="discount_type" class="promo-select-type">
                             <option value="amount">บาท (฿)</option>
                             <option value="percent">เปอร์เซ็นต์ (%)</option>
                         </select>
                     </div>
 
-                    <p style="font-size: 0.8rem; color: #666; margin-top: 8px;">
+                    <p class="promo-config-note">
                         * ระบบจะคำนวณส่วนลดให้อัตโนมัติเมื่อมีการสั่งอาหาร
                     </p>
                 </div>
 
-    <div style="margin-top: 20px; padding: 15px; border: 1px dashed #e74c3c; border-radius: 10px; background: #fff5f5;">
-        <h4 style="color: #e74c3c; margin-top: 0;">🗑️ โซนอันตราย</h4>
-        <p style="font-size: 0.85rem; color: #666;">หากข้อมูลเยอะจนเครื่องเริ่มช้า หรือต้องการเริ่มระบบใหม่ (ควรโหลด CSV เก็บไว้ก่อน)</p>
 
-        <button onclick="clearOldOrders()" style="width: 100%; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+    <div class="danger-zone-card">
+        <h4 class="danger-zone-title">🗑️ โซนอันตราย</h4>
+        <p class="danger-zone-note">หากข้อมูลเยอะจนเครื่องเริ่มช้า หรือต้องการเริ่มระบบใหม่ (ควรโหลด CSV เก็บไว้ก่อน)</p>
+
+        <button type="button" class="danger-zone-btn" onclick="clearOldOrders()">
             ล้างประวัติออเดอร์ทั้งหมด
         </button>
     </div>
 
-
-
-    <div class="backup-section" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc;">
-        <h3>📦 จัดการฐานข้อมูล (ย้ายเครื่อง)</h3>
-        <button onclick="backupDatabase()" style="background: #8e44ad; color: white; padding: 10px; margin: 5px;">
+    <div class="backup-section db-mgmt-card">
+        <h3 class="db-mgmt-title">📦 จัดการฐานข้อมูล (ย้ายเครื่อง)</h3>
+        
+        <button type="button" class="db-mgmt-btn btn-db-backup" onclick="backupDatabase()">
             📤 สำรองข้อมูล (Backup)
         </button>
-        <br>
-        <!--นำเข้าข้อมูลจากเครื่องเก่า 29-05-2026-->
-         <label for="importFile" style="display: block; margin-top: 10px; font-weight: bold;">นำเข้าข้อมูลจากเครื่องเก่า:</label>
+        
+        <label for="importFile" class="db-mgmt-label">นำเข้าข้อมูลจากเครื่องเก่า:</label>
 
-        <input type="file" id="importFile" accept=".json" onchange="handleFileChangeWrapper(event)" style="display: none;">
+        <input type="file" id="importFile" accept=".json" onchange="handleFileChangeWrapper(event)" class="db-mgmt-file-hidden">
 
-        <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-            <button type="button" onclick="document.getElementById('importFile').click()" style="padding: 8px 15px; background: #e67e22; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+        <div class="db-mgmt-upload-row">
+            <button type="button" class="db-mgmt-btn btn-db-trigger" onclick="document.getElementById('importFile').click()">
                 📂 เลือกไฟล์สำรอง
             </button>
             
-            <span id="import-file-name-display" style="color: #7f8c8d; font-size: 0.95rem;">กดไฟล์สำรองตรงนี้เลยจ๊ะ</span>
+            <span id="import-file-name-display" class="db-mgmt-filename">กดไฟล์สำรองตรงนี้เลยจ๊ะ</span>
         </div>
-
-        
     </div>
 
-    <!--ระบบจดบันทึกวัตถุดิบ 1-04-2026-->
+    <!--ระบบจดบันทึกวัตถุดิบ 08-06-2026-->
     <!-- ช่องรับข้อมูลที่เน้นปุ่มใหญ่สไตล์คุณยาย -->
-     
+
     <!-- ปุ่มหลักที่หน้าขายของ -->
-    <div style="margin-top: 20px; padding: 10px;">
-        <button onclick="openShoppingManager()" style="width: 100%; padding: 20px; background: #3498db; color: white; border-radius: 15px; border: none; font-weight: bold; font-size: 1.2rem; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);">
+    <div class="shopping-trigger-wrapper">
+        <button type="button" class="shopping-trigger-btn" onclick="openShoppingManager()">
             🛒 ไปหน้าจดของและลงบัญชี
         </button>
     </div>
 
-    <!-- หน้าจัดการวัตถุดิบ (Modal เต็มจอ) -->
-    <div id="shopping-manager-page" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:10000; overflow-y:auto; padding: 20px;">
-        
-        <!-- ส่วนหัวหน้า -->
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <h2 style="margin: 0; color: #2c3e50;">🧺 รายการซื้อของ</h2>
-            <button onclick="closeShoppingManager()" style="background: #eee; border: none; font-size: 20px; border-radius: 50%; width: 40px; height: 40px;">✕</button>
-        </div>
 
-        <!-- ส่วนที่ 1: พูดชื่อของเพื่อจด (Input) -->
-        <div style="padding: 15px; background: #fff; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #3498db;">
-            <h3 style="font-size: 1rem; color: #2c3e50; margin-top: 0;">🎙️ พูดชื่อของที่จะซื้อ</h3>
-            <input type="text" id="shopping-input" placeholder="เช่น หมูบด 1 กิโล..." style="width: 100%; padding: 15px; font-size: 1.1rem; border-radius: 10px; border: 2px solid #3498db;">
-            
-            <button onclick="addShoppingItem()" style="width: 100%; margin-top: 10px; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 1.1rem;">
-                ➕ บันทึกรายการวัตถุดิบ
-            </button>
-        </div>
+    <!-- หน้าจัดการวัตถุดิบ (Modal เต็มจอ) 08-06-2026 -->
+<div id="shopping-manager-page" class="shop-ledger-overlay">
 
-        <!-- ส่วนที่ 2: รายการที่จดแล้ว รอใส่ราคา (Display) -->
-        <div id="shopping-list-display" style="margin-top: 20px;">
-            <!-- รายการ "หมูบด 1 กิโลกรัม 150 บาท" จะมาโผล่ตรงนี้ตามรูป แก้ 101.jpg -->
-        </div>
-        
-        
-        <!-- ส่วนที่ 3: ปุ่มปิดและสรุป -->
-        <button onclick="saveAndCloseShopping()" style="width: 100%; margin-top: 20px; padding: 18px; background: #2c3e50; color: white; border-radius: 12px; border: none; font-weight: bold; cursor: pointer;">
-            💾 บันทึกยอดรวมและปิดหน้าจอ
-        </button>
-
-        <!-- ส่วนที่ 2: ประวัติการซื้อทั้งหมด (ส่วนที่เพิ่มใหม่) -->
-        <h3 style="color: #27ae60;">📜 ประวัติการซื้อล่าสุด</h3>
-        <div id="full-history-display" style="background: #fdfdfd; border-radius: 15px; padding: 10px; border: 1px solid #eee;">
-            <!-- ข้อมูลจากฟังก์ชัน renderFullHistory จะมาโชว์ตรงนี้ -->
-        </div>
-
+    <!-- ส่วนหัวหน้า -->
+    <div class="shop-ledger-header">
+        <h2 class="shop-ledger-title">🧺 รายการซื้อของ</h2>
+        <button class="shop-ledger-close-circle" onclick="closeShoppingManager()">✕</button>
     </div>
 
-    <button onclick="saveAndExit()" style="margin-top: 20px; background: #2c3e50; color: white; width: 100%; padding: 15px; border-radius: 10px; border: none; font-size: 1.1rem; cursor: pointer;">💾 บันทึกและกลับหน้าหลัก</button>
+    <!-- ส่วนที่ 1: พูดชื่อของเพื่อจด (Input) -->
+    <div class="shop-ledger-input-card">
+        <h3 class="shop-input-title">🎙️ พูดชื่อของที่จะซื้อ</h3>
+        <input type="text" id="shopping-input" class="shop-input-field" placeholder="เช่น หมูบด 1 กิโล...">
+        
+        <button class="shop-btn-action btn-shop-add" onclick="addShoppingItem()">
+            ➕ บันทึกรายการวัตถุดิบ
+        </button>
+    </div>
+
+    <!-- ส่วนที่ 2: รายการที่จดแล้ว รอใส่ราคา (Display) -->
+    <div id="shopping-list-display" class="shop-display-board">
+        </div>
+    
+    <!-- ส่วนที่ 3: ปุ่มปิดและสรุป -->    
+    <button class="shop-btn-action btn-shop-save-all" onclick="saveAndCloseShopping()">
+        💾 บันทึกยอดรวมและปิดหน้าจอ
+    </button>
+
+    <!-- ประวัติการซื้อทั้งหมด (ส่วนที่เพิ่มใหม่) -->
+    <h3 class="shop-history-title">📜 ประวัติการซื้อล่าสุด</h3>
+    <div id="full-history-display" class="shop-history-board">
+        </div>
+
+</div>
+
+<button type="button" class="config-save-exit-btn" onclick="saveAndExit()">
+    💾 บันทึกและกลับหน้าหลัก
+</button>
 
 <!--------------->
+
+
+    <!--เพิ่มเติม 08-06-2026 เพิ่มระบบหลังบ้านเมนู-->
+    <div id="ios-install-guide" class="ios-guide-overlay">
+        <div class="ios-guide-container">
+            
+            <div class="ios-guide-icon-box">🍎</div>
+            
+            <div class="ios-guide-text-content">
+                <span class="ios-guide-headline">ติดตั้งแอปบน iPhone</span>
+                เพื่อให้ใช้งานสะดวกเหมือนแอปจริง:<br>
+                1. กดปุ่ม 
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ios-safari-share-svg">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                    <polyline points="16 6 12 2 8 6"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="15"></line>
+                </svg> 
+                <b>[แชร์]</b> ด้านล่างของ Safari<br>
+                2. เลือก <b>'เพิ่มไปยังหน้าจอโฮม' (Add to Home Screen)</b>
+            </div>
+
+            <button type="button" class="ios-guide-close-btn" onclick="document.getElementById('ios-install-guide').style.display='none'">✕</button>
+        </div>
+        
+        <div class="ios-guide-arrow-down"></div>
     </div>
 
-    
 
-</div>
+    <!--ส่วนของหน้าตาใบเสร็จ (HTML) 08-06-2026-->
+    <div id="receipt-modal" class="rcp-overlay">
+        <div class="rcp-paper-container">
+            
+            <div class="rcp-header-zone">
+                <button class="rcp-close-circle" onclick="closeReceipt()">✕</button>
+                <h2 id="r-shop-name" class="rcp-shop-name">ชื่อร้าน</h2>
+                <p id="r-date" class="rcp-timestamp"></p>
+            </div>
 
-    <!--เพิ่มเติม 23-04-2026 เพิ่มระบบหลังบ้านเมนู-->
-    <div id="ios-install-guide" style="display: none; position: fixed; bottom: 20px; left: 15px; right: 15px; background: #ffffff; border: 1px solid #e0e0e0; padding: 18px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 9999; font-family: sans-serif;">
-    <div style="display: flex; align-items: flex-start; gap: 15px;">
-        <div style="font-size: 28px; background: #f8f9fa; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">🍎</div>
-        
-        <div style="flex: 1; font-size: 14px; color: #333; line-height: 1.5;">
-            <b style="font-size: 16px; color: #00acc1; display: block; margin-bottom: 4px;">ติดตั้งแอปบน iPhone</b>
-            เพื่อให้ใช้งานสะดวกเหมือนแอปจริง:<br>
-            1. กดปุ่ม 
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin: 0 2px;">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                <polyline points="16 6 12 2 8 6"></polyline>
-                <line x1="12" y1="2" x2="12" y2="15"></line>
-            </svg> 
-            <b>[แชร์]</b> ด้านล่างของ Safari<br>
-            2. เลือก <b>'เพิ่มไปยังหน้าจอโฮม' (Add to Home Screen)</b>
-        </div>
+            <div class="rcp-body-scroll">
+                <div id="receipt-content" class="rcp-content-wrapper">
+                    
+                    <div id="r-items" class="rcp-items-list"></div>
+                    
+                    <hr class="rcp-dashed-line">
+                    
+                    <div class="rcp-summary-zone">
+                        <h3 id="r-total" class="rcp-total-amount">รวมทั้งสิ้น: 0.-</h3>
+                        <div id="r-payment" class="rcp-payment-details"></div>
+                    </div>
 
-        <button onclick="document.getElementById('ios-install-guide').style.display='none'" style="background: #eee; border: none; width: 28px; height: 28px; border-radius: 50%; color: #666; font-size: 16px; cursor: pointer;">✕</button>
-    </div>
-    
-    <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid #ffffff;"></div>
-</div>
-
-    <!--ส่วนของหน้าตาใบเสร็จ (HTML) 26-04-2026-->
-<div id="receipt-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; padding:20px;">
-    <div style="background:white; width:100%; max-width:350px; max-height:90vh; border-radius:15px; position:relative; font-family: 'Courier New', Courier, monospace; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-        
-        <div style="padding: 20px 20px 10px 20px; border-bottom: 1px dashed #ddd; position: relative; background: #fff;">
-            <button onclick="closeReceipt()" style="position:absolute; top:10px; right:10px; border:none; background:#eee; width:30px; height:30px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; justify-content:center; align-items:center;">×</button>
-            <h2 id="r-shop-name" style="margin:0; text-align:center; font-size: 1.5rem;">ชื่อร้าน</h2>
-            <p id="r-date" style="font-size:0.8rem; margin:5px 0 0 0; text-align:center; color:#666;"></p>
-        </div>
-
-        <div style="flex: 1; overflow-y: auto; padding: 0 20px; text-align:center;">
-            <div id="receipt-content" style="color:#333;">
-                <div id="r-items" style="text-align:left; margin:15px 0; font-size:0.9rem;"></div>
-                
-                <hr style="border-top: 1px dashed #bbb;">
-                
-                <div style="margin: 10px 0;">
-                    <h3 id="r-total" style="margin:0; font-size: 1.4rem;">รวมทั้งสิ้น: 0.-</h3>
-                    <div id="r-payment" style="font-size:0.85rem; margin-top:5px; color: #555;"></div>
+                    <div id="qrcode" class="rcp-qrcode-box"></div>
+                    
+                    <p class="rcp-thank-you-text">*** ขอบคุณที่อุดหนุนจ้า ***</p>
                 </div>
+            </div>
 
-                <div id="qrcode" style="
-                    background: white; 
-                    padding: 10px; 
-                    display: inline-block; 
-                    margin: 10px 0; 
-                    border-radius: 10px;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                    border: 1px solid #eee;
-                "></div>
-                
-                <p style="margin:15px 0; font-size:0.75rem; color:#888;">*** ขอบคุณที่อุดหนุนจ้า ***</p>
+            <div class="rcp-footer-actions">
+                <button class="rcp-print-btn" onclick="window.print()">
+                    แชร์หรือพิมพ์ใบเสร็จ
+                </button>
             </div>
         </div>
-
-        <div style="padding: 15px 20px; border-top: 1px solid #eee; background: #fafafa;">
-            <button onclick="window.print()" style="width:100%; padding:12px; background:#3498db; color:white; border:none; border-radius:8px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                แชร์หรือพิมพ์ใบเสร็จ
-            </button>
-        </div>
     </div>
-</div>
-        
-    <!--สร้างเลขบัญชีโอนเงิน เป็น QR Code 2-05-2026-->
-        <div id="settingsModal" class="modal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items: center; justify-content: center;">
-            <div style="background:white; margin: auto; padding:20px; width:85%; max-width: 400px; border-radius:15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
-                <h3 style="margin-top:0; color: #2c3e50;">⚙️ ตั้งค่าร้านค้า & ส่วนลด</h3>
+
+     
+    <!--สร้างเลขบัญชีโอนเงิน เป็น QR Code 08-06-2026-->
+<!--        <div id="settingsModal" class="modal stg-modal-overlay">
+            <div class="stg-modal-container">
+                <h3 class="stg-modal-title">⚙️ ตั้งค่าร้านค้า & ส่วนลด</h3>
                 
-                <!-- ใน settingsModal ให้เปลี่ยนจาก input เป็นปุ่มกดแทน 02-05-2026 -->
-                <label style="font-weight: bold; display: block; margin-bottom: 5px;">📱 เลข PromptPay ปัจจุบัน:</label>
+                <label class="stg-modal-label">📱 เลข PromptPay ปัจจุบัน:</label>
 
-                <!-- เปลี่ยน input ให้เป็น readonly (อ่านได้อย่างเดียว) เพื่อโชว์เลขปัจจุบัน 02-05-2026 -->
-                <input type="text" id="set_promptpay" readonly 
-                    placeholder="กดปุ่มด้านล่างเพื่อแก้ไข" 
-                    style="width:100%; padding:12px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; color: #777;">
+                <input type="text" id="set_promptpay" class="stg-input-readonly" readonly placeholder="กดปุ่มด้านล่างเพื่อแก้ไข">
 
-                    <!-- เพิ่มปุ่มสำหรับเปิดหน้าตั้งค่าที่มีระบบ PIN 02-05-2026-->
-                <button type="button" onclick="openPromptPayModal()" 
-                    style="width:100%; background:#3498db; color:white; padding:8px; border:none; border-radius:8px; margin-bottom: 15px; font-size: 0.85rem; cursor:pointer;">
+                <button type="button" class="stg-btn btn-stg-secure" onclick="openPromptPayModal()">
                     🔐 แก้ไขเลขรับเงิน (ต้องใช้ PIN)
                 </button>
 
-                <button onclick="saveSettings()" style="width:100%; background:#27ae60; color:white; padding:12px; border:none; border-radius:8px; font-weight: bold; font-size: 1rem; cursor:pointer;">💾 บันทึกการตั้งค่าทั้งหมด</button>
+                <button type="button" class="stg-btn btn-stg-save" onclick="saveSettings()">
+                    💾 บันทึกการตั้งค่าทั้งหมด
+                </button>
                 
-                <button onclick="document.getElementById('settingsModal').style.display='none'" style="width:100%; background:#95a5a6; color:white; padding:10px; border:none; border-radius:8px; margin-top:10px; cursor:pointer;">ปิดหน้าต่าง</button>
+                <button type="button" class="stg-btn btn-stg-close" onclick="document.getElementById('settingsModal').style.display='none'">
+                    ปิดหน้าต่าง
+                </button>
             </div>
-        </div>
+        </div>              -->
 
-           <!-- 2. หน้าต่างเจาะลึกประวัติราคา (แก้ไขให้เด้งแน่นอน) -->
-            <div id="price-history-modal" 
-                    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 30000; padding: 20px; align-items: center; justify-content: center;">
-                    
-                    <div style="background: white; border-radius: 20px; padding: 20px; width: 100%; max-width: 400px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin: auto; position: relative;">
-                        
-                        <!-- หัวข้อและปุ่มปิด -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #f1f1f1; padding-bottom: 10px; position: sticky; top: 0; background: white; z-index: 1;">
-                            <h3 id="history-title" style="margin: 0; color: #2c3e50; font-size: 1.1rem;">📊 ประวัติราคา</h3>
-                            <button onclick="closePriceHistoryModal()" 
-                                    style="border: none; background: #f8f9fa; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                                ✕
-                            </button>
-                        </div>
-
-                        <div id="history-table-content">
-                            <!-- ข้อมูลจากฟังก์ชัน showPriceHistory จะมาลงตรงนี้ -->
-                        </div>
-                    </div>
-             </div>
-
+      
 
     <script>
         if ('serviceWorker' in navigator) {
@@ -814,6 +712,62 @@
         });
     }
     </script>
+      
+      </div>
+
+  </main>
+
+  <!--footer mobile-->
+
+  <footer class="app-footer">
+    
+            <!--"พื้นที่วางปุ่มโต๊ะ 08-06-2026-->
+            <div id="payment-group" class="payment-action-container">
+    
+                <button id="btn-to-table" class="payment-btn btn-table-deposit" onclick="saveOrderToTable()">
+                    📥 ฝากลงโต๊ะ
+                </button>
+
+                <div class="payment-quick-row">
+                    <button id="btn-pay-cash" class="payment-btn btn-cash-accent" onclick="confirmOrder('cash')">
+                        💵 เงินสด
+                    </button>
+                    <button id="btn-pay-transfer" class="payment-btn btn-transfer-accent" onclick="confirmOrder('transfer')">
+                        📱 เงินโอน/QR
+                    </button>
+                </div>
+
+            </div>
+
+             <!--โชว์สถานะการส่ง P2P  08-06-2026-->
+            <div id="warp-status-bar" class="warp-status-container">
+                <div id="status-dot" class="warp-status-indicator"></div>
+                <span id="status-text" class="warp-status-message">ระบบวาร์ป: พร้อมส่งออเดอร์</span>
+            </div>                
+
+           <div class="close-day-wrapper">
+                <button id="btn-close-day" class="close-day-trigger-btn" onclick="handleCloseDay()">
+                    🏁 ปิดยอดประจำวัน
+                </button>
+            </div>
+  </footer>
+
+  <script>
+    function showPage(pageId) {
+      // 1. สั่งให้ทุกหน้าที่มีคลาส .page-section ทำการซ่อนตัวก่อน (โดยการลบคลาส active ออก)
+      document.querySelectorAll('.page-section').forEach(page => {
+        page.classList.remove('active');
+      });
+      
+      // 2. ดึงหน้า id ที่เรากดเรียก (เช่น 'bank-page' หรือ 'front-page') แล้วเติมคลาส active เข้าไปเพื่อให้โชว์ขึ้นมา
+      document.getElementById(pageId).classList.add('active');
+    }
+  </script>
+
+</div>
+
+
+   
 
 </body>
 </html>

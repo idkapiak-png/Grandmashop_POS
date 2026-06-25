@@ -1,109 +1,1249 @@
-/* 1. ตั้งค่าพื้นฐานให้ทุกอย่างคำนวณขนาดง่ายขึ้น */
+/* 1. ตั้งค่าพื้นฐานให้ทุกอย่างคำนวณขนาดง่ายขึ้น 07-06-2026 */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
-/* 2. ทำให้ตัว Body ยืดหยุ่น */
+
+/* กรอบหน้าจอมือถือหลัก */
+.app-container {
+  display: flex;
+  flex-direction: column;   /* จัดเรียง บน-กลาง-ล่าง */
+  width: 100%;
+  max-width: 360px;
+  height: 100vh;
+  max-height: 800px;
+  margin: 0 auto;
+  background-color: #000000; /* ธีมมืดดุดันพรีเมียม */
+  overflow: hidden;         /* ล็อกตัวแอปไม่ให้ขอบหลุดเฟรม */
+  font-family: sans-serif;
+}
+
+/* 1. แก้ไขที่ .app-header: ให้ตัด padding ออกเหลือแค่ 0 เพื่อคุมจากข้างใน */
+.app-header {
+  flex-shrink: 0;
+  height: auto;
+  min-height: 0px;
+  background-color: #000000;
+  border-bottom: 2.5px solid #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 5px 16px 5px 6px; /* ใช้ padding เดียวกันทั้งบน-ล่าง ซ้าย-ขวา */
+  padding-bottom:15px;
+  gap: 8px;
+  position: relative;
+  z-index: 10;
+  box-sizing: border-box; /* สำคัญมาก: ช่วยให้ padding ไม่ไปเพิ่มขนาดให้ header เกินหน้าจอ */
+  border-radius:  0px 0px 30px 30px;
+  margin-bottom: 1px;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between; /* ชื่อร้านซ้าย - เฟืองขวา */
+  align-items: center;
+  width: 100%;
+}
+
+/* 2. แก้ไขที่ .header-bottom: ให้ลบ padding เดิมออก และใช้พื้นที่ 100% เต็ม */
+.header-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    padding:3px 3px;
+}
+
+/* 3. ปรับ .left-status-group ให้ยืดหยุ่นขึ้น */
+.left-status-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    flex-shrink: 1; /* เปลี่ยนจาก 0 เป็น 1 เพื่อให้มันช่วยปรับตัว */
+    max-width: 60%;  /* กำหนดเป็น % แทนตัวเลขตายตัว จะสมดุลกว่าในทุกหน้าจอ */
+    align-items: flex-start; /* บังคับให้ทุก Child (ป้าย 1 และ 2) วางแนวชิดขอบซ้ายเท่ากัน */
+}
+
+/* หากต้องการให้สถานะ "กำลังขาย: หน้าร้าน..." ไม่ขึ้นบรรทัดใหม่ */
+.status-badge-capsule {
+    white-space: nowrap;           /* บังคับข้อความอยู่บรรทัดเดียว */
+}
+
+
+
+
+
+
+
+
+
+
+
+/* 2. จัดการส่วนเนื้อหาตรงกลาง */
+.app-content {
+  flex-grow: 1;             /* มีพื้นที่เหลือเท่าไหร่ ยืดกินพื้นที่ให้หมด */
+  overflow-y: auto;         /* ถ้าเมนูก๋วยเตี๋ยวยาวเกิน ให้สกรอลล์เฉพาะส่วนนี้ */
+  padding: 16px;
+  background-image: url('bgApp.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
+}
+
+/* 3. จัดการส่วนด้านล่าง (Footer) */
+.app-footer {
+  flex-shrink: 0;           /* ล็อกความสูงด้านล่าง */
+  height:  234.78px;
+  background-color: #000000;
+  border-top: 1px solid #2A2A2A;
+  display: grid;
+  gap: 0px;
+  padding: 0px 0px;
+}
+
+/* --- ลอจิกการซ่อน/แสดงหน้าจอ (front-page และ bank-page) --- */
+.page-section {
+  display: none; /* ปกติสั่งซ่อนไว้ก่อน */
+}
+.page-section.active {
+  display: block; /* หน้าไหนติดคลาส active ถึงจะโชว์ */
+}
+
+
+
+
+
+
+
+
+
+/* ..............................................mobile..................................................................... */
+
+/* 2. บอดี้หลัก (รวมร่างเหลืออันเดียว คลีนที่สุด และล็อกหน้าจอแอป) 07-06-2026 */
 body {
     font-family: 'Arial', sans-serif;
     line-height: 1.5;
-    background-color: #000000;
-    padding: 10px; /* เว้นระยะจากขอบจอเล็กน้อย */
+    background-color: #716f6f;
+    padding: 0; 
+    
+    width: 100vw;              
+    height: 100vh;             
+    display: flex;
+    flex-direction: column;    
+    overflow: auto;          
 
-
+    /* 🔒 คาถาป้องกันหน้าจอดึ๋งหลุด */
+    overscroll-behavior-y: contain; 
+    
+    /* ⚡ ทำให้ปัดหน้าจอลื่น ๆ บน iPhone */
+    -webkit-overflow-scrolling: touch;
 }
 
-/* 3. กล่องหน้าหลักและหน้าตั้งค่า */
-#front-page, #back-page {
-    max-width: 500px; /* ถ้าเปิดในคอม จะกว้างไม่เกินนี้เพื่อไม่ให้บานเกินไป */
-    margin: 0 auto;  /* จัดให้อยู่กลางจอเสมอ */
-    width: 100%;     /* ถ้าในมือถือ จะกว้างเต็ม 100% */
-}
 
-/* 4. จัดการปุ่มเมนูให้เรียงกันสวยๆ */
+
+/* ==========================================================================
+   📌 OPTIONS DISPLAY PANEL (ส่วนจัดการตัวเลือกท็อปปิ้งเสริม) 08-06-2026
+   ========================================================================== */
+
+/* กล่องหลัก: เปิดระบบยืดหยุ่นให้ปุ่มตัวเลือกเรียงจากบนลงล่างเป็นระเบียบ */
 #options-display {
-    display: flex;       /* เปิดระบบกล่องยืดหยุ่น */
-    flex-direction: column; /* เรียงจากบนลงล่างเป็นหลัก */
-    gap: 12px;           /* เว้นระยะห่างระหว่างปุ่ม */
+    display: flex;       
+    flex-direction: column; 
+    gap: 12px;           /* เว้นระยะห่างระหว่างกลุ่มปุ่ม */
 }
 
-/* ปรับแต่งส่วน Header (ชื่อร้านและเมนู) */
-header {
-    text-align: center;
-    padding: 20px 0 60px 0;
-    background: linear-gradient(135deg, #a4fcff, #cfe0eb); /* ใส่สีไล่เฉดให้ดูทันสมัย */
-    border-radius: 0 0 25px 25px; /* มนเฉพาะขอบล่างให้ดูนุ่มนวล */
-    color: #000000; 
-    margin-bottom: 20px;
-    position: relative;
-}
-
-#name-main {
-    font-size: 1.5rem;
-    font-weight: bold;
-    padding-top: 60px;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-}
-
-#menu-name {
-    font-size: 1.1rem;
-    opacity: 0.9;
-    color: #333;  /*ใส่สีเทาเข้มให้อ่านง่าย*/
-    margin-top: 20px;
-    position: relative;
-    z-index: 20; /*ดันให้ลอยเหนือกล่องขาว*/
-}
-
-/* กล่อง "สรุปยอดขาย" (The Profit Dashboard) */
-
-#sales-summary {
-    background: white;
-    margin: 15px auto;
-    padding: 15px;
-    border-radius: 15px;
-    box-shadow: 0 10px 10px rgba(0,0,0,0.05);
-    text-align: center;
-}
-
-#total-sales-display {
-    display: block;
-    font-size: 2.2rem;
-    font-weight: bold;
-    color: #2ed573; /* สีเขียวเหนี่ยวทรัพย์ */
+/* หัวข้อคำว่า "ส่วนเพิ่มเติม" (ย้ายสไตล์มาจาก HTML) */
+.options-main-title {
+    color: #ff9f43; /* สีส้มสว่างคุมโทนส่วนเพิ่มเติม */
     margin: 5px 0;
 }
 
-#profit-status {
-    display: inline-block;
-    padding: 5px 15px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    font-weight: bold;
-    /* สีพื้นหลังจะถูกเปลี่ยนโดย JS ที่เราเขียนไว้ (Red/Green) */
-}
-
-/* ส่วน "นับไข่" และ "ส่วนเพิ่มเติม" (Interactive Section) */
-
-#universal-counter {
-    background: #ffffff; /* สีเหลืองนวลเหมือนไข่แดง */
-    padding: 10px;
-    border-radius: 10px;
-    text-align: center;
-    margin-bottom: -20px;
-    border: 5px dashed #ff9f43;
-}
-
+/* 🥚 ป้ายปุ่มท็อปปิ้งตัวเลือก (มัดรวมสไตล์เก่า 2 ก้อนเข้าด้วยกันอย่างปลอดภัย) */
 #options-display label {
     display: flex;
     align-items: center;
-    background: #ff9f43;
+    background: #ff9f43; /* พื้นหลังปุ่มสีส้มเด่นชัด */
+    color: #000000;      /* ตัวหนังสือสีดำเข้มตัดกับปุ่ม */
     padding: 15px;
-    border-radius: 18px;
+    border-radius: 18px; /* ขอบมนสวยงามสไตล์โมเดิร์น */
     margin-bottom: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    border: 1px solid #000000; /* เส้นขอบสีดำช่วยตัดขอบให้เห็นชัดเจนบนหน้าจอ */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
     cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease; /* สลับสีและขยับนุ่มนวล */
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายเอานิ้วจิ้มเลือกท็อปปิ้งบนมือถือ */
+#options-display label:active {
+    transform: scale(0.98);      /* เวลาจิ้มแล้วกล่องจะยุบลงไปนิดนึงตามแรงกด */
+    background-color: #f1f2f6;   /* เปลี่ยนพื้นหลังเป็นสีสว่างชั่วคราวเพื่อให้รู้ว่ากดติดแล้ว */
+}
+
+/* ==========================================================================
+   ⚙️ APP SETTING TRIGGER (ส่วนปุ่มฟันเฟืองเข้าสู่การตั้งค่าระบบ) 08-06-2026
+   ========================================================================== */
+
+/* ปุ่มฟันเฟืองล็อกพิกัดไว้ที่มุมขวาบนของหน้าจอแอปหลัก */
+.app-setting-trigger-btn {
+    position: absolute; 
+    top: 10px; 
+    right: 10px; 
+    font-size: 20px; 
+    border: none; 
+    background: none; /* เอาพื้นหลังปุ่มออกให้เหลือแต่ตัวอีโมจิฟันเฟืองลอย ๆ */
+    cursor: pointer;
+    padding: 5px; /* เพิ่มพื้นที่รอบๆ ปุ่มจิ๊ดนึงให้ใช้นิ้วจิ้มบนมือถือง่ายขึ้น */
+    -webkit-tab-highlight-color: transparent; /* ป้องกันแถวสีฟ้าสะท้อนเวลาจิ้มบนจอไอโฟน/แอนดรอยด์ */
+    transition: transform 0.2s ease; /* ใส่ความยืดหยุ่นเวลาจิ้มกดปุ่ม */
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายใช้นิ้วจิ้มปุ่มตั้งค่าบนมือถือ */
+.app-setting-trigger-btn:active {
+    transform: scale(0.9) rotate(30deg); /* เวลาจิ้มแล้วปุ่มจะหดตัวลงนิดนึงและแอบหมุนฟันเฟืองตามตามแรงกด ดูมีชีวิตชีวา */
+}
+
+/* ................................................................................... */
+
+/* ==========================================================================
+   FRONT-PAGE & BACK-PAGE 09-06-2026
+   ========================================================================== */
+
+
+/* ==========================================================================
+   📱 1. CORE APP LAYOUT & ANIMATION (ส่วนควบคุมมิติแอปและแอนิเมชัน - ใช้ร่วมกัน)
+   ========================================================================== */
+#front-page, 
+#back-page {
+    width: 100%;                     /* ในมือถือจะกว้างเต็มจอ 100% */
+    max-width: 500px;                /* ถ้าเปิดในคอมพิวเตอร์ จะล็อกขนาดไม่ให้บานเกินไป */
+    margin: 0 auto;                  /* จัดบล็อกโครงสร้างให้อยู่กึ่งกลางหน้าจอเสมอ */
+    animation: fadeIn 0.4s ease-out; /* เอฟเฟกต์ค่อยๆ สว่างนุ่มนวลเวลาสลับสลับหน้าจอ */
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   🏠 2. FRONT PAGE STYLES (สไตล์เฉพาะตัวของหน้าหลักหน้าร้าน - สีดำดุดัน)
+   ========================================================================== */
+#front-page {
+    background-color: #000000;       /* พื้นหลังสีดำทมิฬคลาสสิกตามธีมหน้าร้าน */
+    min-height: 100vh;               /* ดึงสัดส่วนความสูงคลุมเต็มหน้าจอ */
+    padding-bottom: 40px;            /* กันเนื้อหาวิ่งลงไปจมขอบล่างหน้าจอ */
+    display: flex;                   /* เปิดโหมดจัดแถว */
+    flex-direction: column;          /* บังคับเรียงไอเทมอาหารจากบนลงล่าง */
+}
+
+/* ==========================================================================
+   ⚙️ 3. BACK PAGE STYLES (สไตล์เฉพาะตัวของหน้าตั้งค่าหลังบ้าน - สีขาวคลีน)
+   ========================================================================== */
+#back-page {
+    /* คุณสมบัติความปลอดภัยและพฤติกรรมการสัมผัสหน้าจอ */
+    user-select: none; 
+    -webkit-user-select: none;       /* สำหรับรองรับ iPhone/Safari ของคุณยาย */
+    touch-action: pan-x pan-y;       /* เลื่อนนิ้วขึ้นลงซ้ายขวาได้อิสระ แต่ห้ามดึงกระชากเพื่อรีเฟรชหน้าจอ */
+    
+    /* สไตล์หน้ากากกล่องหลังบ้าน */
+    background: #ffffff;             /* เปลี่ยนธีมเป็นสีขาวสะอาดตา ตัดกับหน้าแรกชัดเจน */
+    padding: 20px;                   /* ย้ายระยะขอบอินไลน์ใน HTML มารวบไว้ตรงนี้อย่างปลอดภัย */
+    border-radius: 20px;             /* ทำขอบมนสไตล์โมเดิร์นแอป */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* เงาฟุ้งลอยนุ่มนวล */
+    box-sizing: border-box;
+}
+
+/* องค์ประกอบย่อยภายในหน้าตั้งค่าหลังบ้าน */
+#back-page h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #333333;
+    border-left: 5px solid #ff4757;  /* เส้นสันสีแดงสดสไตล์โมเดิร์นนำสายตาหัวข้อ */
+    padding-left: 10px;
+}
+
+#back-page p {
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    color: #555555;
+}
+
+/* ==========================================================================
+   ✍️ PREMIUM GLOBAL INPUT STYLES (ตกแต่งช่องกรอกข้อมูลให้หรูหราและพรีเมียมเท่ากันทุกหน้า) 09-08-2026
+   ========================================================================== */
+
+/* สถานะปกติ: คุมมิติช่องอินพุตทั้งหมดในแอปให้สวย เนี๊ยบ ขนาดเต็มจอและกดง่าย */
+input[type="text"], 
+input[type="number"] {
+    width: 100%;
+    padding: 12px 16px;              /* เพิ่มช่องไฟด้านข้างให้ดูหรูหรา ไม่เบียดตัวหนังสือ */
+    border: 1px solid #e0e0e0;       /* ใช้สีขอบเทาจางนุ่มตา */
+    border-radius: 10px;             /* ขอบโค้งมนสวยงามสไตล์ iOS/Modern App */
+    font-size: 1rem;                 /* ขนาดตัวอักษรพอดีสายตา */
+    margin-bottom: 1px;             /* เว้นระยะห่างด้านล่างไม่ให้ติดกันเกินไป */
+    background-color: #ffffff;
+    color: #2c3e50;                  /* สีตัวอักษรเข้มอ่านง่าย */
+    box-sizing: border-box;          /* ล็อกขนาดไม่ให้ขอบบานทะลุจอ */
+    outline: none;                   /* ลบขอบสีฟ้าดั้งเดิมของเบราว์เซอร์ออก */
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease, transform 0.2s ease;
+}
+
+/* สถานะเมื่อใช้นิ้วจิ้มพิมพ์ (:focus): เอฟเฟกต์หรูหรา ตอบสนองนุ่มนวลตามธีมร้าน */
+input[type="text"]:focus, 
+input[type="number"]:focus {
+    border-color: #ff4757;           /* เปลี่ยนขอบเป็นสีแดงสดใสตามธีมหลักร้านเรา */
+    background-color: #fffafb;       /* อมชมพูแดงระื่อ ๆ จาง ๆ ด้านหลัง เพิ่มความพรีเมียมเด่นชัด */
+    box-shadow: 0 4px 12px rgba(255, 71, 87, 0.15); /* เงาสะท้อนสีกุหลาบจาง ๆ ลอยตัวมีมิติ */
+    transform: scale(1.01);          /* ขยายตัวออกมาจิ๊ดนึงอย่างนุ่มนวลให้ฟีลโต้ตอบกับผู้ใช้ */
+}
+
+
+/* ................................................................................... */
+
+/* 07-06-2026 */
+header {
+    /* 1. จัดระเบียบโครงสร้างหลักและการเรียงตัว (จากตัวที่ 3) */
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    position: relative;
+
+    /* 2. จัดแต่งหน้าตา ระยะห่าง และความมนของขอบ (จากตัวที่ 1) */
+    padding: 20px 0 80px 0; /* รวมระยะพ่นด้านล่าง 80px จากตัวที่ 2 เพื่อให้ปุ่มไม่บัง */
+    border-radius: 0 0 25px 25px; /* มนเฉพาะขอบล่างให้ดูนุ่มนวล */
+    margin-bottom: 20px;
+    color: #000000; 
+
+    /* 3. การจัดการรูปภาพพื้นหลังและเงา (จากตัวที่ 2) */
+    background-attachment: scroll;
+    background-color: rgba(0, 0, 0, 0.0);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* ชื่อร้านหลักด้านบนสุด (Header) 08-06-2026 */
+#name-main {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #E47E22; /* สีชื่อร้าน (รวมมาจากก้อนที่ 2) */
+    text-align: center; /* แค่นี้ชื่อร้านก็อยู่กลางแนวนอนแล้วครับ */
+    width: 100%;
+    height: 0px;
+    line-height: 60px;
+    margin-bottom: 40px;
+}
+
+/* ชื่อเมนูอาหารหลักที่แสดงบนหน้าจอ 08-06-2026 */
+#menu-name {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #e2ff42;       /* สีเหลืองนีออนเด่นชัด (เลือกตัวนี้ตามโทนแอปหลัก) */
+    display: block;       /* สั่งให้ขึ้นบรรทัดใหม่แยกสัดส่วนชัดเจน */
+    margin-top: 20px;     /* เว้นระยะห่างจากขอบด้านบน */
+    margin-bottom: 20px;  /* เว้นระยะห่างจากของด้านล่าง 20px */
+    opacity: 0.9;         /* ปรับความโปร่งแสงเล็กน้อยให้ดูนุ่มตา */
+    position: relative;
+    z-index: 20;          /* ดันให้ตัวหนังสือลอยเหนือกล่องสีขาวด้านหลัง */
+}
+
+/* ==========================================================================
+   🔍 SMART SEARCH PANEL (ส่วนกล่องค้นหาเมนูอัจฉริยะ) 08-06-2026
+   ========================================================================== */
+
+/* 1. กล่องครอบภายนอกสุด (แม่คุมฐานเสาเข็มหลัก) */
+.search-container {
+    margin: 15px; 
+    text-align: center; 
+    position: relative; /* 🟢 ล็อคพิกัดให้กล่องลูกกางใต้ช่องพิมพ์ได้อย่างเที่ยงตรง */
+    z-index: 100;       /* ดันให้ระบบค้นหาลอยอยู่เหนือเมนูอาหารด้านล่าง */
+}
+
+/* 2. ช่องสำหรับพิมพ์ค้นหาตัวหนังสือ */
+.search-input-field {
+    width: 90%; 
+    padding: 12px; 
+    border-radius: 25px; 
+    border: 2px solid #e2ff42; /* ขอบสีเหลืองนีออนคุมโทนแอปหลัก */
+    font-size: 16px; 
+    outline: none; 
+    box-sizing: border-box;
+    background: #ffffff;
+    color: #333333;
+}
+
+/* 3. กล่อง Dropdown ผลลัพธ์รวม (ผูก ID ชน Class เพื่อเพิ่มพลังความจำเพาะในการคุมมิติ) */
+#search-results-area.search-dropdown-results {
+    display: flex; /* 🟢 ค่าเริ่มต้นสภาวะเปิดใช้งานเป็น Flexbox ตามที่ระบบ JS ต้องการ */
+    flex-direction: column; 
+    position: absolute; 
+    top: 100%; 
+    left: 5%; 
+    width: 90%; 
+    max-height: 250px; 
+    overflow-y: auto; 
+    background: #2c2c2c; /* พื้นหลังสีเทาเข้มตัดกับตัวหนังสือ */
+    border: 1px solid #444444; 
+    border-radius: 12px; 
+    margin-top: 5px; 
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); 
+    padding: 5px; 
+    box-sizing: border-box;
+    z-index: 1000;
+}
+
+/* 🔒 4. คลาสสากลปลิดชีพสัญญาณลอยค้าง (The Master Hidden State) */
+#search-results-area.search-dropdown-results.stg-hidden {
+    display: none; /* 🟢 มีพลังเหนือกว่า display: flex ด้านบนด้วยกฎการต่อคลาสสากล สั่งหุบกล่องได้ชัวร์ 100% */
+}
+
+/* 5. ปุ่มรายการอาหารที่ค้นเจอภายในกล่องลอย (ฉบับพรีเมียม สีสันเด่นชัด ยายจิ้มง่าย) */
+#search-results-area button.btn-search-match {
+    width: 100%; 
+    margin: 4px 0; 
+    padding: 12px; 
+    background-color: #ff9f43; /* เฉดสีส้มสว่างสังเกตง่าย */
+    color: #000000; 
+    border-radius: 8px; 
+    border: none; 
+    font-weight: bold; 
+    text-align: left; 
+    cursor: pointer;
+    font-size: 15px;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ยุบตัวเบา ๆ ตอนคุณยายใช้นิ้วกดสัมผัสลงไปบนปุ่มผลลัพธ์ */
+#search-results-area button.btn-search-match:active {
+    background-color: #e68a2e;
+    transform: scale(0.98);
+}
+
+/* 6. กล่องแจ้งเตือนสภาวะเมื่อพิมพ์ค้นหาแล้วไม่พบเมนูใด ๆ */
+#search-results-area .search-no-match {
+    color: #aaaaaa; 
+    padding: 10px; 
+    font-size: 14px;
+    text-align: center;
+}
+
+
+
+/* ==========================================================================
+   🍳 MODE SELECTOR PANEL (ส่วนปุ่มเลือกโหมดการขายหน้าร้าน) 08-06-2026
+   ========================================================================== */
+
+/* กล่องครอบปุ่มสลับโหมด */
+.mode-selector {
+    margin-bottom: 15px; 
+    display: flex; 
+    gap: 10px;
+}
+
+/* ปุ่มโหมด "ขายหน้าร้าน (กลับบ้าน)" ปรับแต่งให้กดง่ายเหมาะกับมือถือ */
+.takeaway-mode-btn {
+    flex: 1; 
+    padding: 15px; 
+    background-color: #58baf7; /* สีฟ้าสว่าง สบายตา มองเห็นชัด */
+    color: #000000; /* ตัวหนังสือสีดำเข้มตัดกับปุ่ม */
+    border: none; 
+    border-radius: 10px; 
+    font-size: 1.1rem; /* ขนาดฟอนต์ใหญ่สะใจเพื่อให้ยายอ่านง่าย */
+    font-weight: bold; 
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* เพิ่มมิติเงาให้ปุ่มนูนน่ากด */
+    transition: background 0.2s ease, transform 0.1s ease; /* จิ้มแล้วนุ่มนวล */
+}
+
+/* เอฟเฟกต์ตอบสนองตอนใช้นิ้วจิ้มปุ่มบนมือถือ */
+.takeaway-mode-btn:active {
+    transform: scale(0.98); /* ปุ่มจะยุบลงไปจิ๊ดนึงเวลาโดนกด */
+    background-color: #46a6e2; /* เปลี่ยนสีเข้มขึ้นนิดนึงตอนนิ้วกด */
+}
+
+/* ==========================================================================
+   📊 1. กล่องสรุปยอดขายหลัก (The Profit Dashboard) 08-06-2026
+   ========================================================================== */
+#sales-summary {
+    background: white;
+    border: 2px solid #f1f2f6;
+    margin: 0 10px 15px 10px; /* ยุบรวม margin: จัดเกยหัวแอป 10px และเว้นด้านล่าง 15px */
+    width: auto;
+    position: relative;
+    z-index: 10;
+    padding: 15px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.05); /* เพิ่มมิติความลอยตัว */
+}
+
+/* ข้อความหัวข้อ "💰 ยอดขายวันนี้:" */
+.sales-title {
+    margin: 0;
+    color: #333333;
+}
+
+
+
+/* ตัวเลขแสดงยอดรวมสีเขียวเหนี่ยวทรัพย์ */
+#total-sales-display {
+    display: block;
+    font-size: 2.5rem; /* เลือกใช้ขนาดใหญ่สะใจเพื่อให้ยายมองเห็นชัดที่สุด */
+    font-weight: bold;
+    color: #2ed573; 
+    margin: 5px 0;
+    background: rgba(46, 213, 115, 0.1); /* สีพื้นหลังโปร่งแสงจาง ๆ */
+    padding: 5px 15px;
+    border-radius: 10px;
+}
+
+/* กล่องแสดงแยกยอด เงินสด และ โอน */
+.payment-method-box {
+    display: inline-block;
+    border: 2px solid #00acc1;
+    border-radius: 8px;
+    padding: 5px 15px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    color: #555555;
+}
+
+
+/* ==========================================================================
+   🚨 2. แถบสถานะ "กำไร/ขาดทุน" และการป้องกันหน้าจอมือถือ 08-06-2026
+   ========================================================================== */
+#profit-status {
+    display: inline-block;
+    width: 100%;
+    padding: 10px 20px;
+    border-radius: 50px; /* ทรงแคปซูล ดูทันสมัย */
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-top: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease; /* เวลา JS เปลี่ยนสีกำไร-ขาดทุน จะค่อยๆ ไล่เฉดนุ่มๆ */
+    min-width: 180px;
+    text-align: center;
+    -webkit-tab-highlight-color: transparent; /* กันแสงสะท้อนเวลาจิ้มบนมือถือเฉพาะไอดีนี้ */
+    user-select: none;                        /* กันยายกดค้างแล้วขึ้นแถบสีน้ำเงินเฉพาะไอดีนี้ */
+}
+
+/* ป้ายเตือนเริ่มต้นด้านในกล่องกำไรระหว่างรอข้อมูล */
+.profit-waiting-badge {
+    background: #fff5f5; 
+    color: #e74c3c; 
+    padding: 10px 20px; 
+    border-radius: 20px; 
+    font-weight: bold; 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 8px;
+}
+
+/* ==========================================================================
+   🚀 ปุ่มเข้าสู่แดชบอร์ดภาพรวมธุรกิจ (มุมหลานรัก) 08-06-2026
+   ========================================================================== */
+.grandma-dashboard-btn {
+    width: 100%; 
+    margin-top: 15px; 
+    padding: 12px; 
+    background: #333333; 
+    color: #e2ff42; /* สีเหลืองนีออนเด่น ๆ */
+    border: 1px solid #e2ff42; 
+    border-radius: 12px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background 0.2s ease, transform 0.1s ease; /* แถมความนุ่มนวลเวลาจิ้มปุ่ม */
+}
+
+/* แถมทริคเล็กๆ เวลาเอานิ้วไปจิ้มปุ่มบนมือถือ ให้รู้สึกเด้งตอมือนิด ๆ */
+.grandma-dashboard-btn:active {
+    transform: scale(0.98);
+    background: #222222;
+}
+/* ................................................................................... */
+
+/* ==========================================================================
+   🏠 GRANDMA DASHBOARD MODAL (ส่วนหน้าต่างภาพรวมธุรกิจมุมหลานรัก) 08-06-2026
+   ========================================================================== */
+
+/* 1. พื้นหลังโปร่งแสงสีดำที่คลุมทั้งจอ (Modal Overlay) */
+.gma-modal-overlay {
+    display: none; /* เริ่มต้นซ่อนไว้ ให้ JS สั่งเปิด */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9999;
+    overflow-y: auto; /* เปิดให้เลื่อนขึ้นลงได้ถ้าจอมือถือเล็ก */
+    padding: 20px 10px;
+}
+
+/* 2. กล่องกระดาษสีขาวตรงกลางที่ใส่ข้อมูล (Modal Content) */
+.gma-modal-content {
+    background: white;
+    width: 100%;
+    max-width: 500px;
+    margin: auto;
+    border-radius: 20px;
+    padding: 20px;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+/* 3. ปุ่มกากบาทปิดหน้าต่าง */
+.gma-modal-close-btn {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+}
+.gma-modal-close-btn:hover { color: #333; }
+
+/* 4. หัวข้อหลักเด่น ๆ */
+.gma-modal-title {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+}
+
+/* ==========================================================================
+   📅 ส่วนระบบปุ่มกรองช่วงเวลา (Time Filtering) 
+   ========================================================================== */
+.gma-filter-group {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.gma-filter-btn {
+    padding: 5px 12px;
+    border-radius: 15px;
+    border: 1px solid #2ecc71;
+    background: white;
+    color: #27ae60;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+/* คลาสพิเศษ: ปรับให้ปุ่ม "ทั้งหมด" ไฮไลต์สีเขียวเด่นขึ้นมาตั้งแต่แรก */
+.gma-filter-btn.btn-active, .gma-filter-btn:active {
+    background: #2ecc71;
+    color: white;
+}
+
+/* ==========================================================================
+   📊 ส่วนกราฟและการ์ดข้อความอบอุ่น
+   ========================================================================== */
+.gma-chart-container {
+    width: 100%;
+    height: 250px;
+    margin-bottom: 25px;
+}
+
+.gma-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* กล่องข้อความจากหลานรัก */
+.gma-warm-message {
+    background: #f0f7f8;
+    padding: 15px;
+    border-radius: 12px;
+    border-left: 5px solid #00acc1;
+    font-style: italic;
+    color: #555555;
+    font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   💡 ส่วนวิเคราะห์เชิงลึกและการ์ดสีต่าง ๆ (Smart Analysis)
+   ========================================================================== */
+.gma-analysis-section {
+    margin-top: 25px;
+    border-top: 2px dashed #eee;
+    padding-top: 20px;
+}
+
+.gma-analysis-title {
+    text-align: center;
+    color: #00acc1;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+/* การจัดเรียงการ์ดแบบเรียงแถวแนวตั้ง */
+.gma-analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+/* โครงสร้างพื้นฐานของการ์ดช่วยตัดสินใจ */
+.gma-card {
+    padding: 15px;
+    border-radius: 12px;
+}
+.card-body-text {
+    font-size: 0.9rem;
+    margin-top: 5px;
+}
+
+/* 🎨 เซตเฉดสีที่แตกต่างกันของการ์ดแต่ละใบตามสไตล์เดิม */
+.card-yellow { background: #fff9db; border-left: 5px solid #f1c40f; }
+.card-title-yellow { color: #856404; }
+
+.card-blue { background: #e3f2fd; border-left: 5px solid #2196f3; }
+.card-title-blue { color: #0d47a1; }
+
+.card-purple { background: #f3e5f5; border-left: 5px solid #9c27b0; }
+.card-title-purple { color: #4a148c; }
+
+.card-white { background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 5px; }
+.card-title-dark { color: #2c3e50; font-size: 0.95rem; }
+
+/* 🌟 จุดแต่งตัวพิเศษข้างในการ์ดคะแนนความเก่ง */
+.gma-big-score {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #d32f2f;
+    margin: 10px 0;
+}
+.gma-score-placeholder {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 5px 0;
+}
+.gma-text-placeholder {
+    font-size: 0.85rem;
+    color: #555;
+    font-style: italic;
+    text-align: center;
+}
+
+/* พื้นที่จำลองการวาดกราฟช่วงเวลาทำเงิน */
+.gma-peak-chart-area {
+    margin-top: 10px;
+}
+.gma-analyzing-text {
+    color: #999;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+/* ==========================================================================
+   🍱 ORDER MENU PANEL (ส่วนกล่องแสดงรายการปุ่มเมนูอาหาร) 08-06-2026
+   ========================================================================== */
+
+/* กล่องหลัก: จัดหน้าจอเมนูอาหารให้เรียงแถวเป็นคู่ซ้าย-ขวา (ย้ายมาจาก HTML) */
+.menu-items-grid {
+    display: grid; 
+    grid-template-columns: repeat(2, 1fr); /* แบ่งหน้าจอเป็น 2 ฝั่งเท่า ๆ กันพอดีเป๊ะ */
+    gap: 10px; /* เว้นช่องไฟระหว่างปุ่มไม่ให้เบียดกัน */
+}
+
+/* ชุดแต่งตัวปุ่มเมนูอาหารแต่ละปุ่ม (คงสไตล์เดิมของเพื่อนไว้) */
+#Order-menu button {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 12px;
+    background-color: #333333; /* สีพื้นหลังปุ่มเทาเข้ม */
+    color: #e2ff42;            /* สีตัวหนังสือเหลืองนีออนอ่านง่ายชัดเจน */
+    font-weight: bold;
+    font-size: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอนเอานิ้วจิ้ม หรือเอาเมาส์วางบนปุ่มเมนู */
+#Order-menu button:hover, #Order-menu button:active {
+    background-color: #8e9491; /* เปลี่ยนเป็นสีเทาอ่อนเพื่อให้รู้ว่าจิ้มโดนแล้ว */
+    transform: translateY(-2px); /* ปุ่มลอยขึ้นมาจิ๊ดนึงดูมีมิติเด้งตอบรับมือ */
+}
+
+/* ==========================================================================
+   📊 UNIVERSAL COUNTER (ส่วนกล่องนับจำนวนสารพัดประโยชน์) 08-06-2026
+   ========================================================================== */
+#universal-counter {
+    background: #fff4eb; /* 🥚 ปรับสีกระดาษให้เป็นสีครีมไข่แดงละมุนตา ตามคอมเม้นท์เดิมของเพื่อน */
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: -20px; /* ให้กล่องยื่นซ้อนลงไปด้านล่างดูมีมิติ */
+    border: 5px dashed #ff9f43; /* เส้นขอบปะสีส้มอิฐ ล้อมรอบกล่อง */
+}
+
+/* ข้อความตัวหนังสือด้านในกล่องนับจำนวน (ย้ายสไตล์มาจาก HTML) */
+.counter-text-line {
+    font-weight: bold; /* สั่งให้ตัวหนังสือและตัวเลขทั้งหมดหนาเด่นชัด ยายมองเห็นง่าย */
+    margin: 5px 0;
+    color: #333333;
+}
+
+/* ==========================================================================
+   📝 ORDER PREVIEW BOX (ส่วนกล่องพรีวิวก่อนส่งออเดอร์) 08-06-2026
+   ========================================================================== */
+
+/* กล่องหลัก: กระดาษสีเหลืองนวล เส้นขอบประสีส้มทอง */
+.preview-main-card {
+    background: #fff3cd; 
+    padding: 15px; 
+    border-radius: 10px; 
+    margin: 15px; 
+    border: 1px dashed #ffa502;
+}
+
+/* หัวข้อข้อความ "รายการที่เลือก" */
+.preview-title {
+    color: #333333;
+}
+
+/* ข้อความแสดงชื่อเมนูที่เลือก */
+.preview-menu-name {
+    margin: 5px 0;
+    color: #555555;
+}
+
+/* ตัวเลขราคารวมสีแดงเด่นชัด (ย้ายสไตล์มาจาก HTML) */
+.preview-price-text {
+    font-weight: bold; 
+    color: #ff4757; /* สีแดงสดสะดุดตา */
+    font-size: 1.2rem; /* ขนาดใหญ่ขึ้นนิดนึงให้ยายเห็นราคารวมชัดๆ */
+    margin: 5px 0;
+}
+
+/* ==========================================================================
+   ➕/➖ ระบบปุ่มควบคุมจำนวนจาน (Quantity Control) 08-06-2026
+   ========================================================================== */
+
+/* แถวจัดระเบียบ: สั่งให้ปุ่มและตัวเลขเรียงกันตรงกลางแนวนอน */
+.preview-qty-control-row {
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 15px; 
+    margin: 15px 0;
+}
+
+/* ข้อความกำกับคำว่า "จำนวน" และ "จาน" */
+.preview-qty-label {
+    font-weight: bold;
+    color: #333333;
+}
+
+/* ตัวเลขนับจำนวนจานตรงกลาง */
+.preview-qty-number {
+    font-size: 1.5rem; /* ขนาดตัวใหญ่ชัดเจน */
+    font-weight: bold; 
+    min-width: 30px; 
+    text-align: center;
+    color: #222222;
+}
+
+/* โครงสร้างพื้นฐานของปุ่มเพิ่ม/ลด (ทำเป็นทรงกลมวงเวียน) */
+.qty-btn {
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; /* 🔴 สั่งหักขอบ 50% เพื่อให้ปุ่มเป็นทรงกลมเป๊ะๆ */
+    border: 1px solid #dddddd; 
+    font-size: 1.2rem; 
+    font-weight: bold;
+    color: white; 
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.1s ease, background-color 0.2s ease;
+}
+
+/* แยกสีปุ่มตามหน้าที่เพื่อไม่ให้ยายสับสน */
+.btn-decrease { background: #ff4757; } /* ปุ่มลบสีแดง */
+.btn-increase { background: #2ed573; } /* ปุ่มบวกสีเขียวเหนี่ยวทรัพย์ */
+
+/* เอฟเฟกต์ตอบสนองเวลานิ้วจิ้มปุ่มเพิ่มลดบนมือถือ */
+.qty-btn:active {
+    transform: scale(0.9); /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงจิ๊ดนึงตามแรงกด */
+}
+
+/* ==========================================================================
+   ❌ RESET ORDER BUTTON (ส่วนปุ่มล้างรายการออเดอร์) 08-06-2026
+   ========================================================================== */
+
+/* กล่องครอบภายนอก: ช่วยจัดระยะช่องไฟซ้าย-ขวา */
+.reset-order-wrapper {
+    padding: 0 15px;
+}
+
+/* ตัวปุ่มล้างออเดอร์: สีเทาเรียบง่ายแต่กดง่ายเต็มความกว้างจอ */
+.reset-order-btn {
+    background: #cccccc; /* สีเทาอ่อนคุมโทนไม่ให้เด่นแข่งกับปุ่มบันทึกออเดอร์ */
+    color: #333333;      /* ตัวหนังสือสีเทาเข้มอ่านง่ายชัดเจน */
+    border: none; 
+    padding: 10px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    width: 100%; 
+    margin-bottom: 10px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายใช้นิ้วจิ้มปุ่มล้างออเดอร์บนมือถือ */
+.reset-order-btn:active {
+    transform: scale(0.99);    /* ปุ่มยุบลงตัวนิดเดียวพอให้รู้สึกว่ากดโดนแล้ว */
+    background-color: #b5b5b5; /* เปลี่ยนเป็นสีเทาเข้มขึ้นจิ๊ดนึงตอนนิ้วกดค้าง */
+}
+
+
+/* ==========================================================================
+   💰 PENDING BILLING BOX (ส่วนกล่องเช็คบิลเก็บเงินรายโต๊ะ) 08-06-2026
+   ========================================================================== */
+
+/* กล่องหลักภายนอกสุด: พื้นหลังสีเทาอ่อน ขอบปะเรียบหรู */
+.billing-main-panel {
+    display: none; /* 🔒 เริ่มต้นซ่อนไว้ (ปล่อยให้ JS สั่งเปิดหน้าจอเปลี่ยนเป็น block/flex) */
+    margin: 20px 0; 
+    padding: 15px; 
+    border-radius: 15px; 
+    background: #f9f9f9; 
+    border: 2px dashed #dddddd;
+}
+
+/* แถวส่วนหัว: จัดวางชื่อโต๊ะกับปุ่มปิดกากบาทให้อยู่ซ้าย-ขวา */
+.billing-header-row {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 10px;
+}
+
+/* หัวข้อชื่อโต๊ะ */
+.billing-title {
+    margin: 0; 
+    color: #2c3e50;
+}
+
+/* ปุ่มกากบาทปิดกล่องเช็คบิล */
+.billing-close-btn {
+    background: none; 
+    border: none; 
+    font-size: 1.5rem; 
+    cursor: pointer;
+    color: #7f8c8d;
+    transition: color 0.2s ease;
+}
+.billing-close-btn:hover { color: #333333; }
+
+/* โซนรายชื่ออาหาร: เปิดระบบไถหน้าจอเลื่อนขึ้นลงถ้าสั่งอาหารเยอะ */
+.billing-scroller-area {
+    max-height: 200px; 
+    overflow-y: auto; 
+    margin-bottom: 15px;
+}
+
+/* แถวส่วนท้าย: ขีดเส้นแบ่งสัดส่วน จัดวางยอดรวมไว้ซ้าย ปุ่มส้มไว้ขวา */
+.billing-footer-row {
+    border-top: 2px solid #eeeeee; 
+    padding-top: 10px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+}
+
+/* กลุ่มตัวเลขยอดรวม */
+.billing-total-group {
+    line-height: 1.2;
+}
+.billing-total-label {
+    font-size: 0.9rem; 
+    color: #7f8c8d;
+}
+.billing-total-price {
+    font-size: 1.4rem; 
+    color: #2c3e50;
+}
+
+/* ปุ่มกดส้ม "เช็คบิลเก็บเงิน" เด่นชัด ขนาดใหญ่กดง่ายเหมาะกับมือถือ */
+.billing-checkout-btn {
+    background: #e67e22; /* สีส้มอิฐสะดุดตามองเห็นง่าย */
+    color: white; 
+    border: none; 
+    padding: 12px 25px; 
+    border-radius: 10px; 
+    font-weight: bold; 
+    font-size: 1.1rem; 
+    cursor: pointer; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายใช้นิ้วจิ้มปุ่มเช็คบิล */
+.billing-checkout-btn:active {
+    transform: scale(0.97); /* ปุ่มจะยุบตัวลงจิ๊ดนึงตามแรงกด */
+    background-color: #d35400; /* เปลี่ยนเป็นสีส้มเข้มขึ้นตอนกดค้าง */
+}
+
+
+/* ==========================================================================
+   🪑 TABLE SELECTION AREA (ส่วนกล่องพื้นที่แสดงปุ่มโต๊ะนั่งในร้าน) 08-06-2026
+   ========================================================================== */
+
+/* กล่องหลัก: พื้นหลังสีขาว จัดปุ่มโต๊ะให้ยืดหยุ่นและไหลขึ้นบรรทัดใหม่ได้อัตโนมัติ */
+.table-zone-container {
+    display: flex; 
+    flex-wrap: wrap; /* 🔄 ถ้ายายตั้งค่าจำนวนโต๊ะไว้เยอะ ปล่อยให้ปุ่มโต๊ะไหลลงมาขึ้นแถวใหม่ได้สวยงาม ไม่หลุดขอบจอ */
+    gap: 10px; /* เว้นช่องไฟระยะห่างระหว่างปุ่มโต๊ะแต่ละใบ */
+    margin-bottom: 20px; 
+    padding: 10px; 
+    background: #ffffff; /* พื้นหลังสีขาวสะอาด */
+    border-radius: 10px; 
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1); /* ใส่เงาหลุมยุบลงไปด้านในกล่องเพื่อให้ดูมีมิติสวยงาม */
+}
+
+/* ข้อความแจ้งเตือนสีเทาเริ่มต้น (ย้ายสไตล์มาจาก HTML) */
+.table-zone-placeholder {
+    color: #999999; /* สีเทาอ่อนถนอมสายตา */
+    font-size: 0.8rem; /* ขนาดตัวเล็กพอดีคำ */
+    margin: 5px auto; /* จัดวางข้อความไว้กึ่งกลางกล่อง */
+    text-align: center;
+}
+
+/* ==========================================================================
+   📍 CURRENT TABLE STATUS BADGE (ส่วนป้ายแสดงสถานะโต๊ะปัจจุบัน) 08-06-2026
+   ========================================================================== */
+
+/* กล่องครอบภายนอก: ช่วยจัดการระยะห่างด้านล่าง */
+.status-badge-wrapper {
+    margin-bottom: 1px;
+}
+
+/* ตัวป้ายแคปซูลแสดงสถานะ: สีเทาเข้มเข้มขรึม ตัดกับตัวหนังสือสีขาวเด่นชัด */
+.status-badge-capsule {
+    background: #0f1720; /* สีเทาเข้มสไตล์มินิมอล */
+    color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาอ่านง่าย */
+    padding: 5px 5px; 
+    border-radius: 20px; /* 💊 สั่งหักขอบโค้งมนจนกลายเป็นทรงป้ายแคปซูลสวยงาม */
+    font-size: 10px;   /* ขนาดตัวหนังสือย่อมลงมานิดนึงเพื่อให้ดูเป็นป้ายกำกับ */
+    font-weight: bold;
+    display: inline-block; /* ป้องกันไม่ให้ป้ายยืดแผ่เต็มหน้าจอ ให้กว้างพอดีคำ */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* ใส่เงาบางๆ ให้ป้ายดูลอยตัวมีมิติ */
+}
+
+/* ==========================================================================
+   💳 PAYMENT OPTIONS GROUP (ส่วนกลุ่มปุ่มบันทึกออเดอร์และชำระเงิน) 08-06-2026
+   ========================================================================== */
+
+/* กล่องครอบหลักของระบบจัดการชำระเงิน */
+.payment-action-container {
+    margin-top: 3px;
+}
+
+/* แถวจัดระเบียบปุ่มเงินสดและเงินโอนให้แบ่งฝั่งละครึ่งซ้าย-ขวาเท่ากันพอดี */
+.payment-quick-row {
+    display: flex; 
+    gap: 0px;
+}
+
+/* โครงสร้างพื้นฐานของปุ่มในกลุ่มชำระเงินทั้งหมด (เน้นหนา ใหญ่ กดง่าย) */
+.payment-btn {
+    width: 100%;
+    padding: 20px; 
+    border: none; 
+    border-radius: 0px; 
+    font-weight: bold; 
+    font-size: 1.1rem; /* ขนาดฟอนต์ใหญ่เต็มตาเพื่อให้ยายเห็นชัดเจน */
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* เพิ่มเงาให้ปุ่มดูลอยนูนขึ้นมาน่ากด */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* 🎨 แยกเฉดสีปุ่มตามฟังก์ชันเดิมอย่างปลอดภัย */
+
+/* 1. ปุ่มฝากลงโต๊ะ: สีน้ำเงินเข้มขรึม */
+.btn-table-deposit {
+    display: block; 
+    border-block-start: 2.5px solid;
+    background: #000000; 
+    color: #ffffff;
+    margin-bottom: 0px;
+    border-radius:  20px 20px 0px 0px;
+    
+}
+
+/* 2. ปุ่มเงินสด: สีเขียวเหนี่ยวทรัพย์ */
+.btn-cash-accent {
+    flex: 1; /* สั่งให้ยืดขยายสัดส่วนคนละครึ่งจอ */
+    background: #049D4E; 
+    color: #ffffff;
+}
+
+/* 3. ปุ่มเงินโอน/QR: สีน้ำเงินแบงก์กิ้งสว่าง */
+.btn-transfer-accent {
+    flex: 1; /* สั่งให้ยืดขยายสัดส่วนคนละครึ่งจอ */
+    background: #034DE2; 
+    color: #ffffff;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเวลานิ้วจิ้มปุ่มชำระเงินบนหน้าจอมือถือ */
+.payment-btn:active {
+    transform: scale(0.97); /* ปุ่มจะยุบตัวลงไปจิ๊ดนึงตามแรงกดเพื่อให้ความรู้สึกนุ่มมือ */
+    filter: brightness(0.9); /* ดรอปความสว่างของสีปุ่มลงนิดนึงตอนนิ้วกดค้าง */
+}
+
+/* ==========================================================================
+   🚀 WARP STATUS BAR (ส่วนแถบแสดงสถานะระบบวาร์ปส่งออเดอร์) 08-06-2026
+   ========================================================================== */
+
+/* กล่องหลักภายนอกสุด: จัดวางไฟสัญญาณกับข้อความให้อยู่กึ่งกลางแนวนอน */
+.warp-status-container {
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    background: #E47E22; /* สีพื้นหลังเทาอ่อนสะอาดตา */
+    padding: 15px; 
+    border-radius: 0px; 
+    border: 0px solid #dee2e6; 
+    margin-top: 0px;
+}
+
+/* 🟢 จุดไฟสัญญาณสถานะวงกลม (ย้ายสไตล์มาจาก HTML) */
+.warp-status-indicator {
+    width: 12px; 
+    height: 12px; 
+    background-color: #bdc3c7; /* เริ่มต้นด้วยสีเทา (JS จะเปลี่ยนสีตามสถานะจริง) */
+    border-radius: 50%; /* สั่งหักขอบ 50% เพื่อให้เป็นทรงกลมเป๊ะ ๆ */
+    margin-right: 10px; 
+    transition: all 0.3s ease; /* ใส่ความนุ่มนวลเวลาไฟสลับสี */
+}
+
+/* ข้อความตัวหนังสือบอกสถานะระบบ */
+.warp-status-message {
+    font-weight: bold; 
+    color: #6c757d; /* ตัวหนังสือสีเทาเข้มอ่านง่ายนุ่มตา */
+    font-size: 0.9em;
+}
+
+/* ==========================================================================
+   🏁 DAY CLOSE ACTION BUTTON (ส่วนปุ่มกดสรุปและปิดยอดประจำวัน) 08-06-2026
+   ========================================================================== */
+
+/* กล่องครอบภายนอก: ดันระยะห่างจากระบบคิดเงินด้านบนลงมา 30px แยกสัดส่วนชัดเจน */
+.close-day-wrapper {
+    margin-top: 0px; 
+    padding: 0 0px;
+}
+
+/* ตัวปุ่มปิดยอด: สีแดงสดสะดุดตา ขนาดใหญ่เต็มความกว้างจอ กดง่ายเหมาะกับมือถือ */
+.close-day-trigger-btn {
+    background-color: #000000; /* สีแดงสากลสำหรับปุ่มยืนยันขั้นตอนสุดท้าย */
+    color: #ffffff;            /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
+    padding: 15px; 
+    border: none; 
+    border-radius: 0px; 
+    font-size: 18px; /* ขนาดตัวหนังสือใหญ่สะใจ ยายจิ้มไม่พลาดแน่นอน */
+    font-weight: bold;
+    cursor: pointer; 
+    width: 100%;
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.2); /* ใส่เงาสีแดงจางๆ ให้ปุ่มดูลอยตัวมีพลัง */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายใช้นิ้วจิ้มปุ่มปิดยอดประจำวัน */
+.close-day-trigger-btn:active {
+    transform: scale(0.98);    /* เวลาจิ้มแล้วปุ่มจะยุบลงไปนิดนึงตามแรงกดให้ฟีลนุ่มมือ */
+    background-color: #c0392b; /* เปลี่ยนเป็นสีแดงเข้มขึ้นตอนนิ้วกดค้าง เพื่อความมั่นใจในการกด */
+}
+
+
+
+/* ................................back-page........................................ */
+
+/* ==========================================================================
+   📱 PROMPTPAY CONFIG TRIGGER (ส่วนปุ่มกดตั้งค่าเลขพร้อมเพย์รับเงินโอน) 08-06-2026
+   ========================================================================== */
+
+/* ตัวปุ่มตั้งค่าพร้อมเพย์: สีน้ำเงินกรมท่าเข้ม ขนาดใหญ่กดง่ายเต็มความกว้างจอ */
+.promptpay-config-btn {
+    width: 100%; 
+    padding: 15px; 
+    background: #23508c; /* สีน้ำเงินกรมท่าเข้ม ดูเป็นระบบการเงินที่ปลอดภัย */
+    color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาอ่านง่ายเด่นชัด */
+    border: none; 
+    border-radius: 10px; 
+    font-weight: bold; 
+    font-size: 1rem;     /* ขนาดฟอนต์มาตรฐานพอดีสายตา */
+    margin-bottom: 20px; /* เว้นระยะห่างจากวัตถุด้านล่าง 20px */
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* เพิ่มมิติเงาบางๆ ให้ปุ่มดูลอยตัวน่ากด */
+    transition: background-color 0.2s ease, transform 0.1s ease; /* ขยับและสลับสีนุ่มนวล */
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายใช้นิ้วจิ้มปุ่มตั้งค่าพร้อมเพย์ */
+.promptpay-config-btn:active {
+    transform: scale(0.98); /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงจิ๊ดนึงตามแรงกดให้ฟีลนุ่มมือ */
+    background: #193d6d;    /* เปลี่ยนเป็นสีน้ำเงินเข้มขึ้นอีกระดับตอนนิ้วกดค้าง เพื่อความมั่นใจ */
+}
+
+/* ==========================================================================
+   🔄 SECURITY RESET BUTTON (ส่วนปุ่มล้างรหัสและข้อมูลความปลอดภัย) 08-06-2026
+   ========================================================================== */
+
+/* ตัวปุ่มล้างข้อมูลความปลอดภัย: พื้นหลังขาวขอบแดง ตัวหนังสือแดง แจ้งเตือนสายตา */
+.security-reset-btn {
+    width: 100%; 
+    padding: 12px; 
+    background: #f1f3f5;       /* พื้นหลังสีขาวเทาอ่อนนุ่มตา */
+    color: #e74c3c;            /* ตัวหนังสือสีแดงแจ้งเตือน */
+    border: 1px solid #e74c3c; /* เส้นขอบสีแดงสลักขอบชัดเจน */
+    border-radius: 8px; 
+    font-weight: bold; 
+    margin-top: 10px;          /* เว้นระยะห่างจากวัตถุด้านบน 10px */
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายใช้นิ้วจิ้มปุ่มล้างข้อมูลความปลอดภัย */
+.security-reset-btn:active {
+    transform: scale(0.99);    /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปจิ๊ดนึงตามแรงกด */
+    background-color: #fcedeb; /* เปลี่ยนพื้นหลังเป็นสีแดงระเรื่อจางๆ ตอนนิ้วกดค้าง เพื่อเน้นย้ำความมั่นใจ */
+}
+
+/* ==========================================================================
+   📡 P2P CONTROL PANEL (ส่วนระบบเชื่อมต่อเครือข่ายร้านค้า Hub/Client) 08-06-2026
+   ========================================================================== */
+
+/* กล่องหลักภายนอกสุดของระบบเครือข่าย: พื้นหลังสีเทาอ่อนแยกสัดส่วนชัดเจน */
+.p2p-main-card {
+    background: #ecf0f1; 
+    padding: 15px; 
+    border-radius: 8px; 
+    margin-top: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* หัวข้อระบบเชื่อมต่อ */
+.p2p-main-title {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+}
+
+/* ป้ายกำกับข้อความข้างสวิตช์เปิดปิด */
+.p2p-switch-label {
+    color: #333333;
+    font-weight: bold;
 }
 
 /* ทำให้ช่องติ๊ก Checkbox ใหญ่ขึ้น */
@@ -113,93 +1253,3604 @@ input[type="checkbox"] {
     margin-right: 15px;
 }
 
-/* ปุ่ม "ยืนยันออเดอร์" (The Action Button) */
-.confirm-btn {
+/* กลุ่มกล่องตั้งค่าเครื่อง (ลบ display: none ออกตามความต้องการของเพื่อน) */
+.p2p-settings-group {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ช่องสำหรับพิมพ์ระบุชื่อไอดีร้านค้า */
+.p2p-id-field {
     width: 100%;
-    padding: 20px;
-    background-color: #2ed573; /* สีเขียวสว่าง */
-    color: white;
-    font-size: 1.3rem;
-    font-weight: bold;
+    padding: 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 6px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    outline: none;
+}
+.p2p-id-field:focus {
+    border-color: #2980b9;
+}
+
+/* แถวจัดระเบียบกลุ่มปุ่มโหมดการทำงานเรียงต่อกันจากบนลงล่าง */
+.p2p-buttons-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* โครงสร้างพื้นฐานของปุ่มในกลุ่มเน็ตเวิร์กทั้งหมด */
+.p2p-btn {
+    width: 100%;
+    padding: 12px;
     border: none;
-    border-radius: 15px;
-    box-shadow: 0 6px 0 none; /* ทำให้ดูเหมือนปุ่ม 3D */
-    margin: 20px 0;
-    transition: all 0.1s;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 1rem;
+    color: #ffffff; /* ตัวหนังสือสีขาวเด่นชัดตัดกับสีปุ่ม */
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
-.confirm-btn:active {
-    transform: translateY(4px); /* เวลาจิ้มให้ปุ่มยุบลงไปจริงๆ */
-    box-shadow: 0 2px 0 #26af5a;
+/* 🎨 แยกเฉดสีปุ่มตามหน้าที่และโหมดการทำงานเดิมอย่างปลอดภัย */
+
+/* 1. ปุ่มเครื่องแม่ (Hub): สีเขียวเหนี่ยวทรัพย์ */
+.btn-hub-mode { background: #27ae60; }
+.btn-hub-mode:hover { background: #219653; }
+
+/* 2. ปุ่มเครื่องลูก (Client): สีน้ำเงินระบบ */
+.btn-client-mode { background: #2980b9; }
+.btn-client-mode:hover { background: #2471a3; }
+
+/* 3. ปุ่มจอห้องครัว (Kitchen): สีส้มแจ้งเตือนออเดอร์ */
+.btn-kitchen-mode { background: #f39c12; }
+.btn-kitchen-mode:hover { background: #d68910; }
+
+/* เอฟเฟกต์ตอบสนองทันทีเวลานิ้วจิ้มปุ่มเน็ตเวิร์กบนหน้าจอมือถือ */
+.p2p-btn:active {
+    transform: scale(0.98); /* ปุ่มจะยุบตัวลงไปจิ๊ดนึงตามแรงกดให้ฟีลนุ่มมือ */
+    filter: brightness(0.9); /* ดรอปความสว่างของสีปุ่มลงนิดนึงตอนนิ้วกดค้าง */
 }
 
-/* ช่องกรอก "ทุนวันนี้" และ "ปุ่มตั้งค่า" */
-/* ปุ่มเฟืองตั้งค่า */
-button[onclick="showSetting()"] {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    color: white;
-    width: 45px;
-    min-height: 45px;
-    border-radius: 50%;
-    font-size: 1.2rem;
-    position: absolute; /* เอาไปลอยไว้มุมบน */
-    top: 15px;
-    right: 15px;
+/* ==========================================================================
+   🔐 PROMPTPAY SECURE MODAL (ส่วนกล่องป๊อปอัปตั้งค่าเลขพร้อมเพย์) 08-06-2026
+   ========================================================================== */
+
+/* ฉากหลังโปร่งแสงมืดเต็มหน้าจอ (Overlay Behind Modal) */
+.modal-overlay {
+    display: none; /* 🔒 เริ่มต้นซ่อนไว้ (ปล่อยให้ JS สั่งสลับเปิด-ปิดหน้าจอเป็น block/flex) */
+    position: fixed; 
+    z-index: 999; /* ลอยค้างอยู่ชั้นบนสุดเหนือทุกวัตถุในแอป */
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0, 0, 0, 0.5); /* สีดำโปร่งแสง 50% ช่วยขับให้ตัวกล่องตั้งค่าเด่นขึ้น */
 }
 
-/* กล่องทุนวันนี้ */
-#break-even-box {
-   position: absolute;  /* สั่งให้ลอยตัว */
-    top: 15px;           /* ห่างจากขอบบน */
-    left: 15px;          /* ห่างจากขอบซ้าย (ชิดซ้ายสุดตามต้องการ) */
+/* ตัวการ์ดกล่องข้อความตรงกลาง (Modal Card) */
+.modal-card {
+    background: #ffffff; 
+    margin: 15% auto; 
+    padding: 20px; 
+    border-radius: 15px; 
+    width: 90%; 
+    max-width: 400px; /* คุมขนาดไม่ให้บานเต็มจอคอมพิวเตอร์ แต่พอดีเป๊ะบนมือถือ */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+}
+
+/* หัวข้อกล่องป๊อปอัป */
+.modal-title {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+/* ป้ายกำกับชื่อช่องกรอกข้อมูล */
+.modal-field-label {
+    font-size: 0.9rem; 
+    color: #666666;
+    display: block;
+    margin-top: 5px;
+}
+
+/* ช่องพิมพ์กรอกตัวเลขพร้อมเพย์ (Text Input Field) */
+.modal-text-field {
+    width: 100%; 
+    padding: 12px; 
+    margin: 10px 0; 
+    border: 1px solid #dddddd; 
+    border-radius: 8px; 
+    font-size: 1.1rem;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+/* เมื่อคุณยายเอานิ้วจิ้มเพื่อพิมพ์ ให้เปลี่ยนสีกรอบช่องกรอกข้อมูล */
+.modal-text-field:focus {
+    border-color: #23508c;
+}
+
+/* แถวจัดระเบียบปุ่มกดยกเลิกและบันทึกให้อยู่ข้างกันซ้าย-ขวา */
+.modal-actions-row {
+    margin-top: 15px; 
+    display: flex; 
+    gap: 10px;
+}
+
+/* โครงสร้างพื้นฐานของปุ่มกดในป๊อปอัป */
+.modal-btn {
+    flex: 1; /* แบ่งพื้นที่สัดส่วนคนละครึ่งจอเท่ากันพอดิบพอดี */
+    padding: 12px; 
+    border: none; 
+    border-radius: 8px; 
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* 1. ปุ่มยกเลิก: สีเทาอ่อนเรียบง่าย */
+.btn-modal-cancel {
+    background: #eeeeee;
+    color: #333333;
+}
+.btn-modal-cancel:active { background: #dddddd; transform: scale(0.97); }
+
+/* 2. ปุ่มบันทึก: ตั้งค่าเริ่มต้นเป็นสีเทาเข้มตอนล็อก disabled (JS จะสลับเป็นสีเขียวเมื่อกรอกตรงกัน) */
+.btn-modal-save {
+    background: #cccccc; /* สีเทาล็อกไว้เริ่มต้น */
+    color: #ffffff; 
+    font-weight: bold;
+}
+
+/* เอฟเฟกต์ตอนที่ JS ปลดล็อกกระดานปุ่มบันทึกให้ใช้งานได้ (เมื่อถอดแอตทริบิวต์ disabled ออก) */
+.btn-modal-save:not([disabled]) {
+    background: #27ae60; /* อัปเกรดเป็นสีเขียวเหนี่ยวทรัพย์ทันทีเมื่อคุณยายกรอกเลขตรงกันเป๊ะ */
+    cursor: pointer;
+}
+.btn-modal-save:not([disabled]):active {
+    background: #219653;
+    transform: scale(0.97); /* ยุบตัวลงจิ๊ดนึงตอนกดค้าง */
+}
+
+/* ==========================================================================
+   🏠 SHOP CONFIGURATION FIELDS (ส่วนช่องกรอกข้อมูลตั้งค่าร้านค้า) 08-06-2026
+   ========================================================================== */
+
+/* กล่องครอบกลุ่ม: ช่วยจัดระยะห่างไม่ให้เบียดกันเกินไป */
+.config-field-group {
+    margin-bottom: 15px;
+}
+
+/* ป้ายข้อความหัวข้อ "ชื่อร้าน" (ย้ายสไตล์มาจาก HTML) */
+.config-field-label {
+    display: block;       /* สั่งให้ขึ้นบรรทัดใหม่ทันทีแยกจากช่องกรอก */
+    margin-bottom: 5px;   /* เว้นช่องไฟด้านล่างนิดนึงก่อนถึงช่องอินพุต */
+    font-weight: bold;    /* ทำตัวหนังสือหนาเด่นชัด ยายมองเห็นง่าย */
+    color: #2c3e50;       /* ใช้สีเทาเข้มโทนสุภาพ */
+}
+
+/* ช่องพิมพ์กรอกชื่อร้านค้า (Text Input Box) */
+.config-input-text {
+    width: 100%;          /* สั่งให้ช่องกรอกยืดขยายยาวเต็มความกว้างหน้าจอ */
+    padding: 10px; 
+    border-radius: 5px;   /* หักมุมขอบมนเล็กน้อยสไตล์โมเดิร์น */
+    border: 1px solid #cccccc; /* เส้นขอบสีเทามาตรฐาน */
+    font-size: 1rem;
+    box-sizing: border-box; /* คุมไม่ให้ขนาดกล่องบวมเมื่อมีการ padding */
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease; /* ใส่ความนุ่มนวลเวลาเปลี่ยนสี */
+}
+
+/* ✨ ลูกเล่นเพิ่มเติมเพื่อความปลอดภัย: เมื่อคุณยายเอานิ้วจิ้มช่องกรอก ให้ขอบเปลี่ยนเป็นสีส้มคุมโทนร้าน */
+.config-input-text:focus {
+    border-color: #ff9f43; 
+    box-shadow: 0 0 5px rgba(255, 159, 67, 0.2); /* ใส่แสงเรืองๆ รอบกล่องให้รู้ว่ากำลังพิมพ์ช่องนี้อยู่ */
+}
+
+
+/* ==========================================================================
+   ➕ ADD NEW MENU OPTION BUTTON (ส่วนปุ่มกดเพิ่มช่องตัวเลือกเสริม) 08-06-2026
+   ========================================================================== */
+
+/* ตัวปุ่มเพิ่มตัวเลือกเสริม: สีฟ้าสว่าง ขนาดใหญ่กดง่ายเต็มความกว้างจอ */
+.add-option-trigger-btn {
+    display: block;
+    width: 100%; 
+    padding: 10px; 
+    background: #3498db; /* สีฟ้าน้ำทะเลสว่าง มองเห็นได้ง่ายและชัดเจน */
+    color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
+    border: none; 
+    border-radius: 5px;   /* หักขอบมนเล็กน้อยเข้าธีมหน้าต่างหลังบ้าน */
+    margin-top: 10px;    /* เว้นระยะห่างจากวัตถุด้านบน 10px */
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.2); /* เพิ่มเงาสีฟ้าจางๆ ให้ปุ่มดูมีมิติลอยตัว */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายหรือเพื่อนใช้นิ้วจิ้มปุ่มเพิ่มตัวเลือก */
+.add-option-trigger-btn:active {
+    transform: scale(0.98); /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปจิ๊ดนึงตามแรงกดให้ฟีลนุ่มมือ */
+    background: #2980b9;    /* เปลี่ยนเป็นสีน้ำเงินเข้มขึ้นอีกระดับตอนนิ้วกดค้าง เพื่อเน้นความมั่นใจ */
+}
+
+/* ==========================================================================
+   ➕ ADD NEW MENU ROW BUTTON (ส่วนปุ่มกดเพิ่มแถวกรอกเมนูอาหารใหม่) 08-06-2026
+   ========================================================================== */
+
+/* ตัวปุ่มเพิ่มแถวเมนูใหม่: สีเขียวสดใส ขนาดใหญ่กดง่ายเต็มความกว้างจอ */
+.add-menu-row-trigger-btn {
+    display: block;
+    width: 100%; 
+    padding: 10px; 
+    background: #2ed573; /* สีเขียวสว่างสดใส สื่อถึงการเพิ่มข้อมูล/สิ่งใหม่ */
+    color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
+    border: none; 
+    border-radius: 5px;   /* หักขอบมนเล็กน้อยเข้าธีมหน้าต่างหลังบ้าน */
+    margin-top: 10px;    /* เว้นระยะห่างจากวัตถุด้านบน 10px */
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(46, 213, 115, 0.2); /* เพิ่มเงาสีเขียวจางๆ ให้ปุ่มดูมีมิติลอยตัว */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายหรือเพื่อนใช้นิ้วจิ้มปุ่มเพิ่มแถวเมนู */
+.add-menu-row-trigger-btn:active {
+    transform: scale(0.98); /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปจิ๊ดนึงตามแรงกดให้ฟีลนุ่มมือ */
+    background: #26af5f;    /* เปลี่ยนเป็นสีเขียวเข้มขึ้นอีกระดับตอนนิ้วกดค้าง เพื่อเน้นความมั่นใจ */
+}
+
+/* ==========================================================================
+   🔢 TABLE COUNT CONFIGURATION (ส่วนกล่องตั้งค่าจำนวนโต๊ะในร้าน) 08-06-2026
+   ========================================================================== */
+
+/* ตัวกล่องครอบการตั้งค่าโต๊ะ: นำสไตล์เดิมมาจัดกลุ่มและแต่งเสริมมิติ */
+.table-config-card {
+    margin-top: 15px; 
+    padding: 10px; 
+    border: 1px solid #dddddd; 
+    border-radius: 10px;
+    background-color: #ffffff; /* พื้นหลังขาวสะอาดตัดกับขอบ */
     display: flex;
     align-items: center;
-    gap: 5px;
-    background: rgba(255, 255, 255, 0.3); /* โปร่งแสงสวยๆ */
-    padding: 5px 10px;
+    gap: 8px; /* เว้นระยะห่างระหว่างข้อความ ช่องกรอก และปุ่มให้สวยงาม */
+}
+
+/* ข้อความป้ายกำกับ */
+.table-config-label {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 0.95rem;
+}
+
+/* ช่องสำหรับกรอกพิมพ์จำนวนตัวเลขโต๊ะ */
+.table-config-input {
+    width: 60px; /* คุมความกว้างช่องให้สั้นกะทัดรัดพอดีสำหรับกรอกตัวเลข */
+    padding: 5px;
+    border: 1px solid #cccccc;
+    border-radius: 5px;
+    font-size: 1rem;
+    text-align: center; /* จัดให้ตัวเลขอยู่กึ่งกลางช่องดูเป็นระเบียบ */
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+.table-config-input:focus {
+    border-color: #27ae60; /* เปลี่ยนกรอบเป็นสีเขียวเวลานิ้วจิ้มพิมพ์ข้อมูล */
+}
+
+/* ปุ่มกด "ตกลง" เพื่อบันทึกค่า: สีเขียวสดใส ขนาดพอดีคำจิ้มง่าย */
+.table-config-btn {
+    background: #27ae60; /* สีเขียวเหนี่ยวทรัพย์ สื่อถึงการบันทึกสำเร็จ */
+    color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดเด่นชัด */
+    border: none; 
+    padding: 6px 12px; 
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายใช้นิ้วจิ้มปุ่มตกลง */
+.table-config-btn:active {
+    transform: scale(0.96);    /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปนิดนึงให้ฟีลนุ่มมือ */
+    background-color: #219653; /* เปลี่ยนเป็นสีเขียวเข้มขึ้นตอนนิ้วกดค้าง เพื่อความมั่นใจ */
+}
+
+/* ==========================================================================
+   📋 MENU MANAGER TRIGGER BUTTON (ส่วนปุ่มกดเปิดหน้าต่างจัดการเมนูทั้งหมด) 08-06-2026
+   ========================================================================== */
+
+/* ตัวปุ่มจัดการเมนูทั้งหมด: สีเทาเข้มขรึม ขนาดใหญ่กดง่ายเต็มความกว้างจอ */
+.menu-manager-trigger-btn {
+    display: block;
+    width: 100%; 
+    padding: 12px; 
+    margin-top: 10px; 
+    background-color: #576574; /* สีเทาเข้มสไตล์มินิมอล แยกหมวดหมู่ชัดเจน */
+    color: #ffffff;            /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
+    border: none; 
+    border-radius: 8px; 
+    font-weight: bold; 
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); /* ปรับเงาจางๆ ด้านล่างให้ดูมีมิติลอยตัวขึ้นมา */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายใช้นิ้วจิ้มปุ่มจัดการเมนู */
+.menu-manager-trigger-btn:active {
+    transform: scale(0.98);          /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปนิดนึงตามแรงกดให้ฟีลนุ่มมือ */
+    background-color: #485460;       /* เปลี่ยนเป็นสีเทาที่เข้มขึ้นอีกระดับตอนนิ้วกดค้าง เพื่อเน้นย้ำความมั่นใจ */
+}
+
+/* ==========================================================================
+   👨‍🍳 KITCHEN DISPLAY SYSTEM TRIGGER (ส่วนปุ่มกดเข้าโหมดห้องครัว) 08-06-2026
+   ========================================================================== */
+
+/* ตัวปุ่มสลับโหมดห้องครัว: สีส้มอิฐสะดุดตา ขนาดใหญ่กดง่ายเต็มความกว้างจอ */
+.kds-mode-trigger-btn {
+    display: block;
+    width: 100%; 
+    padding: 10px; 
+    background: #e67e22; /* สีส้มอิฐ เด่นชัด มองเห็นง่ายในสภาวะหน้าจอห้องครัว */
+    color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
+    border: none; 
+    border-radius: 5px;  /* หักขอบมนเล็กน้อยเข้าธีมของระบบ */
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(230, 126, 34, 0.15); /* เพิ่มเงานุ่มๆ สีส้มจางๆ ให้ปุ่มดูลอยตัวมีมิติ */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อใช้นิ้วจิ้มปุ่มโหมดห้องครัว */
+.kds-mode-trigger-btn:active {
+    transform: scale(0.98);    /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปจิ๊ดนึงตามแรงกดเพื่อให้ฟีลเด้งรับนิ้ว */
+    background-color: #d35400; /* เปลี่ยนเป็นสีส้มเข้มขึ้นอีกระดับตอนนิ้วกดค้าง เพื่อเน้นย้ำความมั่นใจ */
+}
+
+/* ==========================================================================
+   📺 KITCHEN DISPLAY SYSTEM SCREEN (ส่วนหน้าจอแผงควบคุมโหมดห้องครัว KDS) 08-06-2026
+   ========================================================================== */
+
+/* ฉากหลังหน้าจอห้องครัว: ลอยทับเต็มหน้าจอ 100% พร้อมเปิด Scrollbar แนวตั้งถ้าออเดอร์ล้นจอ */
+.kds-screen-overlay {
+    display: none; /* 🔒 เริ่มต้นซ่อนไว้ (ปล่อยให้ JS สั่งเปิดสลับโหมดใช้งานเป็น block) */
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: #fbfcfd; /* สีพื้นหลังสว่าง สะอาดตา เหมาะกับแท็บเล็ตในครัว */
+    z-index: 9999;       /* สั่งดันขึ้นมาอยู่ชั้นบนสุดเพื่อทับหน้าจอขายหลัก */
+    overflow-y: auto;    /* 📜 ถ้ายายมีออเดอร์เข้ามาเยอะ ปล่อยให้เลื่อนจอลงมาดูด้านล่างได้ */
+    box-sizing: border-box;
+}
+
+/* กล่องจัดระยะห่างภายในหน้าจอ */
+.kds-screen-padding {
+    padding: 20px;
+}
+
+/* แถวหัวข้อบนสุด: จัดเรียงหัวข้อไว้ฝั่งซ้าย และปุ่มปิดไว้ฝั่งขวาสุด */
+.kds-screen-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    color: #2c3e50; /* ✅ แก้ไขจากสีขาวเป็นสีน้ำเงินเทาเข้ม เพื่อให้อ่านออกชัดเจนบนพื้นสว่าง */
+}
+
+/* ตัวหนังสือหัวข้อหน้าจอครัว */
+.kds-screen-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+/* ปุ่มกดปิดหน้าจอครัว: สีแดงเข้ม เด่นชัด ขนาดพอดีนิ้วจิ้ม */
+.kds-close-btn {
+    background: #c0392b; /* สีแดงเข้มสไตล์ปุ่มยกเลิก */
+    color: #ffffff;      /* ตัวหนังสือสีขาวเด่นชัด */
+    border: none; 
+    padding: 10px 20px; 
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(192, 57, 43, 0.2);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.kds-close-btn:active {
+    transform: scale(0.97);    /* ยุบตัวลงจิ๊ดนึงตอนกด */
+    background-color: #962d22; /* เปลี่ยนเป็นสีแดงเข้มขึ้นตอนนิ้วกดค้าง */
+}
+
+/* เส้นคั่นกลางสัดส่วนหน้าจอ */
+.kds-screen-divider {
+    border: 0;
+    border-top: 1px solid #dee2e6;
+    margin: 15px 0;
+}
+
+/* 🎫 กระดานพื้นที่จัดวางตั๋วออเดอร์อาหาร: จัดแบบ Flexbox ไหลเรียงแนวนอนและขึ้นแถวใหม่ได้ */
+.kds-tickets-board {
+    display: flex; 
+    flex-wrap: wrap; /* 🔄 ตั๋วอาหารใบใหม่จะวิ่งมาต่อขวาเรื่อยๆ ถ้านิ้วล้นจอจะสลับลงแถวใหม่อัตโนมัติ */
+    gap: 15px;       /* ระยะห่างช่องไฟระหว่างตั๋วอาหารแต่ละใบ */
+    margin-top: 20px;
+}
+
+/* ==========================================================================
+   📋 MENU MANAGEMENT SECTION (ส่วนหน้าต่างบริหารจัดการคลังรายการเมนูอาหาร)
+   ========================================================================== */
+
+/* ฉากหลังหน้าต่างจัดการคลังเมนู: ลอยทับเต็มจอ 100% และเปิด Scrollbar แนวตั้งถ้าเมนูอาหารเยอะ */
+.menu-mgmt-overlay {
+    display: none; /* 🔒 เริ่มต้นซ่อนไว้ (ปล่อยให้ JS สั่งเปิดสลับโหมดใช้งานเป็น block) */
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: #ffffff; /* พื้นหลังสีขาวสะอาดตาเคลียร์ง่าย */
+    z-index: 1000;       /* ดันหน้าจอนี้ให้ลอยค้างอยู่ด้านบนหน้าหลัก */
+    overflow-y: auto;    /* 📜 หากรายการกะเพรามีจำนวนเยอะ ปล่อยให้สไลด์เลื่อนดูลงด้านล่างได้ */
+    padding: 20px; 
+    box-sizing: border-box;
+}
+
+/* แถวจัดระเบียบหัวข้อด้านบนสุด */
+.menu-mgmt-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 15px;
+}
+
+/* ตัวหนังสือหัวข้อหลัก */
+.menu-mgmt-title {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.4rem;
+}
+
+/* ปุ่มปิดหน้าจอจัดการเมนู: เฉดสีแดงสว่าง มองเห็นง่ายสะดุดตา */
+.menu-mgmt-close-btn {
+    background: #ff5252; 
+    color: #ffffff; 
+    border: none; 
+    padding: 10px 15px; 
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(255, 82, 82, 0.2);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.menu-mgmt-close-btn:active {
+    transform: scale(0.96);
+    background-color: #e04343;
+}
+
+/* การ์ดกล่องแบบฟอร์มเพิ่มเมนูอาหารใหม่: สีฟ้าอมเขียวอ่อนนุ่มนวลตา */
+.menu-mgmt-form-card {
+    background: #f1f8f9; 
+    padding: 15px; 
+    border-radius: 10px; 
+    margin-bottom: 20px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);
+}
+
+/* ช่องพิมพ์รับข้อมูลอินพุต (ชื่อเมนูอาหาร / ราคา) */
+.menu-mgmt-input {
+    width: 100%; 
+    padding: 10px; 
+    margin-bottom: 10px; 
+    border: 1px solid #cccccc; 
+    border-radius: 5px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+/* เมื่อใช้นิ้วจิ้มเพื่อพิมพ์ข้อมูล ให้สลับสีกรอบกรอบเรืองแสง */
+.menu-mgmt-input:focus {
+    border-color: #28a745; /* เปลี่ยนเป็นสีเขียวตามสีปุ่มบันทึก */
+}
+
+/* ปุ่มกด "บันทึกเมนูใหม่": สีเขียวเหนี่ยวทรัพย์สดใส กว้างเต็มกล่องฟอร์ม */
+.menu-mgmt-save-btn {
+    width: 100%; 
+    padding: 12px; 
+    background: #28a745; 
+    color: #ffffff; 
+    border: none; 
+    border-radius: 5px; 
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 3px 6px rgba(40, 167, 69, 0.2);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.menu-mgmt-save-btn:active {
+    transform: scale(0.98);    /* ยุบตัวลงจิ๊ดนึงตอนกดค้างให้ฟีลนุ่มนวลตอบสนองนิ้ว */
+    background-color: #218838; /* ดรอปสีเขียวให้เข้มขึ้นนิดนึงเวลาจิ้ม */
+}
+
+/* กล่องค้นหา 23-06-2026 */
+.menu-search-wrapper {
+    margin: 15px 0;
+    padding: 0 10px;
+}
+#menuSearchInput {
+    background-color: #f8f9fa; /* สีพื้นหลังที่ต่างจากช่องบันทึกนิดหน่อย */
+    border: 2px solid #ddd;
+    font-size: 16px; /* ขนาดที่กดง่ายบนมือถือ */
+}
+
+
+/* หัวข้อรายชื่อคลังอาหาร */
+.menu-mgmt-subtitle {
+    color: #34495e;
+    margin: 15px 0 10px 0;
+}
+
+/* กระดานพื้นที่ว่างสำหรับจัดเรียงชุดเมนูอาหารเดิม ล้างจุดกลมหน้าลิสต์ออกเกลี้ยง */
+.menu-mgmt-list-board {
+    list-style: none; 
+    padding: 0;
+    margin: 0;
+}
+
+/* ==========================================================================
+   📊 BUSINESS DASHBOARD SECTION (ส่วนแผงควบคุมสถิติและรายงานยอดขาย) 08-06-2026
+   ========================================================================== */
+
+/* ตัวการ์ดกล่องครอบแดชบอร์ดหลัก */
+.dash-main-card {
+    margin-top: 30px; 
+    padding: 15px; 
+    background: #ffffff; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* หัวข้อใหญ่ประจำแดชบอร์ด */
+.dash-main-title {
+    margin: 0 0 15px 0;
+    color: #2c3e50; 
+    border-bottom: 2px solid #3498db; 
+    padding-bottom: 10px;
+}
+
+/* หัวข้อย่อยประจำโซนออเดอร์ */
+.dash-subtitle {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #2c3e50;
+    font-size: 1.17rem;
+}
+
+/* 📱 ตัวคลุมตารางฉบับ Responsive: ช่วยให้ตารางไม่ดันหน้าจอแตกบนมือถือเครื่องเล็ก */
+.dash-table-responsive {
+    overflow-x: auto;
+    width: 100%;
+    -webkit-overflow-scrolling: touch; /* ช่วยให้เลื่อนตารางบน iOS ได้ลื่นไหลขึ้น */
+}
+
+/* โครงสร้างพื้นฐานของตารางแดชบอร์ดทั้งหมด */
+.dash-data-table {
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 15px; 
+    font-size: 0.95rem;
+}
+
+/* ตารางรายการออเดอร์ล่าสุดปรับฟอนต์ให้เล็กกระชับสายตาตามสไตล์เดิม */
+.recent-orders-table {
+    font-size: 0.9rem;
+    background: #ffffff;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    z-index: 100;      
+    margin-top: 5px;
+}
+
+/* ส่วนหัวตารางสรุปยอดขาย 7 วัน: พื้นหลังสีฟ้าตัวอักษรขาว */
+.dash-table-header-blue {
+    background: #3498db; 
+    color: #ffffff;
+}
+
+/* ส่วนหัวตารางออเดอร์วันนี้: พื้นหลังสีเทาอ่อนสากล */
+.dash-table-header-gray {
+    background: #f8f9fa;
+    color: #333333;
+    border-bottom: 2px solid #eeeeee;
+}
+
+/* ช่องเซลล์หัวตาราง (Table Header Cells) */
+.dash-th {
+    padding: 12px; 
+    border: 1px solid #dddddd;
+    font-weight: bold;
+    text-align: center; /* ค่าเริ่มต้นจัดให้อยู่กึ่งกลาง */
+}
+
+/* จัดทิศทางตัวหนังสือในตารางออเดอร์ล่าสุดตามโครงสร้างเดิม */
+.dash-th.th-left { text-align: left; padding: 10px; border: none; }
+.dash-th.th-right { text-align: right; padding: 10px; border: none; }
+.dash-th.th-center { text-align: center; padding: 10px; border: none; }
+
+/* โซนกล่องออเดอร์วันนี้ */
+.dash-orders-zone {
+    margin-top: 20px;
+}
+
+/* แถวจัดระเบียบกลุ่มปุ่มกดยกแถวให้อยู่ขนานข้างกันซ้าย-ขวา */
+.dash-actions-row {
+    display: flex; 
+    gap: 10px; 
+    margin-top: 15px;
+}
+
+/* โครงสร้างพื้นฐานของปุ่มกดบนแดชบอร์ด */
+.dash-btn {
+    flex: 1; /* แบ่งพื้นที่เท่ากันคนละครึ่งหน้าจอ */
+    padding: 10px; 
+    border: none; 
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 1rem;
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* 1. ปุ่มอัปเดตตาราง: สีเขียวสดใส */
+.btn-dash-refresh {
+    background: #2ecc71;
+}
+.btn-dash-refresh:active {
+    background: #27ae60;
+    transform: scale(0.97);
+}
+
+/* 2. ปุ่มโหลด CSV: สีฟ้าระบบ */
+.btn-dash-export {
+    background: #3498db;
+}
+.btn-dash-export:active {
+    background: #2980b9;
+    transform: scale(0.97);
+}
+
+/* ==========================================================================
+   🎯 PROMOTION & DISCOUNT CONFIGURATION (ส่วนกล่องตั้งค่าส่วนลดโปรโมชัน) 08-06-2026
+   ========================================================================== */
+
+/* ตัวการ์ดกล่องครอบการตั้งค่าส่วนลด: โทนสีเหลืองพาสเทลสะดุดตาน่ามอง */
+.promo-config-card {
+    background: #fff9db; 
+    padding: 15px; 
+    border-radius: 12px; 
+    border: 1px solid #ffe066; 
+    margin: 20px 0;
+    box-sizing: border-box;
+}
+
+/* หัวข้อประจำกล่องโปรโมชัน */
+.promo-config-title {
+    margin-top: 0; 
+    margin-bottom: 10px;
+    color: #f59f00; /* สีส้มทองสไตล์ป้ายสัญลักษณ์โปรโมชัน */
+    font-size: 1.1rem;
+}
+
+/* ป้ายข้อความกำกับหัวช่องกรอก */
+.promo-config-label {
+    display: block; 
+    margin-bottom: 8px; 
+    font-weight: bold;
+    color: #333333;
+    font-size: 0.95rem;
+}
+
+/* แถวจัดระเบียบยืดหยุ่น: รวมช่องกรอกตัวเลขและ dropdown ให้อยู่ในแถวเดียวกัน */
+.promo-input-row {
+    display: flex; 
+    gap: 8px;
+    width: 100%;
+}
+
+/* 1. ช่องสำหรับกรอกพิมพ์ตัวเลขส่วนลด (ครองพื้นที่ 2 ส่วนของแถว) */
+.promo-input-number {
+    flex: 2; 
+    padding: 12px; 
+    border-radius: 8px; 
+    border: 1px solid #cccccc; 
+    background: #ffffff;
+    font-size: 1rem;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+.promo-input-number:focus {
+    border-color: #f59f00; /* เปลี่ยนสีกรอบเป็นสีส้มทองเวลานิ้วจิ้มกรอกข้อมูล */
+}
+
+/* 2. ช่อง Dropdown เลือกประเภทส่วนลด (ครองพื้นที่ 1 ส่วนของแถว) */
+.promo-select-type {
+    flex: 1; 
+    padding: 10px; 
+    border-radius: 8px; 
+    border: 1px solid #cccccc; 
+    background: #ffffff; 
+    font-weight: bold; 
+    font-size: 0.95rem;
+    cursor: pointer;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+.promo-select-type:focus {
+    border-color: #f59f00;
+}
+
+/* ข้อความหมายเหตุด้านล่างกล่องการ์ด */
+.promo-config-note {
+    font-size: 0.8rem; 
+    color: #666666; 
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
+/* ==========================================================================
+   🗑️ SYSTEM DANGER ZONE (ส่วนกล่องโซนอันตราย ล้างข้อมูลระบบ) 08-06-2026
+   ========================================================================== */
+
+/* ตัวการ์ดกล่องครอบโซนอันตราย: กรอบเส้นประแดง พื้นหลังแดงพาสเทล เตือนสติชัดเจน */
+.danger-zone-card {
+    margin-top: 20px; 
+    padding: 15px; 
+    border: 1px dashed #e74c3c; /* เส้นประสีแดงแจ้งเตือนระดับสากล */
+    border-radius: 10px; 
+    background: #fff5f5; /* สีพื้นหลังแดงอ่อนนุ่มนวลตา ไม่ดูดุดันเกินไป */
+    box-sizing: border-box;
+}
+
+/* หัวข้อประจำกล่องโซนอันตราย */
+.danger-zone-title {
+    color: #e74c3c; 
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}
+
+/* ข้อความหมายเหตุและคำเตือนการลบข้อมูล */
+.danger-zone-note {
+    font-size: 0.85rem; 
+    color: #666666;
+    margin-top: 0;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+/* ปุ่มกดล้างระบบประวัติออเดอร์ทั้งหมด: สีแดงเข้ม กว้างเต็มจอ 100% กดง่าย */
+.danger-zone-btn {
+    width: 100%; 
+    padding: 12px; 
+    background: #e74c3c; 
+    color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
+    border: none; 
+    border-radius: 8px; 
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 3px 6px rgba(231, 76, 60, 0.2); /* ใส่เงาสีแดงจางๆ ให้ปุ่มดูมีมิติลอยตัว */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อใช้นิ้วจิ้มปุ่มล้างระบบ */
+.danger-zone-btn:active {
+    transform: scale(0.98);    /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปจิ๊ดนึงให้รู้สึกนุ่มนวลตอบรับแรงกด */
+    background-color: #c0392b; /* อัปเกรดดรอปเป็นสีแดงเข้มขึ้นอีกระดับตอนกดค้าง เพื่อเน้นความมั่นใจ */
+}
+
+/* ==========================================================================
+   📦 DATABASE BACKUP & IMPORT (ส่วนกล่องจัดการฐานข้อมูลและสำรองระบบ) 08-06-2026
+   ========================================================================== */
+
+/* ตัวการ์ดกล่องครอบระบบฐานข้อมูล: เส้นประสีเทาพาสเทลสะอาดตา */
+.db-mgmt-card {
+    margin-top: 20px; 
+    padding: 15px; 
+    border: 1px dashed #cccccc;
+    border-radius: 10px;
+    background-color: #ffffff;
+    box-sizing: border-box;
+}
+
+/* หัวข้อประจำกล่องจัดการฐานข้อมูล */
+.db-mgmt-title {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #2c3e50;
+    font-size: 1.2rem;
+}
+
+/* ป้ายคำแนะนำการนำเข้าไฟล์ข้อมูล */
+.db-mgmt-label {
+    display: block; 
+    margin-top: 15px; 
+    font-weight: bold;
+    color: #34495e;
+    font-size: 0.95rem;
+}
+
+/* 🔒 แท็กอินพุตไฟล์จริง: ล็อกพิกัดเจาะจง 3 ชั้นเพื่อสั่งซ่อนตัวอย่างปลอดภัย ไร้ !important */
+#back-page input.db-mgmt-file-hidden {
+    display: none;
+}
+
+/* แถวจัดระเบียบแบบยืดหยุ่น: วางปุ่มกดและข้อความแสดงชื่อไฟล์คู่กัน */
+.db-mgmt-upload-row {
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    margin-top: 8px;
+    width: 100%;
+}
+
+/* ตัวหนังสือบอกสถานะหรือชื่อไฟล์สำรองที่คุณยายเลือก */
+.db-mgmt-filename {
+    color: #7f8c8d; 
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* หากชื่อไฟล์ยาวเกินไปให้ขึ้นจุดไข่ปลา ... เพื่อความสวยงาม */
+}
+
+/* โครงสร้างปุ่มกดระบบฐานข้อมูล */
+.db-mgmt-btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 0.95rem;
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* 1. ปุ่มสำรองข้อมูล (Backup): เฉดสีม่วงอเมทิสต์เด่นชัด */
+.btn-db-backup {
+    background: #8e44ad;
+    margin: 5px 0;
+}
+.btn-db-backup:active {
+    background: #732d91;
+    transform: scale(0.97);
+}
+
+/* 2. ปุ่มเลือกไฟล์สำรอง (Trigger): เฉดสีส้มอิฐจิ้มง่าย */
+.btn-db-trigger {
+    padding: 8px 15px; /* ปรับขนาดกระชับเล็กน้อยตามของเดิมเพื่อน */
+    background: #e67e22;
+}
+.btn-db-trigger:active {
+    background: #d35400;
+    transform: scale(0.97);
+}
+
+/* ==========================================================================
+   🛒 SHOPPING LEDGER TRIGGER (ส่วนปุ่มใหญ่กดไปหน้าจดของและลงบัญชี) 08-06-2026
+   ========================================================================== */
+
+/* กล่องครอบจัดระยะห่างภายนอกของปุ่ม */
+.shopping-trigger-wrapper {
+    margin-top: 20px; 
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+/* ตัวปุ่มใหญ่สลับไปหน้าจดของ: สีฟ้าน้ำทะเล ขอบมนใหญ่พิเศษ เงาลอยมีมิติ */
+.shopping-trigger-btn {
+    display: block;
+    width: 100%; 
+    padding: 20px;            /* ขนาดใหญ่พิเศษเพื่อให้คุณยายจิ้มง่ายไม่พลาดเป้า */
+    background: #3498db;      /* เฉดสีฟ้าน้ำทะเล สดใส สบายตา */
+    color: #ffffff;           /* ตัวหนังสือสีขาวสะอาดเด่นชัด */
+    border: none; 
+    border-radius: 15px;      /* หักขอบมนโค้งสวยงาม สไตล์โมเดิร์นเข้าธีม */
+    font-weight: bold; 
+    font-size: 1.2rem;        /* ขนาดตัวหนังสือใหญ่เต็มตาอ่านง่าย */
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3); /* มิติเงานุ่มนวลสีฟ้าจางๆ ลอยตัวเหนือก้อนวัตถุอื่น */
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายหรือเพื่อนใช้นิ้วจิ้มปุ่มไปหน้าบัญชี */
+.shopping-trigger-btn:active {
+    transform: scale(0.97);                         /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปนิดนึงตามแรงกดให้ฟีลเด้งรับนิ้ว */
+    background-color: #2980b9;                      /* ดรอปเฉดสีฟ้าให้เข้มขึ้นตอนนิ้วกดค้าง เพื่อเน้นย้ำความมั่นใจ */
+    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.2);  /* ยุบเงาลงตามระยะปุ่มที่ยุบตัว */
+}
+
+/* ==========================================================================
+   🧺 SHOPPING LEDGER MODAL (ส่วนหน้าต่างใหญ่สำหรับจดของและลงบัญชีซื้อของ) 08-06-2026
+   ========================================================================== */
+
+/* หน้าต่างหลักฉากหลัง: ลอยทับเต็มหน้าจอ 100% ล็อกชั้น Z-Index ไว้ด้านบนสุด */
+.shop-ledger-overlay {
+    display: none; /* 🔒 เริ่มต้นซ่อนไว้ (ปล่อยให้ JS สั่งสลับเปลี่ยนโหมดการแสดงผลเป็น block) */
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: #ffffff; /* พื้นหลังขาวเคลียร์สะอาดตา */
+    z-index: 10000;      /* ดันให้ลอยทับหน้าจอด่านตั้งค่าและหน้าขายทั้งหมด */
+    overflow-y: auto;    /* 📜 เปิดให้เลื่อนขึ้นลงแนวดิ่งได้เมื่อประวัติหรือจำนวนของยาวล้นจอ */
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* แถวจัดระเบียบส่วนหัวหน้าต่าง */
+.shop-ledger-header {
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    margin-bottom: 20px;
+}
+
+/* หัวข้อประจำหน้าต่างจดของ */
+.shop-ledger-title {
+    margin: 0; 
+    color: #2c3e50;
+    font-size: 1.5rem;
+}
+
+/* ปุ่มปิดหน้าต่างทรงกลมมินิมอล: ขอบโค้งมนวงกลม 50% */
+.shop-ledger-close-circle {
+    background: #eeeeee; 
+    border: none; 
+    font-size: 20px; 
+    border-radius: 50%; 
+    width: 40px; 
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333333;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.shop-ledger-close-circle:active {
+    background: #dddddd;
+    transform: scale(0.93); /* ยุบตัวลงจิ๊ดนึงตอนกด */
+}
+
+/* การ์ดกล่องครอบโซนรับข้อมูลวัตถุดิบ: ขอบกรอบสีฟ้าครามเด่นชัด มิติมนสวยงาม */
+.shop-ledger-input-card {
+    padding: 15px; 
+    background: #ffffff; 
+    border-radius: 15px; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
+    border: 1px solid #3498db;
+    box-sizing: border-box;
+}
+
+/* หัวข้อประจำกล่องจดวัตถุดิบ */
+.shop-input-title {
+    font-size: 1rem; 
+    color: #2c3e50; 
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+/* ช่องกรอกข้อความรับชื่อของ: ขอบหนาสีฟ้า พิมพ์ง่ายตัวอักษรใหญ่ชัดเจน */
+.shop-input-field {
+    width: 100%; 
+    padding: 15px; 
+    font-size: 1.1rem; 
+    border-radius: 10px; 
+    border: 2px solid #3498db;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.shop-input-field:focus {
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.25);
+}
+
+/* โครงสร้างปุ่มปฏิบัติการหลักบนหน้าบัญชีซื้อของ */
+.shop-btn-action {
+    display: block;
+    width: 100%; 
+    border: none; 
+    font-weight: bold; 
+    cursor: pointer;
+    box-sizing: border-box;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* 1. ปุ่มบันทึกรายการวัตถุดิบชิ้นเดี่ยว: สีเขียวเหนี่ยวทรัพย์ตัวอักษรหนาชัดเจน */
+.btn-shop-add {
+    margin-top: 10px; 
+    padding: 15px; 
+    background: #27ae60; 
+    color: #ffffff; 
+    border-radius: 10px; 
+    font-size: 1.1rem;
+}
+.btn-shop-add:active {
+    background: #219653;
+    transform: scale(0.98);
+}
+
+/* 2. ปุ่มเซฟใหญ่ปิดหน้าจอ: โทนสีกรมท่าขรึมสไตล์สากล ขนาดใหญ่กดเต็มมือ */
+.btn-shop-save-all {
+    margin-top: 20px; 
+    padding: 18px; 
+    background: #2c3e50; 
+    color: #ffffff; 
+    border-radius: 12px;
+    font-size: 1.05rem;
+}
+.btn-shop-save-all:active {
+    background: #1a252f;
+    transform: scale(0.98);
+}
+
+/* พื้นที่บอร์ดแสดงกระดานรายการอาหารชั่วคราว */
+.shop-display-board {
+    margin-top: 20px;
+    width: 100%;
+}
+
+/* หัวข้อประวัติการซื้อ */
+.shop-history-title {
+    color: #27ae60;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+/* กล่องครอบพื้นที่ตารางประวัติการซื้อย้อนหลัง */
+.shop-history-board {
+    background: #fdfdfd; 
+    border-radius: 15px; 
+    padding: 10px; 
+    border: 1px solid #eeeeee;
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   💾 CONFIGURATION SAVE & EXIT (ส่วนปุ่มใหญ่บันทึกและกลับหน้าหลัก) 08-06-2026
+   ========================================================================== */
+
+/* ปุ่มกดบันทึกและกลับหน้าหลัก: สีกรมท่าขรึม กว้างเต็มจอ 100% ขนาดใหญ่กดง่าย */
+.config-save-exit-btn {
+    display: block;
+    width: 100%; 
+    margin-top: 20px; 
+    padding: 15px; 
+    background: #2c3e50;      /* สีกรมท่าสากล ดูมั่นคง ปลอดภัย น่าเชื่อถือ */
+    color: #ffffff;           /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
+    border: none; 
+    border-radius: 10px;      /* หักขอบมนสวยงามเข้าธีมของระบบ */
+    font-weight: bold;
+    font-size: 1.1rem;        /* ขนาดตัวอักษรใหญ่พอดีสายตา */
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(44, 62, 80, 0.15); /* เพิ่มเงานุ่มๆ สีกรมท่าจางๆ ให้ปุ่มดูลอยตัวมีมิติ */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-sizing: border-box;
+}
+
+/* เอฟเฟกต์ตอบสนองทันทีเมื่อใช้นิ้วจิ้มปุ่มเซฟใหญ่ */
+.config-save-exit-btn:active {
+    transform: scale(0.98);    /* เวลาจิ้มแล้วปุ่มจะยุบตัวลงไปจิ๊ดนึงตามแรงกดให้ฟีลนุ่มมือตอบรับนิ้ว */
+    background-color: #1a252f; /* ดรอปเฉดสีกรมท่าให้เข้มขึ้นอีกระดับตอนกดค้าง เพื่อเน้นย้ำความมั่นใจ */
+}
+/* ................................................................................... */
+
+
+
+
+/* ==========================================================================
+   🍎 iOS INSTALL APP GUIDE POPUP (ส่วนกล่องแนะนำติดตั้งแอปบน iPhone) 08-06-2026
+   ========================================================================== */
+
+/* ฉากหลังแผงควบคุมแนะแนว iOS: ลอยตรึงพิกัดไว้ด้านล่างหน้าจอ ขอบมนใหญ่สไตล์โมเดิร์น */
+.ios-guide-overlay {
+    display: none; /* 🔒 เริ่มต้นซ่อนไว้ (ปล่อยให้สคริปต์คัดกรองอุปกรณ์รันมาเปิดแสดงผลเป็น block) */
+    position: fixed; 
+    bottom: 20px; 
+    left: 15px; 
+    right: 15px; 
+    background: #ffffff; 
+    border: 1px solid #e0e0e0; 
+    padding: 18px; 
+    border-radius: 20px; 
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); /* เงาฟุ้งลอยตัวเด่นชัดเหนือเนื้อหาทั้งหมด */
+    z-index: 9999; /* ดันขึ้นมาค้างชั้นบนสุดเพื่อไม่ให้ก้อนอื่นบดบัง */
+    font-family: sans-serif;
+    box-sizing: border-box;
+}
+
+/* กล่องจัดระเบียบโครงสร้างภายในแบบ Flexbox และจัดระดับยอดบนเสมอกัน */
+.ios-guide-container {
+    display: flex; 
+    align-items: flex-start; 
+    gap: 15px;
+    width: 100%;
+}
+
+/* กล่องบรรจุไอคอนรูปแอปเปิ้ล: สี่เหลี่ยมมนมนต์สไตล์กล่องแอป iOS */
+.ios-guide-icon-box {
+    font-size: 28px; 
+    background: #f8f9fa; 
+    width: 50px; 
+    height: 50px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    border-radius: 12px;
+    flex-shrink: 0; /* ป้องกันไม่ให้กล่องไอคอนยุบหรือหดตัวลงเมื่อหน้าจอเล็ก */
+}
+
+/* บล็อกข้อความเนื้อหาอธิบายขั้นตอน */
+.ios-guide-text-content {
+    flex: 1; 
+    font-size: 14px; 
+    color: #333333; 
+    line-height: 1.5;
+}
+
+/* หัวข้อใหญ่ภายในกล่องแนะนำ: สีฟ้าอมเขียวสไตล์สีแบรนด์ */
+.ios-guide-headline {
+    font-size: 16px; 
+    color: #00acc1; 
+    display: block; 
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+
+/* ไอคอนรูปปุ่มแชร์แอปเปิ้ล (SVG): จัดระดับให้อยู่กึ่งกลางระนาบเดียวกับตัวอักษร */
+.ios-safari-share-svg {
+    vertical-align: middle; 
+    margin: 0 2px;
+}
+
+/* ปุ่มปิดกากบาททรงกลม: สีเทาพาสเทล จิ้มเคลียร์ง่าย */
+.ios-guide-close-btn {
+    background: #eeeeee; 
+    border: none; 
+    width: 28px; 
+    height: 28px; 
+    border-radius: 50%; 
+    color: #666666; 
+    font-size: 16px; 
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease;
+}
+.ios-guide-close-btn:active {
+    background: #dddddd;
+}
+
+/* 📐 ติ่งลูกศรสามเหลี่ยมแหลมชี้ลง: ใช้ทริค Border มิติสร้างลูกศรสีขาวชี้ตรงลงล่าง */
+.ios-guide-arrow-down {
+    position: absolute; 
+    bottom: -10px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent; 
+    border-right: 10px solid transparent; 
+    border-top: 10px solid #ffffff; /* ลูกศรสีขาวนวลกลืนไปกับตัวกล่องหลัก */
+}
+
+
+/* ==========================================================================
+   📊 DIGITAL RECEIPT MODAL (ส่วนหน้าต่างแสดงสลิปใบเสร็จและ QR Code)
+   ========================================================================== */
+
+/* ฉากหลังโปร่งแสงคลุมเต็มจอ: สีดำจางคลาสสิก ล็อกชั้นความสูงเหนือจุดอื่นทั้งหมด */
+.rcp-overlay {
+    display: none; /* 🔒 เริ่มต้นซ่อนไว้ (ปล่อยให้ JS สั่งสลับการเปิดโหมดเป็น flex ตอนคิดเงิน) */
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0, 0, 0, 0.8); /* สีดำดรอปแสง 80% ให้ตัวใบเสร็จตรงกลางดูเด่น */
+    z-index: 9999; 
+    justify-content: center; 
+    align-items: center; 
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* ตัวกระดาษใบเสร็จจำลอง: บังคับหน้ากว้างสไตล์สลิป ความสูงไม่ล้นจอ ฟอนต์พิมพ์ดีดตรงหลัก */                   
+.rcp-paper-container {
+    background: #ffffff; 
+    width: 100%; 
+    max-width: 350px; 
+    max-height: 90vh; /* บล็อกความสูงไม่เกิน 90% ของความสูงหน้าจอมือถือ */
+    border-radius: 15px; 
+    position: relative; 
+    font-family: 'Courier New', Courier, monospace; /* ฟอนต์สไตล์สลิปใบเสร็จร้านค้าสากล */
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden; 
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* เงาเข้มหนุนให้ตัวสลิปลอยเด่น */
+}
+
+/* ส่วนหัวกระดาษสลิป: มีเส้นประตัดขอบช่วงล่าง */
+.rcp-header-zone {
+    padding: 20px 20px 10px 20px; 
+    border-bottom: 1px dashed #dddddd; /* เส้นประตัดรอยฉีกตั๋ว */
+    position: relative; 
+    background: #ffffff;
+}
+
+/* ปุ่มกากบาททรงกลมปิดหน้าต่าง: ยึดมุมขวาบนกดง่าย */
+.rcp-close-circle {
+    position: absolute; 
+    top: 10px; 
+    right: 10px; 
+    border: none; 
+    background: #eeeeee; 
+    width: 30px; 
+    height: 30px; 
+    border-radius: 50%; 
+    font-size: 20px; 
+    cursor: pointer; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    color: #333333;
+    transition: background-color 0.2s ease;
+}
+.rcp-close-circle:active {
+    background: #dddddd;
+}
+
+/* ข้อความชื่อร้านค้าบนหัวสลิป */
+.rcp-shop-name {
+    margin: 0; 
+    text-align: center; 
+    font-size: 1.5rem;
+    color: #2c3e50;
+}
+
+/* ตัวอักษรแสดงวันเวลาที่พิมพ์บิล */
+.rcp-timestamp {
+    font-size: 0.8rem; 
+    margin: 5px 0 0 0; 
+    text-align: center; 
+    color: #666666;
+}
+
+/* 📜 ไส้กลางใบเสร็จ: เปิดสิทธิ์ให้เลื่อนนิ้ว Scroll ดูข้อมูลขึ้นลงได้อิสระหากรายการเมนูยาว */
+.rcp-body-scroll {
+    flex: 1; 
+    overflow-y: auto; 
+    padding: 0 20px; 
+    text-align: center;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* กล่องครอบเนื้องานข้างในสลิป */
+.rcp-content-wrapper {
+    color: #333333;
+}
+
+/* พื้นที่แสดงแถวรายการอาหารที่ลูกค้าซื้อ (จัดชิดซ้ายเพื่อความสวยงามเป็นคอลัมน์) */
+.rcp-items-list {
+    text-align: left; 
+    margin: 15px 0; 
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* เส้นประแบ่งโซนตัวเลขเงิน */
+.rcp-dashed-line {
+    border: none;
+    border-top: 1px dashed #bbbbbb;
+    margin: 10px 0;
+}
+
+/* กล่องสรุปข้อความเงินรวม */
+.rcp-summary-zone {
+    margin: 10px 0;
+}
+
+/* ตัวหนังสือบอกยอดขายยอดรวมสุทธิขนาดใหญ่เด่นชัด */
+.rcp-total-amount {
+    margin: 0; 
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #000000;
+}
+
+/* ตัวอักษรบอกประเภทการจ่ายและเงินทอน */
+.rcp-payment-details {
+    font-size: 0.85rem; 
+    margin-top: 5px; 
+    color: #555555;
+}
+
+/* 📱 กล่องกรอบสำหรับแสดงภาพ QR Code พร้อมเพย์สแกนจ่ายเงิน */
+.rcp-qrcode-box {
+    background: #ffffff; 
+    padding: 10px; 
+    display: inline-block; 
+    margin: 10px 0; 
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border: 1px solid #eeeeee;
+}
+
+/* ตัวหนังสือข้อความขอบคุณท้ายบิล */
+.rcp-thank-you-text {
+    margin: 15px 0; 
+    font-size: 0.75rem; 
+    color: #888888;
+}
+
+/* กล่องครอบยึดปุ่มกดไว้ล่างสุดของตัวสลิป */
+.rcp-footer-actions {
+    padding: 15px 20px; 
+    border-top: 1px solid #eeeeee; 
+    background: #fafafa;
+}
+
+
+/* ปุ่มสำหรับสั่งปริ้นสลิปออกเครื่องหรือกดแชร์เซฟหน้าจอ: เฉดสีฟ้าเด่นชัด */
+.rcp-print-btn {
+    width: 100%; 
+    padding: 12px; 
+    background: #3498db; 
+    color: #ffffff; 
+    border: none; 
+    border-radius: 8px; 
+    font-weight: bold; 
+    font-size: 1rem; 
+    cursor: pointer; 
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.rcp-print-btn:active {
+    background: #2980b9;
+    transform: scale(0.98);
+}
+
+
+
+/* ==========================================================================
+   💰 สไตล์สำหรับกล่องคำนวณทุนวันนี้ (Break-even Box) 7-06-2026
+   ========================================================================== */
+
+/* กล่องหลัก: สั่งให้ลอยตัวโปร่งแสงชิดซ้ายบน */
+#break-even-box {       
+    position: static; 
+    top: 65px;           
+    left: 150px;          
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(255, 255, 255, 75%); /* โปร่งแสงสวย ๆ */
+    padding: 5px 3px;
+    padding-top: 5px;
+    padding-bottom:5px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.4);      
+    z-index: auto;
+    margin: 0;
 }
 
 #daily-cost {
-    width: 60px;
+    width: 100px;
     border: none;
     border-radius: 4px;
     text-align: center;
     font-weight: bold;
-}
-/* การจัดการหน้า "ตั้งค่า" (Back-page) */
-#back-page {
-    background: white;
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    padding:10px;
+    padding-left:30px;
 }
 
-#back-page h2 {
-    margin-bottom: 20px;
-    color: #333;
-    border-left: 5px solid #ff4757;
-    padding-left: 10px;
+/* ข้อความตัวหนังสือ "ทุนวันนี้:" */
+.breakeven-label {
+    font-size: 12px;
+    color: #2c3e50;
+    padding-bottom:10px;
 }
 
-#back-page p {
-    font-weight: bold;
-    margin-top: 15px;
-    margin-bottom: 5px;
-    color: #555;
-}
-
-#back-page input[type="text"] {
-    width: 100%;
-    padding: 12px;
+/* ช่องพิมพ์ตัวเลขกรอกทุน */
+.breakeven-input {
+    width: 100px;
+    padding: 5px;
     border: 1px solid #ddd;
-    border-radius: 10px;
+    border-radius: 5px;
+    text-align: center;
+}
+
+/* ตัวหนังสือสัญลักษณ์สกุลเงิน ".-" */
+.breakeven-currency {
+    font-weight: bold;
+    padding-bottom:10px;
+}
+
+/* ................................................................................... */
+
+/* ==========================================================================
+   STYLE in JS 09-06-2026
+   ========================================================================== */
+/* คลาสสำหรับแสดงข้อความแจ้งเตือนสถานะว่างเปล่าในกล่องเมนู */
+
+/* async function renderOrderButtons */
+.menu-empty-hint {
+    grid-column: span 2; 
+    text-align: center; 
+    color: #888888; 
+    padding: 20px;
+    font-size: 0.95rem;
+}
+
+/*🔴🔴🔴🔴 function renderMenuSettings🔴🔴🔴🔴 */
+/* ==========================================================================
+   ⚙️ MENU SETTING ROW STYLES (ส่วนจัดระเบียบแถวบันทึกรายการเมนูขาย)
+   ========================================================================== */
+
+/* กล่องครอบแต่ละแถวรายการเมนู */
+.menu-setting-row {
+    display: flex; 
+    gap: 6px;                  /* ปรับช่องไฟระหว่างกล่องให้กว้างขึ้นจิ๊ดนึงให้กดง่ายบนมือถือ */
+    margin-bottom: 8px;
+    align-items: center;       /* จัดให้องค์ประกอบในแนวตั้งอยู่กึ่งกลางเสมอกัน */
+}
+
+/* ช่องข้อความและตัวเลขในสถานะปิดการทำงาน (disabled) */
+.menu-setting-row input[disabled] {
+    padding: 10px;             /* ปรับพื้นที่กดด้านในให้เนี๊ยบเข้าชุด */
+    background-color: #f5f6fa; /* สีเทานุ่มนวลตัดกับตัวหนังสือ */
+    color: #7f8c8d;            /* สีข้อความจางลงเพื่อส่งสัญญาณว่าล็อกไว้ */
+    border: 1px solid #dcdde1;
+    border-radius: 8px;
+    cursor: not-allowed;       /* เปลี่ยนตัวชี้เมาส์เป็นสัญลักษณ์ล็อก */
+    box-sizing: border-box;
+    margin-bottom: 0;          /* เคลียร์ margin ล่างเดิมออกเพื่อให้จัดกึ่งกลางแถวได้เป๊ะ */
+}
+
+/* สัดส่วนเฉพาะของช่องข้อความและช่องตัวเลข */
+.stg-input-name {
+    flex: 2;
+}
+.stg-input-price {
+    width: 75px;               /* ปรับความกว้างให้พอดีตัวเลขราคาหลักร้อยหลักพัน */
+    text-align: center;        /* จัดราคาให้อยู่กึ่งกลางดูง่าย */
+}
+
+/* ปุ่มกดแอคชันประจำแถว (แก้ไข / ลบ) */
+.stg-row-btn {
+    border: none; 
+    padding: 8px 12px;         /* เพิ่มระยะสัมผัสให้นุ่มนิ้วเวลาคุณยายใช้งาน */
+    border-radius: 6px; 
     font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.stg-row-btn:active {
+    transform: scale(0.92);    /* ให้ฟีลลิ่งยุบตัวเวลานิ้วกดลงไป */
+}
+
+/* เฉดสีประจำปุ่มแก้ไข (สีฟ้า) */
+.btn-row-edit {
+    background-color: #3498db; 
+    color: #ffffff;
+}
+.btn-row-edit:hover { background-color: #2980b9; }
+
+/* เฉดสีประจำปุ่มลบ (สีแดง) */
+.btn-row-delete {
+    background-color: #ff4757; 
+    color: #ffffff;
+}
+.btn-row-delete:hover { background-color: #ff6b81; }
+
+/*🔴🔴🔴🔴 function toggleEditRow 🔴🔴🔴🔴*/
+/* ==========================================================================
+   ⚙️ MENU SETTING ROW STYLES (ส่วนปุ่มและอินพุตในแถวตั้งค่ารายการเมนูขาย)
+   ========================================================================== */
+
+/* 1. คลาสสถานะพิเศษ: เมื่อแถวเมนูนั้นถูกกดปลดล็อกเพื่อแก้ไข (Editing Mode) */
+.menu-setting-row input.is-editing {
+    background-color: #ffffff;   /* เปลี่ยนพื้นหลังเป็นขาวสะอาดให้รู้ว่าพิมพ์ได้ */
+    border: 1px solid #00acc1;   /* เส้นขอบสีฟ้าเทอร์ควอยซ์เด่นชัดนำสายตา */
+    color: #2c3e50;               /* สีตัวอักษรเข้มชัดเจน */
+    cursor: text;                 /* เปลี่ยนเมาส์เป็นรูปตัว I สำหรับพิมพ์ */
+    box-shadow: 0 0 8px rgba(0, 172, 193, 0.2); /* เพิ่มเงาเรืองแสงจาง ๆ ให้ดูพรีเมียม */
+}
+
+/* 2. เฉดสีปุ่มแก้ไขปกติ (ปุ่มเครื่องหมายดินสอ 📝 สีฟ้าพรีเมียม) */
+.menu-setting-row .stg-row-btn.btn-row-edit {
+    background-color: #3498db;
+    color: #ffffff;
+}
+.menu-setting-row .stg-row-btn.btn-row-edit:hover {
+    background-color: #2980b9;  /* หม่นแสงลงนุ่มนวลเวลานิ้วแตะ */
+    color: #ffffff;
+}
+
+/* 3. เฉดสีปุ่มเปลี่ยนสถานะเป็นเซฟเสร็จสิ้น (ปุ่มเครื่องหมายถูก ✅ สีเขียวพรีเมียม) */
+.menu-setting-row .stg-row-btn.btn-row-save {
+    background-color: #2ecc71;
+    color: #ffffff;
+}
+.menu-setting-row .stg-row-btn.btn-row-save:hover {
+    background-color: #27ae60;  /* หม่นแสงลงนุ่มนวลเวลานิ้วแตะ */
+    color: #ffffff;
+}
+
+
+
+/*🔴🔴🔴🔴 async function renderExtraOptions 🔴🔴🔴🔴*/
+/* ==========================================================================
+   🥗 EXTRA OPTIONS STYLES (ส่วนจัดระเบียบกล่องตัวเลือกเสริมหน้าร้าน)
+   ========================================================================== */
+
+/* ตัวครอบกล่อง Checkbox ตัวเลือกเสริมแต่ละรายการ */
+.extra-opt-label {
+    display: block;
+    margin-bottom: 8px;        /* เพิ่มช่องไฟด้านล่างให้ห่างขึ้นอีกนิดนึง นิ้วจะได้ไม่จิ้มพลาด */
+    cursor: pointer;           /* เปลี่ยนเมาส์เป็นรูปมือบอกให้รู้ว่าจิ้มกดได้ */
+    user-select: none;         /* ป้องกันไม่ให้ขึ้นแถบไฮไลต์ข้อความเวลาคุณยายกดรัว ๆ */
+}
+
+/* ปรับแต่งระยะตัวอักษรข้างหลัง Checkbox ให้เว้นระยะสวยงามอ่านง่าย */
+.extra-opt-label span {
+    font-size: 1rem;
+    color: #2c3e50;            /* เฉดสีเข้มชัดเจนตัดกับพื้นหลังแอป */
+    margin-left: 6px;          /* เว้นระยะห่างจากตัวเช็กบ็อกซ์เล็กน้อยไม่ให้อึดอัด */
+    vertical-align: middle;    /* จัดให้ตัวอักษรอยู่กึ่งกลางระดับสายตาพอดีกับตัวติ๊กถูก */
+}
+
+/* ขยายขนาดช่องติ๊กถูกให้ใหญ่ขึ้นนุ่มนิ้วเวลากดบนมือถือ */
+.extra-opt-label .extra-opt-check {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+
+/*🔴🔴🔴🔴 async function renderOptionsSettings 🔴🔴🔴🔴*/
+/* ==========================================================================
+   ⚙️ OPTIONS SETTING STYLES (ส่วนแถวตั้งค่าตัวเลือกเสริมหลังบ้าน)
+   ========================================================================== */
+
+/* กล่องครอบแต่ละแถวรายการตั้งค่าออปชัน */
+.opt-setting-row {
+    display: flex; 
+    gap: 6px;                  
+    margin-bottom: 8px;
+    align-items: center;       
+}
+
+/* ช่องกรอกข้อมูลตัวเลือกเสริม (พร้อมให้พิมพ์ได้ทันที) - ล็อกพิกัดเจาะจง 3 ชั้น */
+.opt-setting-row input[type="text"],
+.opt-setting-row input[type="number"] {
+    padding: 10px;             
+    border: 1px solid #00acc1;  /* เส้นขอบสีฟ้าเทอร์ควอยซ์บึกบึนพร้อมให้พิมพ์ */
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #2c3e50;
+    box-sizing: border-box;
+    margin-bottom: 0;           /* เคลียร์ระยะเยื้องล่างสากลเพื่อให้จัดแถวตรงกันเป๊ะ */
+}
+
+/* สัดส่วนขนาดกล่องกรอกข้อมูล */
+.opt-setting-row .opt-input-name {
+    flex: 2;
+}
+.opt-setting-row .opt-input-price {
+    width: 75px;
+    text-align: center;
+}
+
+/* ปุ่มถังขยะประจำแถวตั้งค่าออปชัน */
+.opt-setting-row .opt-btn-delete {
+    background-color: #ff4757; 
+    color: #ffffff;
+    border: none; 
+    padding: 8px 12px;         
+    border-radius: 6px; 
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.opt-setting-row .opt-btn-delete:hover {
+    background-color: #ff6b81;
+}
+.opt-setting-row .opt-btn-delete:active {
+    transform: scale(0.92);    /* เอฟเฟกต์ยุบตัวเวลานิ้วสัมผัส */
+}
+
+
+/*🔴🔴🔴🔴 function updateOrderPreview 🔴🔴🔴🔴*/
+/* ==========================================================================
+   🛒 PRESTIGE ORDER BASKET STYLES (ส่วนจัดระเบียบตะกร้าอาหารหน้าร้าน)
+   ========================================================================== */
+
+/* 1. สถานะกล่องตะกร้าว่างเปล่า */
+.cart-empty-state {
+    text-align: center; 
+    color: #999999; 
+    padding: 20px;
+}
+.cart-empty-state i {
+    font-size: 2rem; 
+    display: block; 
     margin-bottom: 10px;
 }
+
+/* 2. บล็อกแถวรายการอาหารแต่ละรายการในตะกร้า */
+.cart-item-row {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 12px; 
+    border-bottom: 1px dashed #eee; 
+    padding-bottom: 8px;
+}
+/* ไฮไลต์พิเศษสำหรับรายการอาหารที่ส่งเข้าครัวไปแล้ว (fromDB) */
+.cart-item-row.is-locked-row {
+    background: #f9f9f9; 
+    border-left: 4px solid #27ae60; 
+    padding-left: 8px;
+}
+
+/* รายละเอียดข้อความด้านในแถวอาหาร */
+.cart-item-info { flex: 1; }
+.cart-item-title { font-weight: bold; font-size: 1rem; color: #2d3436; }
+.cart-item-option { color: #636e72; display: block; font-size: 0.85rem; margin-top: 2px; }
+.cart-item-notice { color: #27ae60; font-size: 0.7rem; display: block; }
+
+/* ป้ายสถานะอาหารเสิร์ฟแล้ว */
+.badge-serve-done { color: #2ecc71; font-size: 0.8rem; font-weight: bold; }
+
+/* ฝั่งแสดงจำนวนและราคารวมประจำแถว */
+.cart-item-pricing { text-align: right; min-width: 85px; }
+.cart-item-qty { font-size: 0.85rem; color: #636e72; }
+.cart-item-total { font-weight: bold; color: #2d3436; display: block; }
+
+/* ปุ่มลบอาหารประจำแถว (เหลือเฉพาะไอคอนถังขยะลอยเด่น) */
+.btn-cart-delete {
+    background: none;     /* ลบพื้นหลังสีชมพูออก */
+    border: none;         /* ลบเส้นขอบออก */
+    padding: 0;           /* ล้างระยะขอบด้านในเพื่อให้ไอคอนไม่ขยับผิดตำแหน่ง */
+    margin-left: 12px;    /* เว้นระยะห่างจากชื่ออาหาร/ราคาตามเดิม */
+    cursor: pointer; 
+    font-size: 20px;      /* ปรับขนาดความใหญ่ของ Emoji ถังขยะตรงนี้ (แนะนำ 20px กำลังสวยครับ) */
+    
+    /* ใช้ Flexbox เพื่อความชัวร์ว่าตัว Emoji จะจัดวางบาลานซ์อย่างสวยงาม */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    
+    /* ใส่เอฟเฟกต์แอนิเมชันตอนเอาเมาส์มาวาง */
+    transition: transform 0.2s ease;
+}
+
+/* เอฟเฟกต์เวลาเมาส์ชี้ (Hover): ไอคอนจะขยายใหญ่ขึ้นเล็กน้อยอย่างนุ่มนวล */
+.btn-cart-delete:hover { 
+    transform: scale(1.2); 
+}
+
+/* ไอคอนแม่กุญแจสำหรับรายการที่สั่งแล้ว */
+.icon-cart-lock {
+    width: 35px; 
+    height: 35px; 
+    margin-left: 12px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: #cccccc;
+}
+
+/* 3. แถวสัญลักษณ์แจ้งยอดส่วนลด */
+.cart-discount-row {
+    display: flex; 
+    justify-content: space-between; 
+    color: #e67e22; 
+    background: #fff9f0; 
+    margin-top: 10px; 
+    border-radius: 8px; 
+    padding: 10px; 
+    font-weight: bold; 
+    border: 1px solid #ffeaa7;
+}
+
+/* 4. กล่องแสดงสรุปยอดรวมเงินสุทธิ */
+.cart-net-total-box { line-height: 1.3; }
+.cart-net-total-box small { font-size: 0.8rem; color: #b2bec3; text-decoration: line-through; display: block; }
+.cart-net-total-box .text-label { font-size: 0.95rem; color: #636e72; }
+.cart-net-total-box .text-price { color: #2d3436; font-size: 1.8rem; font-weight: 800; }
+
+/* 5. คลาสสำหรับล็อกปุ่มชำระเงินเมื่อไม่มีออเดอร์ (แบนการยัด .style.opacity ใน JS) */
+.btn-payment-disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/*🔴🔴🔴🔴 function updateProfitStatusDisplay 🔴🔴🔴🔴*/
+/* ==========================================================================
+   📊 PROFIT STATUS BADGE STYLES (ส่วนป้ายแสดงสถานะกำไร-ขาดทุนประจำวัน)
+   ========================================================================== */
+
+/* โครงสร้างหลักของป้ายสถานะ (รูปร่าง ขนาด ช่องไฟ) */
+.profit-badge {
+    padding: 10px 20px; 
+    border-radius: 20px; 
+    font-weight: bold; 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* เติมเงาละมุนเพิ่มมิติความพรีเมียม */
+}
+
+/* สถานะย่อย 1: กรณีมีกำไร (เฉดเขียวเหนี่ยวทรัพย์) */
+.profit-badge.is-surplus {
+    background-color: #e8f5e9; 
+    color: #2e7d32;
+}
+
+/* สถานะย่อย 2: กรณีสภาวะยังไม่คืนทุน (เฉดแดงแจ้งเตือนรอบคอบ) */
+.profit-badge.is-deficit {
+    background-color: #fff5f5; 
+    color: #e74c3c;
+}
+
+/* สถานะย่อย 3: กรณีเท่าทุนพอดี (เฉดสีเทาสากลสุภาพ) */
+.profit-badge.is-break-even {
+    background-color: #f8f9fa; 
+    color: #555555;
+}
+
+/*🔴🔴🔴🔴 async function renderTableSelection 🔴🔴🔴🔴*/
+/* ==========================================================================
+   🪑 PRESTIGE TABLE SELECTION STYLES (ส่วนปุ่มเลือกโต๊ะอาหารหน้าร้าน)
+   ========================================================================== */
+
+/* 1. โครงสร้างป้ายปุ่มโต๊ะมาตรฐาน (สถานะตั้งต้น: โต๊ะว่าง สีขาว/เทา) */
+.table-btn {
+    padding: 20px 10px; 
+    margin: 5px; 
+    border-radius: 15px; 
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    position: relative;
+    min-width: 80px;
+    display: inline-block;
+    box-sizing: border-box;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    
+    /* เฉดสีโต๊ะว่างตั้งต้น */
+    background-color: #ffffff; 
+    color: #2c3e50;
+    border: 2px solid #bdc3c7; 
+    box-shadow: 0 5px 0 #bdc3c7;
+}
+
+/* 2. สถานะย่อย: มีออเดอร์ค้างในระบบ (แจ้งเตือนเฉดสีส้ม) */
+.table-btn.has-pending-bill {
+    background-color: #e67e22; 
+    color: #ffffff;
+    border: 2px solid #d35400; 
+    box-shadow: 0 5px 0 #a04000;
+}
+
+/* 3. สถานะสูงสุด: คุณยายกำลังเลือกจัดการโต๊ะนี้อยู่ (เฉดสีเขียวเหนี่ยวทรัพย์เด่นสุด) */
+.table-btn.is-active-select {
+    background-color: #2ecc71; 
+    color: #ffffff;
+    border: 2px solid #27ae60; 
+    box-shadow: 0 5px 0 #27ae60;
+}
+
+
+/* 🪑 TABLE BUTTON ACTIVE EFFECTS (ระบบปุ่มยุบตัวฉบับบริสุทธิ์ ไร้สารปนเปื้อน) */
+/* 1. เอฟเฟกต์ยุบตัวเมื่อนิ้วสัมผัสกดลงไป (:active) สำหรับโต๊ะว่างปกติ */
+.table-btn:active {
+    transform: translateY(3px);
+    box-shadow: none; 
+}
+
+/* 2. สลายเงาสามมิติของโต๊ะสีส้มทันทีเมื่อถูกกดลงไป (ใช้กฎความเจาะจงคลาสคู่) */
+.table-btn.has-pending-bill:active {
+    box-shadow: none;
+}
+
+/* 3. สลายเงาสามมิติของโต๊ะสีเขียวทันทีเมื่อถูกกดลงไป (ใช้กฎความเจาะจงคลาสคู่) */
+.table-btn.is-active-select:active {
+    box-shadow: none;
+}
+
+
+/*🔴🔴🔴🔴 async function selectWalkIn 🔴🔴🔴🔴*/
+/* ==========================================================================
+   🥡 WALK-IN & TAKEAWAY MODE STYLES (ส่วนควบคุมโหมดขายหน้าร้าน)
+   ========================================================================== */
+
+/* 1. ป้ายแสดงสถานะด้านบนเมื่อเข้าโหมด Walk-in (เฉดกรมท่าเข้ม นิ่งสนิท ยายอ่านง่าย) */
+/* 🟢 ใช้การระบุ ID แม่นำหน้า เพื่อเพิ่มพลังความเจาะจง (Specificity) ล็อกสีให้ถูกต้องตามกติกาสากล */
+#current-table-display.table-display-walkin {
+    background-color: #34495e;
+    color: #ffffff;
+}
+
+/* 2. ปุ่มเลือกโหมดสั่งกลับบ้าน / ขายหน้าร้าน (btn-takeaway) */
+.btn-takeaway-mode {
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+/* สถานะไฮไลท์เมื่อระบบอยู่ในโหมด Walk-in (สีส้มพรีเมียม เงาสามมิติหนาแน่น) */
+.btn-takeaway-mode.is-active-walkin {
+    background-color: #ff9f43;
+    color: #ffffff;
+    border: 2px solid #000000;
+    box-shadow: 0 5px 0 #000000;
+}
+
+/*🥡 TAKEAWAY MODE & UTILITY STYLES (ฉบับบริสุทธิ์ ไร้สารปนเปื้อน 100%)*/
+/* เอฟเฟกต์ตอนใช้นิ้วกดสัมผัสปุ่มโหมดมาตรฐาน */
+.btn-takeaway-mode:active {
+    transform: translateY(3px);
+    box-shadow: none;
+}
+
+/* สลายเงาสามมิติทันทีเมื่อปุ่มโหมดสั่งกลับบ้านสีส้มถูกกดสัมผัส (ใช้กฎความเจาะจงคลาสคู่) */
+.btn-takeaway-mode.is-active-walkin:active {
+    box-shadow: none;
+}
+
+
+/* 3. คลาสสากลสำหรับสั่งซ่อน Element (Global Utility Class)
+   💡 เทคนิคสากล: นำคลาสนี้ไปวางไว้ "บรรทัดล่างสุดของไฟล์ Standalone.cssเสมอ" 
+   เพื่อให้ตามกฎ Cascade ล่างสุดชนะบนสุด และระบุให้เจาะจงขึ้นเพื่อคุมพลังการซ่อน
+*/
+div.stg-hidden,
+button.stg-hidden,
+span.stg-hidden,
+.stg-hidden {
+    display: none;
+}
+
+/*🔴🔴🔴🔴 async function selectTable(tableId)🔴🔴🔴🔴 */
+/* ==========================================================================
+   📌 TABLE STATUS DISPLAY STYLES (ส่วนป้ายหัวข้อแจ้งสถานะการเลือกโต๊ะ)
+   ========================================================================== */
+
+/* คลาสย่อยสถานะ 1: โต๊ะว่างเพิ่งเปิดจอง (ระบุ ID แม่นำหน้าเพื่อล็อกเฉดสีเขียวให้พรีเมียม) */
+#current-table-display.table-display-green {
+    background-color: #2ecc71;
+    color: #ffffff;
+}
+
+/* คลาสย่อยสถานะ 2: โต๊ะมีออเดอร์ค้าง/มีคนนั่งอยู่ (ระบุ ID แม่นำหน้าเพื่อล็อกเฉดสีส้มเตือนใจยาย) */
+#current-table-display.table-display-orange {
+    background-color: #e67e22;
+    color: #ffffff;
+}
+
+
+/*🔴🔴🔴🔴 async function refreshBillingBox(tableId) 🔴🔴🔴🔴*/
+/* ==========================================================================
+   📝 BILLING BOX DETAILS STYLES (ส่วนรายการอาหารในกล่องพักบิลค้างชำระ)
+   ========================================================================== */
+
+/* 1. โครงสร้างแถวรายการอาหารแต่ละเมนู (จัดซ้าย-ขวาด้วย Flexbox ระดับสากล) */
+.billing-item-row {
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #eeeeee;
+}
+
+/* 2. ฝั่งรายละเอียดข้อความชื่อเมนูและตัวเลือกเสริม */
+.billing-item-info {
+    text-align: left;
+}
+
+.billing-item-name {
+    font-weight: bold;
+}
+
+/* ตัวเลือกเสริมย่อยใต้ชื่อเมนู */
+.billing-item-options {
+    color: #666666;
+    display: block; /* บังคับขึ้นบรรทัดใหม่แทนแท็ก br */
+    font-size: 0.85rem;
+}
+
+/* ตัวคูณจำนวนจานอาหาร (เฉดสีเขียวพรีเมียม สบายตา) */
+.billing-item-qty {
+    color: #27ae60; 
+    margin-left: 10px;
+    font-weight: bold;
+}
+
+/* 3. ฝั่งแสดงราคารวมท้ายแถว */
+.billing-item-price {
+    font-weight: bold;
+}
+
+
+/*🔴🔴🔴🔴 function updateRoleDisplay 🔴🔴🔴🔴*/
+/* ==========================================================================
+   📶 P2P NETWORK ROLE BADGE STYLES (ส่วนป้ายไฟแสดงสถานะบทบาทเครือข่าย)
+   ========================================================================== */
+
+/* 🔒 ป้ายแสดงบทบาทเครื่อง (Role Badge) ของระบบ P2P (ย้ายสไตล์มาจาก HTML 100%) */
+#role-badge {
+    position: relative;       /* เปลี่ยนจาก absolute เป็น relative เพื่อให้อยู่ในแถวกับป้ายอื่น */
+    display: inline-block;    /* โชว์ตัวปกติ */
+    padding: 1px 10px;
+    padding-bottom: 0px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: left;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 10;              /* ลด Z-index ลงไม่ให้ลอยไปทับส่วนอื่น */
+    margin-right: 10px;       /* เว้นระยะห่างจากป้ายสถานะโต๊ะด้านข้าง */
+}
+
+/* 🏠 สถานะย่อย 1: กรณีปิดสวิตช์เครือข่าย (เฉดสีเทาสุภาพสากล) */
+#role-badge.role-alone {
+    background-color: none;
+    color: #ffffff;
+}
+
+/* 👑 สถานะย่อย 2: บทบาทเครื่องแม่/หัวหน้า (เฉดสีแดงแรงฤทธิ์เด่นสุด) */
+#role-badge.role-boss {
+    background-color: #e74c3c;
+    color: #ffffff;
+}
+
+/* 👨‍🍳 สถานะย่อย 3: บทบาทหน้าจอในห้องครัว (เฉดสีส้มพร้อมทำอาหาร) */
+#role-badge.role-kitchen {
+    background-color: #f39c12;
+    color: #ffffff;
+}
+
+/* 📱 สถานะย่อย 4: บทบาทเครื่องลูก/พนักงานเดินจดออเดอร์ (เฉดสีฟ้าพรีเมียม) */
+#role-badge.role-baby {
+    background-color: #3498db;
+    color: #ffffff;
+}
+
+/* ⚠️ สถานะย่อย 5: กรณีเปิดสวิตช์แล้วแต่ระบบยังไม่สรุปตัวตน (เฉดสีเหลืองแจ้งเตือน) */
+#role-badge.role-pending {
+    background-color: #f1c40f;
+    color: #2c3e50;
+}
+
+
+
+/*🔴🔴🔴🔴 function updateProfitStatus(totalSales) 🔴🔴🔴🔴*/
+/* ==========================================================================
+   📊 DAILY PROFIT CALCULATOR STYLES (ส่วนสีข้อความคำนวณกำไรประจำวัน)
+   ========================================================================== */
+
+/* เฉดสีข้อความกรณีมีกำไร (ระบุ ID แม่นำหน้า ล็อกสีเขียวพรีเมียมเหนี่ยวทรัพย์) */
+#profit-status.status-surplus {
+    color: #27ae60;
+}
+
+/* เฉดสีข้อความกรณีสภาวะยังไม่คืนทุน/ขาดทุน (ระบุ ID แม่นำหน้า ล็อกสีแดงแจ้งเตือนรอบคอบ) */
+#profit-status.status-deficit {
+    color: #e74c3c;
+}
+
+
+
+/*🔴🔴🔴🔴 async function renderMenuList 🔴🔴🔴🔴*/
+/* ==========================================================================
+   🍽️ BACKOFFICE MENU MANAGER STYLES (ส่วนแผงควบคุมหลังบ้านจัดการคลังเมนู)
+   ========================================================================== */
+
+/* 1. โครงสร้างหลักของแถวรายการเมนูแต่ละเมนู (li) */
+ul#menu-list-items li,
+.menu-list-item-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid #eeeeee;
+    background-color: #ffffff;
+}
+
+/* 2. กล่องแถวบน: บรรจุอินพุตข้อความชื่อเมนูและราคา */
+.menu-input-group {
+    display: flex;
+    gap: 5px;
+}
+
+.menu-input-group input.menu-txt-input {
+    flex: 2;
+    padding: 8px;
+    border: 1px solid #dddddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.menu-input-group input.menu-num-input {
+    width: 70px;
+    padding: 8px;
+    border: 1px solid #dddddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+/* 3. กล่องแถวล่าง: บรรจุแผงปุ่มสั่งการควบคุม */
+.menu-action-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 📝 ปุ่มแก้ไขคลังอาหาร */
+button.btn-menu-edit {
+    background-color: #3498db;
+    color: #ffffff;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 5px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+/* ❌ ปุ่มลบออกจากคลัง */
+button.btn-menu-delete {
+    background: none;
+    border: none;
+    color: #ff4757;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+/* ➕ ปุ่มเพิ่มด่วนไปหน้าแรก */
+button.btn-menu-to-quick {
+    background-color: #00acc1;
+    color: #ffffff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+/*🔴🔴🔴🔴 async function toggleEditFullDb 🔴🔴🔴🔴*/
+/* ==========================================================================
+   📝 MENU LIVE IN-LINE EDIT STYLES (ส่วนสลับสีโหมดแก้ไขคลังอาหารฉบับคลีน)
+   ========================================================================== */
+
+/* 🟢 สไตล์ในสถานะปกติ (เมื่อไม่ได้อยู่ในโหมดแก้ไข) - ล็อกสีพื้นฐานไว้ที่นี่ */
+.menu-list-item-row .menu-txt-input,
+.menu-list-item-row .menu-num-input {
+    background-color: #f9f9f9;
+    border: 1px solid #dddddd;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.menu-list-item-row button.btn-menu-edit {
+    background-color: #3498db;
+    color: #ffffff;
+}
+
+/* -------------------------------------------------------------------------- */
+
+/* 🔥 สไตล์ในสภาวะเมื่อเปิด "โหมดแก้ไข" (.is-editing-mode) 
+   ใช้การระบุคลาสแม่คู่กับคลาสตระกูลอินพุต/ปุ่มด้านใน เพื่อเพิ่มพลังความเจาะจง 
+   โดยไม่มีการใช้คำสั่ง !important แม้แต่จุดเดียว
+*/
+.menu-list-item-row.is-editing-mode .menu-txt-input,
+.menu-list-item-row.is-editing-mode .menu-num-input {
+    background-color: #ffffff;
+    border: 1px solid #00acc1; /* กรอบสีฟ้าสว่างแสดงสถานะกำลังพิมพ์ */
+}
+
+/* ปุ่มแก้ไขเปลี่ยนร่างเป็น "ปุ่มบันทึกสีเขียวพรีเมียม" */
+.menu-list-item-row.is-editing-mode button.btn-menu-edit {
+    background-color: #2ecc71;
+}
+
+/*🔴🔴🔴🔴 function addFromStorageToQuick 🔴🔴🔴🔴*/
+/* ==========================================================================
+   ➕ QUICK MENU SETTING ROW STYLES (ส่วนแถวตั้งค่าปุ่มเมนูด่วนหน้าแรก)
+   ========================================================================== */
+
+/* 1. โครงสร้างหลักของแถวตั้งค่า (คลาสเดิมที่มีอยู่แล้ว นำมาจัดสไตล์ให้คลีน) */
+.menu-setting-row {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+/* 2. อินพุตกรอกชื่ออาหารในแถวตั้งค่าด่วน */
+.menu-setting-row input[type="text"] {
+    flex: 2;
+    padding: 8px;
+    border: 1px solid #dddddd;
+    border-radius: 5px;
+}
+
+/* 3. อินพุตกรอกราคาในแถวตั้งค่าด่วน */
+.menu-setting-row input[type="number"] {
+    width: 70px;
+    padding: 8px;
+    border: 1px solid #dddddd;
+    border-radius: 5px;
+}
+
+/* 4. ปุ่มถังขยะสีแดงสำหรับลบแถวตั้งค่านั้นออก */
+.menu-setting-row button.btn-remove-setting {
+    background-color: #ff4757;
+    color: #ffffff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+/* เอฟเฟกต์ตอนเอานิ้วไปจิ้มหรือเมาส์ไปชี้ปุ่มถังขยะ */
+.menu-setting-row button.btn-remove-setting:hover {
+    background-color: #e04050;
+}
+
+
+/*🔴🔴🔴🔴 function updateDashboardUI 🔴🔴🔴🔴*/
+/* ==========================================================================
+   📊 DASHBOARD STATISTICS STYLES (ส่วนกล่องแสดงสถิติภาพรวมแดชบอร์ด)
+   ========================================================================== */
+
+/* 1. สไตล์โครงสร้างพื้นฐานของกล่องสถิติแต่ละบล็อก */
+.db-stat-card {
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    transition: background-color 0.2s ease;
+}
+
+/* 🟢 กล่องฝั่งยอดขายรวม (ล็อกเฉดสีเขียวอ่อนพรีเมียมเหนี่ยวทรัพย์ ยายอ่านง่ายสบายตา) */
+.db-stat-card.card-sales {
+    background-color: #e8f5e9;
+}
+
+/* 🔴 กล่องฝั่งทุนสะสม (ล็อกเฉดสีแดงอ่อนแจ้งเตือนให้รอบคอบระมัดระวัง) */
+.db-stat-card.card-invest {
+    background-color: #ffebee;
+}
+
+/* 🔴🔴🔴🔴 async function renderShoppingList 🔴🔴🔴🔴 */
+/* ==========================================================================
+   🛒 SMART SHOPPING LIST DISPLAY STYLES (ส่วนระบบกระดานจดซื้อของวัตถุดิบ)
+   ========================================================================== */
+
+/* 1. สภาวะกล่องเปล่า (เมื่อยายยังไม่ได้จดอะไรเลย) */
+.shopping-empty-box {
+    text-align: center;
+    padding: 40px 20px;
+    color: #bdc3c7;
+}
+
+.shopping-empty-box i {
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+/* 2. โครงสร้างการ์ดกล่องรายการวัตถุดิบแต่ละบล็อก */
+.shopping-card-item {
+    background-color: #ffffff;
+    padding: 15px;
+    margin-bottom: 12px;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    border: 1px solid #eeeeee;
+}
+
+/* ส่วนที่ 1: ข้อมูลด้านบนและปุ่มแอ็กชัน */
+.shopping-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.shopping-info-area {
+    flex: 1;
+}
+
+.shopping-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.shopping-title-group strong {
+    font-size: 1.2rem;
+    color: #2c3e50;
+}
+
+/* 🔍 ปุ่มกดส่องประวัติราคา */
+.btn-price-history {
+    cursor: pointer;
+    background-color: #fff4e6;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    border: 1px solid #e67e22;
+    color: #e67e22;
+    font-weight: bold;
+}
+
+/* บล็อกแสดงสถานะเวลา (พื้นฐานตั้งเป็นเฉดสีเทากลางเมื่อเพิ่งจด) */
+.shopping-time-display {
+    font-size: 0.85rem;
+    color: #95a5a6;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 🟢 สลับเป็นสีเขียวพรีเมียมเมื่อระบุราคาซื้อจริงเรียบร้อยแล้ว (ใช้วิธีต่อท้ายคลาสสถานะแม่) */
+.shopping-card-item.is-confirmed .shopping-time-display {
+    color: #27ae60;
+}
+
+/* แผงปุ่มแก้ไข/ลบ ฝั่งขวา */
+.shopping-action-buttons {
+    display: flex;
+    gap: 8px;
+    margin-left: 10px;
+}
+
+.shopping-action-buttons button {
+    color: #ffffff;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+button.btn-shop-edit { background-color: #3498db; }
+button.btn-shop-delete { background-color: #e74c3c; }
+
+/* -------------------------------------------------------------------------- */
+
+/* ส่วนที่ 2: แผงใส่ยอดเงินซื้อจริงด้านล่าง */
+.shopping-card-bottom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #dddddd;
+}
+
+.shopping-card-bottom .lbl-real-price {
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #27ae60;
+}
+
+/* อินพุตกรอกตัวเลขราคาซื้อจริง */
+.shopping-card-bottom input.input-real-price {
+    width: 100px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 2px solid #27ae60;
+    font-size: 1.1rem;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* ✅ ปุ่มกดยืนยันบันทึกราคา */
+.shopping-card-bottom button.btn-shop-save {
+    flex: 1;
+    background-color: #27ae60;
+    color: #ffffff;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #219150;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.shopping-card-bottom button.btn-shop-save:active {
+    transform: translateY(3px);
+    box-shadow: none;
+}
+
+/* 🔴🔴🔴🔴 async function runSmartAnalysis 🔴🔴🔴🔴 */
+/* ==========================================================================
+   🧠 SMART ANALYSIS REPORT STYLES (ส่วนกล่องรายงานสมองกลอัจฉริยะ)
+   ========================================================================== */
+
+/* 🔍 1. รายการดัชนีราคาแต่ละแถว (กล่องเหลืองเดิม) */
+#price-content .analysis-price-row {
+    cursor: pointer; 
+    padding: 8px; 
+    border-bottom: 1px solid #eeeeee; 
+    margin-bottom: 5px; 
+    color: #5d4037; /* สีน้ำตาลเข้มพรีเมียมสุภาพสากล */
+    transition: background-color 0.15s ease;
+}
+
+/* เอฟเฟกต์ไฮไลต์สีพื้นหลังเมื่อเอานิ้วไปจิ้มดูรายละเอียดประวัติราคานั้น ๆ */
+#price-content .analysis-price-row:hover {
+    background-color: #fcf8f2;
+}
+
+/* 🟪 2. ข้อความรายชื่อวัตถุดิบที่ค้างซื้อ (กล่องม่วงพยากรณ์ของค้าง) */
+#suggestion-content .analysis-pending-names {
+    color: #9c27b0; /* เฉดสีม่วงสมองกลพยากรณ์พรีเมียม */
+    font-weight: 500;
+}
+
+/* 🔴🔴🔴🔴 async function showPriceHistory 🔴🔴🔴🔴 */
+/* ==========================================================================
+   📊 PRICE HISTORY MODAL STYLES (ส่วนตารางและกล่องแสดงประวัติราคาวัตถุดิบ) สรุปราคาวัตถุดิบรายตัว
+   ========================================================================== */
+
+/* 0. ส่วนครอบเพื่อทำ Pop-up (เพิ่มส่วนนี้เพื่อให้มันลอยตัวเหนือจอ) */
+.prc-hist-overlay {
+    display: none;          /* ซ่อนไว้ก่อนเสมอ จนกว่า JS จะสั่งให้แสดง */
+    position: fixed;        /* ล็อคให้ลอยนิ่งไม่เลื่อนตามหน้าจอ */
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* ฉากหลังมืดลง */
+    z-index: 99999;         /* ลอยสูงที่สุดในแอป */
+    justify-content: center; /* จัดให้คอนเทนเนอร์อยู่กลางจอแนวนอน */
+    align-items: center;     /* จัดให้คอนเทนเนอร์อยู่กลางจอแนวตั้ง */
+}
+
+.prc-hist-container {
+    background: #ffffff;
+    width: 90%;
+    max-width: 450px;
+    max-height: 85vh;       /* ให้เนื้อหาอยู่ภายใน 85% ของความสูงจอ */
+    border-radius: 15px;
+    padding: 20px;
+    overflow-y: auto;       /* ถ้าข้อมูลยาวให้เลื่อนดูได้ภายในกล่อง */
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+/* 1. กล่องการ์ดสรุปราคาล่าสุดด้านบน (แถบส้มพรีเมียม) */
+.history-summary-box {
+    background-color: #fff8f0; 
+    padding: 10px; 
+    border-radius: 8px; 
+    margin-bottom: 15px; 
+    border-left: 5px solid #e67e22;
+}
+
+.history-summary-box small {
+    color: #7f8c8d;
+}
+
+.history-summary-flex {
+    display: flex; 
+    justify-content: space-between; 
+    margin-top: 5px;
+}
+
+.history-summary-flex .text-min-price {
+    color: #27ae60;
+}
+
+/* 2. โครงสร้างตารางแสดงรายการประวัติราคา */
+table.history-table {
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 0.95rem;
+}
+
+table.history-table thead {
+    background-color: #fdf2f2; 
+    color: #e67e22;
+}
+
+table.history-table th {
+    padding: 12px 8px; 
+    border-bottom: 2px solid #eeeeee; 
+}
+
+table.history-table th.txt-left { text-align: left; }
+table.history-table th.txt-right { text-align: right; }
+
+/* รายการแถวในตาราง (tr / td) */
+table.history-table tbody tr {
+    border-bottom: 1px solid #f9f9f9;
+}
+
+table.history-table tbody td {
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+table.history-table tbody td.col-date {
+    color: #7f8c8d; 
+    line-height: 1.4;
+}
+
+table.history-table tbody td.col-date .time-sub {
+    font-size: 0.8rem; 
+    color: #3498db;
+}
+
+table.history-table tbody td.col-price {
+    text-align: right;
+}
+
+/* 🟢 คลาสพิเศษ: สลัดไฮไลต์ข้อความสีกำไร/สีราคาถูกที่สุดเหนี่ยวทรัพย์ */
+.price-text-normal { color: #2c3e50; }
+.price-text-highlight { color: #27ae60; font-weight: bold; }
+
+/* 3. กล่องแจ้งเตือนในสภาวะที่ยังไม่มีประวัติการซื้อ */
+.history-empty-state {
+    text-align: center; 
+    padding: 30px 10px; 
+    color: #999999;
+}
+
+.history-empty-state .empty-icon {
+    font-size: 3rem; 
+    margin: 0 0 10px 0;
+}
+
+
+
+
+/* 🔴🔴🔴🔴 async function showPriceHistory 🔴🔴🔴🔴 */
+/* ==========================================================================
+   📜 FULL SHOPPING HISTORY STYLES (ส่วนสมุดบัญชีหน้าประวัติวัตถุดิบทั้งหมด)
+   ========================================================================== */
+
+/* 1. สภาวะกล่องประวัติว่างเปล่า */
+.hist-empty-container {
+    text-align: center; 
+    padding: 30px; 
+    color: #95a5a6;
+}
+
+.hist-empty-container i {
+    font-size: 2rem; 
+    margin-bottom: 10px;
+}
+
+/* 2. โครงสร้างแถวรายการประวัติแต่ละบล็อก */
+.full-history-card {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 15px 12px; 
+    border-bottom: 1px solid #f8f9fa;
+}
+
+/* ฝั่งข้อมูลด้านซ้าย (ชื่อ/วันที่) */
+.hist-card-left {
+    flex: 1;
+}
+
+.hist-card-left .hist-item-title {
+    color: #2c3e50; 
+    font-weight: bold; 
+    font-size: 1.05rem; 
+    margin-bottom: 3px;
+}
+
+.hist-card-left .hist-item-date {
+    display: flex; 
+    align-items: center; 
+    gap: 5px; 
+    color: #7f8c8d; 
+    font-size: 0.85rem;
+}
+
+/* ฝั่งข้อมูลและปุ่มแก้ไขด้านขวา (ราคา/สถานะ) */
+.hist-card-right {
+    text-align: right; 
+    min-width: 100px; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-end; 
+    gap: 5px;
+}
+
+.hist-card-right .hist-item-price {
+    color: #27ae60; /* เฉดสีเขียวพรีเมียมตัวหนาแสดงความสำเร็จทางการเงิน */
+    font-weight: 800; 
+    font-size: 1.2rem;
+}
+
+.hist-card-right .hist-status-group {
+    display: flex; 
+    align-items: center; 
+    gap: 8px;
+}
+
+.hist-card-right .hist-status-group small {
+    color: #bdc3c7; 
+    font-size: 0.7rem;
+}
+
+/* ✏️ ปุ่มดินสอแก้ไขประวัติย้อนหลัง */
+.hist-card-right .hist-status-group button.btn-hist-edit {
+    border: none; 
+    background-color: #f1f2f6; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    padding: 2px 5px; 
+    font-size: 0.9rem;
+    transition: background-color 0.15s ease;
+}
+
+.hist-card-right .hist-status-group button.btn-hist-edit:hover {
+    background-color: #dfe4ea;
+}
+
+/* 🚨 ข้อความแจ้งเตือนเมื่อระบบมีปัญหา */
+.hist-error-msg {
+    text-align: center; 
+    color: #e74c3c; 
+    padding: 10px;
+    font-weight: bold;
+}
+
+/* 🔴🔴🔴🔴 function editHistoryItem 🔴🔴🔴🔴 */
+/* ==========================================================================
+   ✏️ INLINE HISTORY EDIT MODE STYLES (ส่วนช่องพิมพ์และปุ่มในโหมดแก้ไขประวัติ)
+   ========================================================================== */
+
+/* 1. สไตล์พื้นฐานของช่องอินพุตที่เกิดใหม่ในโหมดแก้ไขอินไลน์ */
+.input-inline-edit {
+    padding: 4px; 
+    border: 1px solid #dddddd; 
+    border-radius: 4px;
+    font-size: 0.95rem;
+    box-sizing: border-box;
+}
+
+/* ล็อกขนาดความกว้างช่องแก้ไขชื่อวัตถุดิบ */
+.input-inline-edit.edit-width-name {
+    width: 100%; 
+    max-width: 150px;
+}
+
+/* ล็อกขนาดความกว้างช่องแก้ไขตัวเลขราคา */
+.input-inline-edit.edit-width-price {
+    width: 70px;
+}
+
+/* 2. ปุ่มกด "ตกลง" ยืนยันการแก้ไขข้อมูล (เฉดสีเขียวพรีเมียมสำเร็จงาน) */
+.btn-inline-save {
+    background-color: #27ae60; 
+    color: #ffffff; 
+    border: none; 
+    border-radius: 4px; 
+    padding: 5px 12px; 
+    margin-left: 5px; 
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.85rem;
+    transition: background-color 0.15s ease;
+}
+
+/* เอฟเฟกต์ตอนเอานิ้วไปจิ้มหรือเมาส์ชี้ที่ปุ่มตกลง */
+.btn-inline-save:hover {
+    background-color: #219150;
+}
+
+/* 🔴🔴🔴🔴 async function updateDashboardPriceInsight 🔴🔴🔴🔴 */
+/* ==========================================================================
+   💡 DASHBOARD PRICE INSIGHT STYLES (ส่วนกล่องรายงานเรดาร์ราคาด่วนบนแดชบอร์ด)
+   ========================================================================== */
+
+/* 1. โครงสร้างบล็อกข้อมูลแถวบน (ชื่อวัตถุดิบ + ปุ่มแว่นขยาย) */
+.insight-top-flex {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; 
+    margin-bottom: 5px;
+}
+
+/* ข้อความแสดงชื่อวัตถุดิบและไฮไลต์ราคาล่าสุด */
+.insight-top-flex .insight-title {
+    color: #856404; /* เฉดสีน้ำตาลทองสุภาพ ยายอ่านง่ายสบายตา */
+    font-weight: bold;
+}
+
+.insight-top-flex .insight-title .insight-price-tag {
+    color: #e67e22; 
+    font-size: 1.1rem;
+}
+
+/* 🔍 ปุ่มแว่นขยายทรงกลมส่องประวัติราคาสายฟ้าแลบ */
+.insight-top-flex button.btn-insight-search {
+    background-color: #f39c12; 
+    color: #ffffff; 
+    border: none; 
+    border-radius: 50%; 
+    width: 32px; 
+    height: 32px; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.1s ease, background-color 0.15s ease;
+}
+
+/* เอฟเฟกต์นุ่มนวลจังหวะที่ยายใช้นิ้วสัมผัสกดปุ่ม */
+.insight-top-flex button.btn-insight-search:active {
+    transform: scale(0.95);
+    background-color: #d6840d;
+}
+
+/* 2. โครงสร้างบล็อกแสดงเวลาแถวล่าง */
+.insight-bottom-time {
+    color: #997404; 
+    font-size: 0.85rem; 
+    display: flex; 
+    align-items: center; 
+    gap: 4px;
+}
+
+/* 3. กล่องสภาวะหน้าจอแจ้งเตือนเมื่อยังไม่มีประวัติการซื้อ (Empty State) */
+.insight-empty-state {
+    color: #95a5a6; 
+    font-style: italic; 
+    padding: 5px;
+}
+
+/* 🔴🔴🔴🔴 async function renderPeakSalesChart 🔴🔴🔴🔴 */
+/* ==========================================================================
+   📊 PEAK SALES CHART STYLES (ส่วนกล่องรายงานกราฟแท่งช่วงเวลาทำเงิน)
+   ========================================================================== */
+
+/* 1. กล่องการ์ดสีขาวครอบแดชบอร์ดกราฟ */
+.chart-peak-card {
+    background-color: #ffffff; 
+    padding: 18px; 
+    border-radius: 20px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+    border: 1px solid #f0f0f0;
+}
+
+/* ส่วนหัวแผงกราฟ (Flexbox ซ้าย-ขวา) */
+.chart-peak-header {
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    margin-bottom: 20px;
+}
+
+.chart-peak-header .header-title {
+    font-weight: bold; 
+    color: #2c3e50; 
+    font-size: 1.1rem;
+}
+
+.chart-peak-header .header-subtitle {
+    font-size: 0.85rem; 
+    color: #27ae60; 
+    font-weight: bold;
+}
+
+.chart-peak-header .header-update-zone {
+    text-align: right;
+}
+
+.chart-peak-header .header-update-zone .time-lbl {
+    display: block; 
+    font-size: 0.7rem; 
+    color: #95a5a6;
+}
+
+.chart-peak-header .header-update-zone .time-val {
+    font-size: 0.75rem; 
+    color: #7f8c8d;
+}
+
+/* 2. พื้นที่แผงกราฟแท่ง (จัดให้อยู่แนวระนาบชิดขอบล่างเสมอ) */
+.chart-bars-timeline {
+    display: flex; 
+    align-items: flex-end; 
+    gap: 3px; 
+    height: 100px; 
+    padding: 10px 0; 
+    position: relative; 
+    margin-bottom: 10px;
+}
+
+/* คอลัมน์แท่งกราฟแต่ละชั่วโมง */
+.chart-bar-column {
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center;
+}
+
+/* ตัวแท่งกราฟหลัก */
+.chart-bar-column .bar-pillar {
+    width: 100%; 
+    border-radius: 3px 3px 1px 1px;
+    transition: height 0.3s ease; /* เพิ่มแอนิเมชันให้แท่งกราฟยืดขึ้นตอนโหลดสวยๆ */
+}
+
+/* 🟢 สลับโทนสีแท่งกราฟจาก CSS ปลอดสารเคมีตกค้าง */
+.bar-pillar.bar-normal {
+    background-color: #ecf0f1;
+}
+
+.bar-pillar.bar-peak {
+    background-image: linear-gradient(180deg, #e67e22, #f39c12); /* สีส้มทำเงินจุดพีค */
+}
+
+/* ตัวเลขบอกชั่วโมงใต้แท่งกราฟ */
+.chart-bar-column .bar-time-label {
+    font-size: 9px; 
+    color: #bdc3c7; 
+    margin-top: 5px;
+}
+
+/* 3. กล่องสรุปภาพรวมตอนท้ายการ์ด (แถบส้มอ่อนพรีเมียม) */
+.chart-peak-footer {
+    background-color: #fdf2e9; 
+    padding: 12px; 
+    border-radius: 12px; 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    margin-top: 5px;
+}
+
+.chart-peak-footer .footer-icon {
+    font-size: 1.5rem;
+}
+
+.chart-peak-footer .footer-meta-lbl {
+    font-size: 0.8rem; 
+    color: #d35400;
+}
+
+.chart-peak-footer .footer-meta-val {
+    font-size: 0.95rem; 
+    font-weight: bold; 
+    color: #2c3e50;
+}
+
+.chart-peak-footer .footer-meta-val .highlight-orange {
+    color: #e67e22;
+}
+
+/* 🔴🔴🔴🔴 async function renderEfficiencyDashboard 🔴🔴🔴🔴 */
+/* ==========================================================================
+   📈 EFFICIENCY DASHBOARD STYLES (ส่วนแผงวัดดัชนีประสิทธิภาพการบริหารเงิน)
+   ========================================================================== */
+
+/* 1. ตัวเลขแสดงคะแนนเต็ม 10 ด้านบน */
+.eff-score-display {
+    text-align: center; 
+    font-size: 1.8rem; 
+    font-weight: 800; 
+    margin: 5px 0;
+}
+
+/* 2. รางแถบความคืบหน้า (Progress Bar Container) */
+.eff-progress-track {
+    background-color: #eeeeee; 
+    height: 8px; 
+    border-radius: 4px; 
+    margin-bottom: 10px;
+    overflow: hidden; /* ป้องกันแถบพลังด้านในล้นทะลักขอบขวา */
+}
+
+/* แถบเนื้อพลังด้านในที่วิ่งยืดหดได้ */
+.eff-progress-track .eff-progress-fill {
+    height: 100%; 
+    border-radius: 4px; 
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); /* แอนิเมชันวิ่งนุ่มนวลแบบพรีเมียม */
+}
+
+/* 3. ข้อความโค้ชชิ่งประเมินผลด้านล่าง */
+.eff-status-quote {
+    font-size: 0.85rem; 
+    color: #555555; 
+    font-style: italic; 
+    text-align: center;
+}
+
+/* 🟢 ชุดคลาสสลับสเตตัสสี (State Classes) ปลอดสารเคมีดิบตกค้างใน JS */
+/* สเตตัสดีเยี่ยม (สีเขียวเหนี่ยวทรัพย์) */
+.eff-state-good .eff-score-display { color: #27ae60; }
+.eff-state-good .eff-progress-fill { background-color: #27ae60; }
+
+/* สเตตัสพอใช้ (สีเหลืองทองเตือนสติ) */
+.eff-state-fair .eff-score-display { color: #f1c40f; }
+.eff-state-fair .eff-progress-fill { background-color: #f1c40f; }
+
+/* status ระวังล้นทุน (สีแดงเตือนภัย) */
+.eff-state-bad .eff-score-display { color: #e74c3c; }
+.eff-state-bad .eff-progress-fill { background-color: #e74c3c; }
+
+/* 🔴🔴🔴🔴 async function renderRecentOrdersUI 🔴🔴🔴🔴 */
+/* ==========================================================================
+   🧾 RECENT ORDERS UI STYLES (ส่วนแผงมอนิเตอร์ใบเสร็จออเดอร์ล่าสุดของวัน)
+   ========================================================================== */
+
+/* 1. ส่วนหัวของแผงรายการออเดอร์ */
+.recent-orders-title {
+    margin: 15px 0 10px 0; 
+    color: #2c3e50; 
+    font-size: 1.1rem; 
+    display: flex; 
+    align-items: center;
+}
+
+.recent-orders-title small {
+    margin-left: auto; 
+    font-weight: normal; 
+    font-size: 0.7rem; 
+    color: #888888;
+}
+
+/* 2. กล่องการ์ดออเดอร์หลัก (Base Card Structure) */
+.order-recent-card {
+    background: #ffffff; 
+    padding: 12px; 
+    border-radius: 12px; 
+    margin-bottom: 10px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+    position: relative; 
+    overflow: hidden;
+}
+
+/* แถบสีนำร่องแนวตั้งด้านซ้ายสุดของการ์ด */
+.order-recent-card .order-badge-line {
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    bottom: 0; 
+    width: 6px; 
+    z-index: 1;
+}
+
+/* ฝั่งข้อมูลด้านซ้าย (รายการอาหาร/เวลา/ช่องทางจ่ายเงิน) */
+.order-recent-card .order-info-left {
+    flex: 1; 
+    margin-left: 15px;
+}
+
+.order-recent-card .order-info-left .order-food-text {
+    font-weight: bold; 
+    color: #2c3e50; 
+    font-size: 1rem; 
+    line-height: 1.4;
+}
+
+.order-recent-card .order-info-left .order-meta-text {
+    color: #888888; 
+    display: block; 
+    margin-top: 4px;
+}
+
+.order-recent-card .order-info-left .order-meta-text .discount-highlight {
+    color: #e67e22; 
+    font-weight: bold; 
+    margin-left: 5px;
+}
+
+/* ฝั่งข้อมูลตัวเลขด้านขวา (ราคาสุทธิ/ราคาเต็ม) */
+.order-recent-card .order-pricing-right {
+    text-align: right; 
+    min-width: 100px;
+}
+
+.order-recent-card .order-pricing-right .price-net {
+    font-size: 1.2rem; 
+    font-weight: 800; 
+    color: #27ae60; /* สีเขียวเน้นยอดรับเงินจริงสุทธิ */
+}
+
+.order-recent-card .order-pricing-right .price-raw-box {
+    font-size: 0.75rem; 
+    color: #bbbbbb;
+}
+
+.order-recent-card .order-pricing-right .price-raw-box span {
+    text-decoration: line-through;
+}
+
+.order-recent-card .order-pricing-right .price-normal-lbl {
+    font-size: 0.7rem; 
+    color: #cccccc;
+}
+
+/* 🧾 ปุ่มกดพิมพ์ใบเสร็จซ้ำย้อนหลัง */
+.order-recent-card button.btn-reprint-receipt {
+    margin-left: 12px; 
+    background-color: #f8f9fa; 
+    border: 1px solid #dddddd; 
+    padding: 6px 10px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    font-size: 1.1rem; 
+    z-index: 2; 
+    transition: background-color 0.2s ease;
+}
+
+/* 🟢 ไม่ง้อคำสั่ง onmouseover ใน JS เปลี่ยนมาใช้ :hover มาตรฐานสากล */
+.order-recent-card button.btn-reprint-receipt:hover {
+    background-color: #eeeeee;
+}
+
+/* 3. ข้อความแจ้งสภาวะหน้าจอ (Empty State / Error) */
+.order-system-status {
+    text-align: center; 
+    padding: 20px;
+    font-size: 0.95rem;
+}
+.order-system-status.status-empty { color: #888888; }
+.order-system-status.status-error { color: #e74c3c; font-weight: bold; }
+
+/* 🟢 ชุดคลาสสลับสเตตัสตกแต่งการ์ด (State Modifier Classes) ตามเงื่อนไขส่วนลด */
+/* บิลปกติทั่วไป */
+.order-recent-card.card-state-normal {
+    border: 2px solid #eeeeee;
+}
+.order-recent-card.card-state-normal .order-badge-line {
+    background-color: #27ae60;
+}
+
+/* บิลพิเศษที่มีการทำส่วนลดให้ลูกค้า (เน้นโทนสีส้ม) */
+.order-recent-card.card-state-discount {
+    border: 2px solid #e67e22;
+}
+.order-recent-card.card-state-discount .order-badge-line {
+    background-color: #e67e22;
+}
+
+/* 🔴🔴🔴🔴 function checkMatch 🔴🔴🔴🔴 */
+/* ==========================================================================
+   💳 PROMPTPAY VALIDATOR BUTTON STYLES (ส่วนปุ่มเปิด/ปิดล็อกบันทึกพร้อมเพย์)
+   ========================================================================== */
+
+/* 1. ปุ่มบันทึกข้อมูลหลัก (สถานะเปิดใช้งานผ่านคลาสสากลสำเร็จงาน) */
+.btn-promptpay-save {
+    background-color: #27ae60; /* สีเขียวเหนี่ยวทรัพย์ */
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* เอฟเฟกต์ตอนใช้นิ้วสัมผัสกดปุ่มที่มีความพร้อม */
+.btn-promptpay-save:active {
+    transform: scale(0.98);
+}
+
+/* 2. สถานะเมื่อปุ่มถูกล็อก (Disabled) ไร้สารเคมีตกค้าง คุมผ่าน Selector แท้ๆ */
+.btn-promptpay-save:disabled {
+    background-color: #cccccc; /* สีเทาล็อกระบบ */
+    color: #666666;
+    cursor: not-allowed; /* เปลี่ยนรูปเมาส์เป็นสัญลักษณ์ห้าม */
+    transform: none;     /* ปิดแอนิเมชันตอนกด */
+}
+
+/* 🔴🔴🔴🔴 function handleFileChangeWrapper 🔴🔴🔴🔴 */
+/* ==========================================================================
+   📂 FILE IMPORT WRAPPER STYLES (ส่วนป้ายรายงานสถานะและชื่อไฟล์กู้คืนระบบ)
+   ========================================================================== */
+
+/* ข้อความสแตนด์บายพื้นฐาน (ก่อนที่คุณยายจะเลือกไฟล์) */
+#import-file-name-display {
+    color: #7f8c8d; /* สีเทาควันบุหรี่สุภาพ */
+    font-size: 0.95rem;
+    font-style: italic;
+    transition: color 0.25s ease; /* เพิ่ม Transition เติมความสมูทจังหวะสลับสี */
+}
+
+/* 🟢 ชุดคลาสสถานะคุมมิติความงาม (State Modifier Classes) ปลอดอินไลน์สไตล์ใน JS */
+
+/* 1. สเตตัสเมื่อตรวจพบไฟล์และพร้อมใช้งาน (สีเขียวเหนี่ยวทรัพย์) */
+#import-file-name-display.file-state-active {
+    color: #2ecc71; 
+    font-weight: bold;
+    font-style: normal;
+}
+
+/* 2. สเตตัสเมื่อยังไม่ได้เลือกไฟล์ หรือถูกกดยกเลิกกลางคัน */
+#import-file-name-display.file-state-empty {
+    color: #7f8c8d;
+    font-weight: normal;
+    font-style: italic;
+}
+
+/* 🔴🔴🔴🔴 async function renderTodayOrdersTableUI 🔴🔴🔴🔴 */
+/* ==========================================================================
+   📊 TODAY'S ORDERS TABLE STYLES (ส่วนตารางสรุปรายงานบิลวันนี้)
+   ========================================================================== */
+
+/* 1. ข้อความสแตนบายแจ้งเตือนเมื่อตารางยังไม่มีข้อมูลของวันนี้ (Empty State) */
+.table-order-empty {
+    text-align: center; 
+    padding: 20px;
+    color: #888888;
+    font-size: 0.95rem;
+}
+
+/* 2. สไตล์แถวของตาราง (Table Row) และเส้นคั่นแบ่งบิล */
+tr.order-table-row {
+    border-bottom: 1px solid #eeeeee;
+    transition: background-color 0.15s ease;
+}
+
+/* เพิ่มเอฟเฟกต์ไฮไลต์แถวเมื่อพนักงานเอานิ้วสัมผัสหรือเมาส์ชี้ดูรายการ */
+tr.order-table-row:hover {
+    background-color: #fafafa;
+}
+
+/* 3. มิติของช่องข้อมูลในตารางแต่ละคอลัมน์ (Table Data Cells) */
+tr.order-table-row td {
+    padding: 10px;
+    vertical-align: middle;
+}
+
+/* คอลัมน์ที่ 2: รายการอาหารและส่วนลด */
+tr.order-table-row td.col-items {
+    font-size: 0.9rem;
+    color: #2c3e50;
+}
+
+tr.order-table-row td.col-items .discount-lbl {
+    color: #e67e22; /* สีส้มไฮไลต์ส่วนลด */
+}
+
+/* คอลัมน์ที่ 3: ตัวเลขยอดรวมสุทธิชิดขวา */
+tr.order-table-row td.col-price {
+    text-align: right;
+    white-space: nowrap; /* ป้องกันตัวเลขราคาดีดตกบรรทัด */
+}
+
+tr.order-table-row td.col-price b {
+    color: #27ae60; /* สีเขียวเน้นยอดเงินรับจริงสุทธิ */
+}
+
+/* คอลัมน์ที่ 4: ปุ่มกดพิมพ์ใบเสร็จซ้ำชิดกลาง */
+tr.order-table-row td.col-action {
+    text-align: center;
+}
+
+tr.order-table-row td.col-action button.btn-table-reprint {
+    border: none; 
+    background: none; 
+    cursor: pointer; 
+    font-size: 1.2rem;
+    transition: transform 0.1s ease;
+}
+
+/* ตัวปุ่มเด้งตอบสนองเมื่อใช้นิ้วกด */
+tr.order-table-row td.col-action button.btn-table-reprint:active {
+    transform: scale(0.85);
+}
+
+/* 🔴🔴🔴🔴 async function showSmartReceipt 🔴🔴🔴🔴 */
+/* ==========================================================================
+   🧾 SMART RECEIPT MODAL STYLES (ส่วนตั๋วใบเสร็จอัจฉริยะและ QR Code)
+   ========================================================================== */
+
+/* 1. แผงรายการอาหารแต่ละแถว (Item Rows) */
+.rcpt-item-row {
+    width: 100%; /* แก้ไขคำผิดจาก with เป็น width ที่ถูกต้อง */
+    display: flex; 
+    justify-content: space-between; 
+    margin-bottom: 5px; 
+    border-bottom: 1px dashed #eeeeee; 
+    padding-bottom: 5px;
+}
+
+.rcpt-item-row .rcpt-item-price {
+    white-space: nowrap;
+}
+
+/* ข้อความออปชันเสริมใต้ชื่อเมนู */
+.rcpt-item-row .rcpt-option-detail {
+    color: #888888;
+    font-size: 0.85rem;
+}
+
+/* 2. บล็อกแสดงยอดส่วนลดท้ายบิล */
+.rcpt-discount-banner {
+    color: #e67e22; 
+    font-weight: bold; 
+    margin-bottom: 4px;
+}
+
+/* 3. กล่องหุ้มกรอบ QR Code หลัก (Base QR Container) */
+.rcpt-qr-card {
+    background-color: #ffffff; 
+    padding: 10px; 
+    border-radius: 10px; 
+    display: inline-block; 
+}
+
+/* กรอบ QR Code เฉพาะโหมด Online */
+.rcpt-qr-card.qr-online {
+    border: 1px solid #eeeeee;
+}
+
+/* ตัวรูปภาพคิวอาร์โค้ด */
+.rcpt-qr-card img, 
+.rcpt-qr-card canvas {
+    width: 200px !important; /* ป้องกัน Library ภายนอกวาดขนาดเพี้ยน */
+    height: 200px !important;
+    display: block;
+    margin: 0 auto;
+}
+
+/* ข้อความบรรยายใต้ QR Code */
+.rcpt-qr-card .qr-meta-caption {
+    margin-top: 8px; 
+    font-size: 0.85rem; 
+    font-weight: bold;
+}
+
+/* เฉดสีข้อความแยกตามประเภทสถานะเน็ตและช่องทาง */
+.rcpt-qr-card .qr-meta-caption .status-net-online { color: #1a237e; }
+.rcpt-qr-card .qr-meta-caption .status-net-offline { color: #e67e22; }
+.rcpt-qr-card .qr-meta-caption .txt-amount-green { color: #27ae60; }
+
+/* 4. หน้าจอสถานะชำระเงินสดสำเร็จงาน (Cash State) */
+.rcpt-cash-success-icon {
+    font-size: 3rem; 
+    color: #2ecc71; 
+    margin: 10px 0;
+}
+
+.rcpt-status-error-lbl {
+    color: #e74c3c;
+    font-weight: bold;
+    padding: 10px;
+}
+
+/* 🔴🔴🔴🔴 function showOfflineText 🔴🔴🔴🔴 */
+/* ==========================================================================
+   ⚠️ OFFLINE TEXT DISPLAY STYLES (ส่วนกล่องแจ้งเตือนสถานะออฟไลน์หน้าร้าน)
+   ========================================================================== */
+
+/* 1. กล่องการ์ดครอบหลักสภาวะออฟไลน์ (Offline Container Box) */
+.rcpt-offline-box {
+    background-color: #fff9f0; /* สีครีมส้มอ่อนละมุนสายตา */
+    padding: 15px; 
+    border: 2px dashed #e67e22; /* เส้นประสีส้มนำสายตา */
+    border-radius: 10px;
+    text-align: center; /* จัดเนื้อหาให้อยู่กึ่งกลางกล่องใบเสร็จ */
+}
+
+/* 2. หัวข้อคำเตือนสถานะ */
+.rcpt-offline-box .offline-title-lbl {
+    color: #d35400; 
+    font-weight: bold; 
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+/* 3. ข้อความอธิบายขั้นตอนการโอนเงิน */
+.rcpt-offline-box .offline-desc-text {
+    font-size: 0.9rem; 
+    margin-bottom: 5px;
+    color: #2c3e50;
+}
+
+/* 4. ตัวเลขพร้อมเพย์ขนาดใหญ่ เว้นช่องไฟให้คุณยายและลูกค้าอ่านง่าย */
+.rcpt-offline-box .offline-number-display {
+    color: #1a237e; /* เฉดสีน้ำเงินเข้มมองชัด */
+    letter-spacing: 2px; 
+    margin: 10px 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+}
+
+/* 5. ตัวเลขสรุปยอดเงินโอนสุทธิ */
+.rcpt-offline-box .offline-amount-display {
+    font-size: 1.1rem; 
+    color: #27ae60; /* เฉดสีเขียวเหนี่ยวทรัพย์ */
+    font-weight: bold;
+}
+
+/* 6. หมายเหตุกำกับด้านล่างสุด */
+.rcpt-offline-box .offline-footnote-lbl {
+    font-size: 0.7rem; 
+    color: #999999; 
+    margin-top: 10px;
+}
+
+/* -------------------------------------------------------------------------- */
+
+
+/* 🔴🔴🔴🔴 function renderKitchenToastAlert 🔴🔴🔴🔴 */
+/* ==========================================================================
+   🔔 SMART KITCHEN NOTIFICATION HUB STYLES (ระบบแจ้งเตือนอาหารเสร็จจากครัว)
+   ========================================================================== */
+
+/* 🎬 1. ระบบคีย์เฟรมแอนิเมชัน (Core Keyframes) ย้ายจาก JS สู่คลังสากล */
+@keyframes toastSlideIn {
+    0% { transform: translateX(130%); opacity: 0; }
+    8% { transform: translateX(0); opacity: 1; }
+    92% { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toastFadeOut {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.85); }
+}
+
+/* 🏢 2. กล่องควบคุมกลุ่มการ์ดแจ้งเตือนมุมจอภาพ (Toast Container) */
+#kitchen-toast-container {
+    position: fixed; 
+    top: 25px; 
+    right: 25px; 
+    z-index: 999999; 
+    display: flex; 
+    flex-direction: column-reverse; 
+    gap: 12px; 
+    font-family: "Sarabun", sans-serif;
+}
+
+/* 📇 3. ตัวโครงสร้างการ์ดแจ้งเตือนแต่ละใบ (Toast Card Component) */
+.kitchen-toast-card {
+    background-color: #1e3d2f; /* เฉดสีเขียวเข้มสไตล์ห้องครัวพรีเมียม */
+    color: #ffffff; 
+    padding: 16px 22px; 
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25); 
+    min-width: 320px; 
+    max-width: 400px;
+    border-left: 8px solid #f1c40f; /* แถบส้มทองนำสายตาเด่นชัด */
+    display: flex; 
+    flex-direction: column; 
+    gap: 6px; 
+    box-sizing: border-box;
+    /* เคลื่อนไหวขาเข้าด้วยความสมูททรงเด้ง */
+    animation: toastSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* คลาสสถานะเสริม (State Modifier) เมื่อสั่งเปิดสัญญาณแอนิเมชันขาออก */
+.kitchen-toast-card.is-leaving {
+    animation: toastFadeOut 0.5s ease forwards;
+}
+
+/* 🏷️ 4. ส่วนประกอบเนื้อหาภายในการ์ดแจ้งเตือน */
+.kitchen-toast-card .toast-header {
+    font-weight: 800; 
+    font-size: 1.15rem; 
+    color: #f1c40f; 
+    display: flex; 
+    align-items: center; 
+    gap: 6px;
+}
+
+.kitchen-toast-card .toast-body-food {
+    font-size: 1.05rem; 
+    font-weight: bold; 
+    color: #ffffff; 
+    margin-top: 2px;
+}
+
+.kitchen-toast-card .toast-footer-meta {
+    font-size: 0.9rem; 
+    color: #bdc3c7; 
+    display: flex; 
+    justify-content: space-between; 
+    margin-top: 4px; 
+    border-top: 1px solid rgba(255, 255, 255, 0.1); 
+    padding-top: 4px;
+}
+
+.kitchen-toast-card .toast-footer-meta .meta-table-lbl {
+    color: #ffffff; 
+    font-size: 1rem;
+}
+
+.kitchen-toast-card .toast-footer-meta .meta-time-lbl {
+    font-size: 0.8rem; 
+    color: #95a5a6;
+}
+
+/* 🔴🔴🔴🔴 function resetWarpStatus 🔴🔴🔴🔴 */
+/* ==========================================================================
+   🚀 WARP NETWORK STATUS STYLES (ส่วนปุ่มและข้อความสถานะระบบวาร์ป P2P)
+   ========================================================================== */
+
+/* 1. ตัวปุ่มไฟสัญญาณแจ้งเตือนวงกลม (Status Indicator Dot) */
+.warp-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    transition: background-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* 🟢 กลุ่มคลาสสถานะสวมทับ (State Modifier) คลีนสะอาดยกชุด */
+
+/* สถานะเริ่มต้น: ไฟสัญญาณระบบวาร์ปพร้อมใช้งาน / สแตนด์บาย (Ready/Idle State) */
+.warp-status-dot.is-warp-ready {
+    background-color: #bdc3c7; /* สีเทาสแตนด์บาย */
+    box-shadow: none;          /* ปิดเงาสะท้อนแสง */
+}
+
+/* 2. ตัวอักษรรายงานข้อความสถานะเครือข่าย */
+.warp-status-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.25s ease;
+}
+
+/* สถานะเริ่มต้น: ตัวหนังสือระบบวาร์ปพร้อมส่งออเดอร์ */
+.warp-status-text.is-warp-ready {
+    color: #6c757d; /* สีเทาสุภาพไม่กวนสายตา */
+}
+
+
+/* 🔴🔴🔴🔴 function renderP2PConnectedToas 🔴🔴🔴🔴 */
+/* ==========================================================================
+   🌐 P2P CONNECTIVITY TOAST STYLES (ส่วนกล่องแจ้งเตือนเครือข่ายเครื่องแม่/ลูก)
+   ========================================================================== */
+
+/* 🎬 1. ระบบคีย์เฟรมแอนิเมชัน P2P (Core Network Keyframes) */
+@keyframes p2pSlideIn {
+    0% { transform: translateX(-120%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes p2pFadeOut {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* 🏢 2. กล่องควบคุมกลุ่มแจ้งเตือน P2P มุมซ้ายล่างหน้าจอ (P2P Container) */
+#p2p-status-container {
+    position: fixed; 
+    bottom: 25px; 
+    left: 25px; 
+    z-index: 999999; 
+    display: flex; 
+    flex-direction: column-reverse; /* ดันของใหม่หนุนของเก่าขึ้นบนอย่างมีระเบียบ */
+    gap: 10px; 
+    font-family: "Sarabun", sans-serif;
+}
+
+/* 📇 3. โครงสร้างการ์ดป็อปอัปแจ้งเตือนเชื่อมต่อสำเร็จ (P2P Toast Card) */
+.p2p-toast-card {
+    background-color: #2ecc71; /* เฉดสีเขียวสว่างนำทางความสำเร็จ */
+    color: #ffffff; 
+    padding: 16px 24px; 
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); 
+    font-weight: bold; 
+    font-size: 1.05rem;
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px; 
+    border-left: 6px solid #27ae60; /* แถบสีเขียวเข้มล็อกขอบนำสายตา */
+    box-sizing: border-box; 
+    min-width: 280px;
+    /* สั่งเล่นแอนิเมชันขาเข้าทันทีที่ปรากฏตัว */
+    animation: p2pSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* คลาสสถานะเสริม (State Modifier) เมื่อเข้าสู่โหมดกาลเวลาแอนิเมชันขาออก */
+.p2p-toast-card.is-leaving {
+    animation: p2pFadeOut 0.5s ease forwards;
+}
+
+/* 🏷️ 4. ส่วนประกอบย่อยเนื้อหาภายในการ์ดแจ้งเตือน P2P */
+.p2p-toast-card .p2p-toast-title {
+    display: flex; 
+    align-items: center; 
+    gap: 8px;
+}
+
+.p2p-toast-card .p2p-toast-body {
+    font-size: 0.85rem; 
+    color: #f0fbf5; 
+    font-weight: normal; 
+    margin-top: 2px;
+}
+
+/* ป้ายแสดงชื่อสถานะอุปกรณ์ (Role Badge) */
+.p2p-toast-card .p2p-toast-body .p2p-role-badge {
+    background-color: #27ae60; 
+    padding: 2px 6px; 
+    border-radius: 8px; 
+    font-weight: bold;
+    color: #ffffff;
+}
+
+
+/* 🔴🔴🔴🔴 function addKitchenTicket 🔴🔴🔴🔴 */
+/* ==========================================================================
+   🍳 CORE KITCHEN TICKET RENDERER STYLES (ระบบการ์ดตั๋วออเดอร์หน้าเตา)
+   ========================================================================== */
+
+/* 1. ตัวโครงสร้างการ์ดตั๋วอาหารหลัก (Ticket Card Container) */
+.kitchen-ticket {
+    background-color: #ffffff; 
+    border-left: 8px solid #e67e22; /* แถบสีส้มหลักของร้านกะเพรา */
+    border-radius: 12px; 
+    padding: 18px; 
+    margin-bottom: 15px; 
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1); 
+    font-family: 'Kanit', 'Sarabun', sans-serif;
+    animation: slideIn 0.4s ease-out;
+}
+
+/* 2. ส่วนหัวของตั๋วอาหาร (Ticket Header) */
+.kitchen-ticket .kt-header {
+    display: flex; 
+    justify-content: space-between; 
+    border-bottom: 2px dashed #eeeeee; 
+    padding-bottom: 10px; 
+    margin-bottom: 10px;
+}
+
+.kitchen-ticket .kt-header .kt-table-title {
+    font-size: 1.3em; 
+    color: #2c3e50;
+}
+
+.kitchen-ticket .kt-header .kt-time-lbl {
+    color: #e67e22; 
+    font-weight: bold;
+}
+
+/* 3. กล่องหุ้มรายการอาหารคิวข้างในตั๋ว (Items List Box) */
+.kitchen-ticket .items-list-box {
+    padding: 5px 0;
+}
+
+/* 4. แถวออเดอร์อาหารแต่ละจาน (Individual Food Item Row) */
+.kitchen-item-row {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 12px; 
+    border-bottom: 1px solid #f1f1f1; 
+    padding-bottom: 8px; 
+    transition: all 0.3s ease;
+}
+
+/* ชื่อเมนูอาหารหลักภายในแถว */
+.kitchen-item-row .food-name-title {
+    color: #34495e; 
+    font-size: 1.15em; 
+    font-weight: 500;
+}
+
+/* ป้ายกำกับออเดอร์สั่งเพิ่มระลอก 2 (Append Round Badge) */
+.kitchen-item-row .badge-new-round {
+    font-size: 0.75rem; 
+    background-color: #3498db; /* สีฟ้าสว่างนำสายตา */
+    color: #ffffff; 
+    padding: 2px 6px; 
+    border-radius: 4px; 
+    margin-left: 5px;
+}
+
+/* ตัวเลือกเสริม/หมายเหตุอาหาร (Options Text) */
+.kitchen-item-row .food-options-note {
+    color: #e74c3c; /* สีแดงสว่างสะดุดตาพ่อครัวเพื่อให้ไม่ลืมแต่งจาน */
+    font-size: 0.9em; 
+    font-weight: bold;
+}
+
+/* 5. ชุดควบคุมจำนวนและปุ่มกดส่งงานขวาหน้า (Control Action Group) */
+.kitchen-item-row .kt-action-group {
+    display: flex; 
+    align-items: center; 
+    margin-left: 10px;
+}
+
+/* บล็อกแสดงจำนวนจาน (Quantity Badge Display) */
+.kitchen-item-row .kt-action-group .kt-qty-badge {
+    color: #d35400; 
+    background-color: #fff5eb; /* พื้นส้มครีมอ่อน สังเกตจำนวนง่าย */
+    padding: 4px 10px; 
+    border-radius: 6px; 
+    font-size: 1.2em; 
+    border: 1px solid #ffe0c1; 
+    margin-right: 10px;
+}
+
+/* ปุ่มกด Check ส่งงานอาหารเสร็จแบบสากล (Mark as Done Button) */
+.kitchen-item-row .kt-action-group .btn-kt-done {
+    color: #ffffff; 
+    border: none; 
+    width: 35px; 
+    height: 35px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 1.1em; 
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+/* รหัสสีส้มฟ้ากรณีเป็นเมนูจากคิวสั่งเพิ่มระลอก 2 */
+.kitchen-item-row .kt-action-group .btn-kt-done.is-append-round {
+    background-color: #2cc7c9;
+}
+
+/* รหัสสีเขียวเหนี่ยวทรัพย์กรณีเป็นเมนูขึ้นตั๋วปกติ */
+.kitchen-item-row .kt-action-group .btn-kt-done.is-normal-round {
+    background-color: #27ae60;
+}
+
+/* เอฟเฟกต์การสับนิ้วกดจิ้มส่งงาน */
+.kitchen-item-row .kt-action-group .btn-kt-done:active {
+    transform: scale(0.92);
+}
+
+   /* ................................................................................... */
+
+
+/* ....อันเก่า.. */
 
 /* ใส่ Animation เวลาสลับหน้า (Smooth Transition) */
 /* สร้างคำสั่งแอนิเมชันชื่อ fadeIn */
@@ -208,163 +4859,31 @@ button[onclick="showSetting()"] {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* เอาไปใช้กับหน้าหลักและหน้าตั้งค่า */
-#front-page, #back-page {
-    animation: fadeIn 0.4s ease-out;
-}
 
-/* แถบสถานะ "กำไร/ขาดทุน" (Dynamic Status) */
-#profit-status {
-    display: inline-block;
-    padding: 10px 20px;
-    border-radius: 50px; /* ทรงแคปซูล ดูทันสมัย */
-    font-size: 1.1rem;
+
+/* เมื่อปุ่มถูกเลือก (สติ๊กเกอร์ที่จะถูกแปะด้วย JS ในโซนเมนูหน้าร้าน) - ถอน !important ออก 100% */
+#front-page #Order-menu button.selected {
+    background-color: #ff9f43; /* สีส้มพรีเมียม */
+    color: #ffffff;
+    border: 2px solid #000000;
     font-weight: bold;
-    margin-top: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    transition: all 0.3s ease; /* เวลาสีเปลี่ยนจะค่อยๆ เปลี่ยน ไม่ตัดฉึบ */
-    min-width: 180px;
-    text-align: center;
-}
-/* ตกแต่ง Input ให้ "หรู" ขึ้น (Premium Input) */
-input[type="text"], input[type="number"] {
-    transition: all 0.3s;
-    outline: none; /* ลบขอบสีฟ้าของเดิม */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
-input[type="text"]:focus, input[type="number"]:focus {
-    border-color: #ff4757; /* เปลี่ยนสีขอบเป็นสีแดงตามธีมร้านเรา */
-    box-shadow: 0 0 8px rgba(255, 71, 87, 0.2);
-    transform: scale(1.01); /* ยืดออกมานิดๆ เวลาพิมพ์ */
+
+
+/* วางต่อท้ายในนี้ได้เลยครับ   ทำให้ตั๋วคิวดูมี Animation 10-05--2026 */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
-/* ส่วน "ยอดขายวันนี้" ให้ดูน่าเชื่อถือ */
-#total-sales-display {
-    background: rgba(46, 213, 115, 0.1);
-    padding: 5px 15px;
-    border-radius: 10px;
-    color: #2ed573;
-}
-
-/* การปรับแต่งเพื่อ mobile-First 11-04-2026 */
-#front-page {
-    background-color: #000000; /*ิbgด้านหลัง*/
-    min-height: 100vh;
-    padding-bottom: 40px; /*กันเนื้อจมขอบล่าง*/
-}
-
-/* ทำให้ Header ดูหรูหรา */
-header {
-    /*background: linear-gradient(135deg, #000000 0%, #000000 100%);*/ /*สี BG */
-
-    /* 1. เรียกใช้รูปภาพ */
-    background-image: url('bgApp.jpg');
-
-    /* 2. *สำคัญที่สุด* ปรับขนาดรูปให้ "คลุม" ทั้งหน้าจอเสมอ */
-    background-size: cover;
-
-    /* 3. จัดวางรูปให้อยู่ "ตรงกลาง" ทั้งแนวตั้งและแนวนอน */
-    background-position: center;
-
-    /* 4. สั่งไม่ให้รูปแสดงซ้ำ (ถ้าหน้าจอยาวกว่ารูป) */
-    background-repeat: no-repeat;
-
-    /* 5. *ทริคเด็ด* สั่งให้รูปพื้นหลัง "ตรึงอยู่กับที่" เวลาเลื่อนหน้าจอ (Parallax effect) */
-    background-attachment: scroll;
-
-    /* 6. กำหนดสีพื้นหลังสำรอง (กรณีรูปล่มหรือยังโหลดไม่เสร็จ) */
-    background-color: #f8f9fa;
-
-    color: #000000 !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    position: relative;
-    padding-bottom: 80px;
-}
-
-#name-main {
-    color: #ffffff; /*สีชื่อร้าน*/
-    display: block;
-    margin-bottom: 10px;
-}
-
-#menu-name {
-    color: #e2ff42; /*สีชื่อเมนู*/
-    display: block;
-    margin-bottom: 20px;
-}
-
-/* ปรับปรุงกล่องสลับยอดขาย (Dashboard) */
-#sales-summary {
-    border: 2px solid #f1f2f6;
-    margin: 0 10px;
-    width: auto;
-    margin-top: 10px; /*ให้กล่องยอดขายเกยขึ้นไปบน Header นิดๆ ดูมีมิติ*/
-    background: white;
-    z-index: 10;
-    position: relative;
-    padding: 15px;
-    border-radius: 15px;
-}
-
-/* ตกแต่งส่วนเพิ่มเติม (checkboxes) ให้กดง่ายขึ้นบนมือถือ */
-#options-display label {
-    transition: transform 0.2s, background-color 0.2s;
-    border: 1px solid #000000;
-}
-
-#options-display label:active {
-    transform: scale(0.98); /*เวลาจิ้มในมือถือให้มันยุบลงหน่อย*/
-    background-color: #f1f2f6;
-}
-
-/*ปรับปรุงเมนูอาหารถ้ามี (ถ้ามี) */
-#Order-menu button {
-    width: 100%;
-    padding: 15px;
-    margin: 10px 0;
-    border: none;
-    border-radius: 12px;
-    background-color: #333;
-    color: #e2ff42;
-    font-weight: bold;
-    font-size: 1rem;
-}
-
-/* เมื่อเอาเมาส์วาง */
-#Order-menu button:hover {
-    background-color: #8e9491;
-    transform: translateY(-2px);
-}
-
-/* เมื่อปุ่มถูกเลือก (สติ๊กเกอร์ที่เราจะแปะด้วย JS) */
-.selected {
-    background-color: #ff9f43 !important; /* สีส้ม */
-    color: white !important;
-    border: 2px solid #000000 !important;
-    font-weight: bold;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-/* การย้ายตำแหน่งด้วย CSS  */
-
-#front-page {
-    display: flex;
-    flex-direction: column;
-}
-
-/* "ย้ายกะเพราเหาะ" (menu-name) ลงมาข้าง */
-/* เนื่องจากมันอยู่ใน Header เราจะใช้ความสูงของ header เป็นกำหนด */
-header {
-    display: flex;
-    flex-direction: column;
-}
-
-/* ป้องกันการคลุมดำเวลาจิ้มปุ่มซ้ำ ๆ บนมือถือ */
-button, label, #profit-status {
-    -webkit-tab-highlight-color: transparent;
-    user-select: none;
-}
-
-/* ทำให้ Scroll ลื่นไหล */
-body {
-    -webkit-overflow-scrolling: touch;
+/* แถม: ใส่คลาสเพื่อให้ใช้ animation ได้สมบูรณ์ */
+.kitchen-ticket {
+    animation: slideIn 0.4s ease-out;
 }
