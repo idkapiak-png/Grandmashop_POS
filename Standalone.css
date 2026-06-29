@@ -6,18 +6,28 @@
 }
 
 
-/* กรอบหน้าจอมือถือหลัก */
+/* กรอบหน้าจอมือถือหลัก - เวอร์ชันยืดหยุ่นเต็มจอทุกเครื่อง */
 .app-container {
   display: flex;
   flex-direction: column;   /* จัดเรียง บน-กลาง-ล่าง */
+  
+  /* 📱 ด้านกว้าง: ให้เต็มจอ 100% บนมือถือเสมอ */
   width: 100%;
-  max-width: 360px;
+  
+  /* 📱 ด้านสูง: ใช้ 100dvh (Dynamic Viewport Height) เพื่อให้เต็มจอจริง ๆ */
+  /* และหลบแถบ URL ของเบราว์เซอร์บนมือถือให้อัตโนมัติด้วย */
   height: 100vh;
-  max-height: 800px;
+  height: 100dvh; 
+  
+  /* 🖥️ (ออปชันเสริม) ถ้านายเปิดบนหน้าจอคอมพิวเตอร์ใหญ่ ๆ แล้วกลัวแอปแผ่กว้างจนไม่สวย 
+      เราจะใส่ max-width ล็อกไว้เฉพาะบนคอม แต่บนมือถือจะขยายเต็มจอให้อัตโนมัติ */
+  max-width: 480px; 
+  
   margin: 0 auto;
   background-color: #000000; /* ธีมมืดดุดันพรีเมียม */
   overflow: hidden;         /* ล็อกตัวแอปไม่ให้ขอบหลุดเฟรม */
   font-family: sans-serif;
+  position: relative;
 }
 
 /* 1. แก้ไขที่ .app-header: ให้ตัด padding ออกเหลือแค่ 0 เพื่อคุมจากข้างใน */
@@ -96,7 +106,7 @@
 /* 3. จัดการส่วนด้านล่าง (Footer) */
 .app-footer {
   flex-shrink: 0;           /* ล็อกความสูงด้านล่าง */
-  height:  234.78px;
+  height:  auto;
   background-color: #000000;
   border-top: 1px solid #2A2A2A;
   display: grid;
@@ -108,13 +118,64 @@
 .page-section {
   display: none; /* ปกติสั่งซ่อนไว้ก่อน */
 }
+
+/* 🟢 ปรับตรงนี้: ระบุเจาะจงคู่กับคลาส active เพื่อเพิ่มพลังให้ชนะการซ่อน */
 .page-section.active {
-  display: block; /* หน้าไหนติดคลาส active ถึงจะโชว์ */
+    display: flex; 
 }
 
 
+/* ...........................หน้าตั้งค่า............................................ */
 
+/* จองพื้นที่ให้หน้าตั้งค่าแบบลอยตัว ทับทุกอย่าง ไม่ดัน Layout เดิม */
+#setting-page {
+    position: fixed;        /* ลอยอยู่เหนือทุกอย่าง */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: #ffffff; /* หรือสีพื้นหลังของแอปพี่ */
+    z-index: 9999;          /* ให้มันอยู่ชั้นบนสุด */
 
+    /* ⚡ เตรียมโครงสร้าง Flexbox แนวตั้งไว้ล่วงหน้า */
+    flex-direction: column;
+    overflow: hidden;       /* ⚡ บล็อกไม่ให้ทั้งหน้าจอใหญ่เลื่อนสไลด์หนี */
+
+}
+
+/* 🟢 CSS กรอบสีเขียว (Header) */
+.setting-app-header {
+    flex-shrink: 0;         /* ห้ามโดนบีบขนาด */
+    padding: 15px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    background-color: #000000;
+    color: #fff;
+    border-bottom: 1px solid #222; /* เส้นใต้บาง ๆ */
+}
+
+/* 🟢 เติมตัวนี้เพิ่ม: สั่งดักไว้เลยว่าถ้า #setting-page ไม่มีคลาส active ให้เชื่อฟังคำสั่งซ่อนตัว */
+#setting-page:not(.active) {
+    display: none;
+}
+
+/* 🔵 CSS กรอบสีฟ้า (Content ตรงกลาง - พระเอกของงานนี้) */
+.setting-app-content {
+    flex: 1;                /* ยืดพื้นที่กินส่วนต่างที่เหลือทั้งหมดตรงกลาง */
+    overflow-y: auto;       /* ⚡ จุดสำคัญ! ถ้าเนื้อหายาวเกินจอ ให้ถูนิ้วเลื่อนได้เฉพาะโซนนี้ */
+    padding: 15px;
+    /* ป้องกันการสะท้อนหรือการดึงหน้าจอเอ๋อเวลารูดบน iOS */
+    -webkit-overflow-scrolling: touch; 
+}
+
+/* 💗 CSS กรอบสีชมพู (Footer) */
+.setting-app-footer {
+    flex-shrink: 0;         /* ห้ามโดนบีบขนาด ยึดตำแหน่งไว้ล่างสุดเสมอ */
+    padding: 15px;
+    border-top: 1px solid #222; /* เส้นบนบาง ๆ */
+    background-color: #000; /* กันเนื้อหาตรงกลางทะลุลงมาซ้อนข้อความ */
+}
 
 
 
@@ -126,14 +187,15 @@
 body {
     font-family: 'Arial', sans-serif;
     line-height: 1.5;
-    background-color: #716f6f;
-    padding: 0; 
+    background-color: #000000; /* 💡 แนะนำเปลี่ยนจากสีเทา #716f6f เป็นสีมืด เพื่อให้กลมกลืนกับแอปดำพรีเมียมของนาย เวลาจอมือถือแหว่งหรือเหลือขอบ จะได้เนียนตาครับ */
+    padding: 0;
+    margin: 0; 
     
+   /* 📱 ล็อกขนาดบอดี้ให้เต็มจอพอดี ไม่ให้ตัว body เองเกิดการสกรอลล์ซ้อน */
     width: 100vw;              
-    height: 100vh;             
-    display: flex;
-    flex-direction: column;    
-    overflow: auto;          
+    height: 100vh; 
+    height: 100dvh;
+    overflow: hidden; /* 💡 เปลี่ยนจาก auto เป็น hidden เพื่อบังคับให้สกรอลล์เฉพาะ "ข้างในแอป" (.app-content) เท่านั้น บอดี้ห้ามขยับเด็ดขาด */      
 
     /* 🔒 คาถาป้องกันหน้าจอดึ๋งหลุด */
     overscroll-behavior-y: contain; 
@@ -228,11 +290,12 @@ body {
    🏠 2. FRONT PAGE STYLES (สไตล์เฉพาะตัวของหน้าหลักหน้าร้าน - สีดำดุดัน)
    ========================================================================== */
 #front-page {
-    background-color: #000000;       /* พื้นหลังสีดำทมิฬคลาสสิกตามธีมหน้าร้าน */
-    min-height: 100vh;               /* ดึงสัดส่วนความสูงคลุมเต็มหน้าจอ */
-    padding-bottom: 40px;            /* กันเนื้อหาวิ่งลงไปจมขอบล่างหน้าจอ */
+    background-color: none;       /* พื้นหลังสีดำทมิฬคลาสสิกตามธีมหน้าร้าน */
     display: flex;                   /* เปิดโหมดจัดแถว */
     flex-direction: column;          /* บังคับเรียงไอเทมอาหารจากบนลงล่าง */
+                  /* ดึงสัดส่วนความสูงคลุมเต็มหน้าจอ  min-height: 100vh; */
+                /* กันเนื้อหาวิ่งลงไปจมขอบล่างหน้าจอ padding-bottom: 40px; */
+    
 }
 
 /* ==========================================================================
@@ -277,11 +340,11 @@ input[type="text"],
 input[type="number"] {
     width: 100%;
     padding: 12px 16px;              /* เพิ่มช่องไฟด้านข้างให้ดูหรูหรา ไม่เบียดตัวหนังสือ */
-    border: 1px solid #e0e0e0;       /* ใช้สีขอบเทาจางนุ่มตา */
-    border-radius: 10px;             /* ขอบโค้งมนสวยงามสไตล์ iOS/Modern App */
+    border: 1;       /* ใช้สีขอบเทาจางนุ่มตา */
+    border-radius: none;             /* ขอบโค้งมนสวยงามสไตล์ iOS/Modern App */
     font-size: 1rem;                 /* ขนาดตัวอักษรพอดีสายตา */
     margin-bottom: 1px;             /* เว้นระยะห่างด้านล่างไม่ให้ติดกันเกินไป */
-    background-color: #ffffff;
+    background-color: none;
     color: #2c3e50;                  /* สีตัวอักษรเข้มอ่านง่าย */
     box-sizing: border-box;          /* ล็อกขนาดไม่ให้ขอบบานทะลุจอ */
     outline: none;                   /* ลบขอบสีฟ้าดั้งเดิมของเบราว์เซอร์ออก */
@@ -361,13 +424,19 @@ header {
 .search-input-field {
     width: 90%; 
     padding: 12px; 
-    border-radius: 25px; 
-    border: 2px solid #e2ff42; /* ขอบสีเหลืองนีออนคุมโทนแอปหลัก */
+    border-radius: 10px; 
+    opacity: 1;
+    border: 2px solid #ffffff; /* ขอบสีเหลืองนีออนคุมโทนแอปหลัก */
+    border-top: 0.8px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 0.8px solid rgba(255, 255, 255, 1);
+    border-left: none;
     font-size: 16px; 
     outline: none; 
     box-sizing: border-box;
-    background: #ffffff;
-    color: #333333;
+    background: rgba(255, 255, 255, 0.30);
+    backdrop-filter: blur(0.8px);
+    -webkit-backdrop-filter: blur(0.8px);    /* รองรับเบราว์เซอร์ฝั่ง iOS/Safari ให้แสดงผลได้สมบูรณ์ */
 }
 
 /* 3. กล่อง Dropdown ผลลัพธ์รวม (ผูก ID ชน Class เพื่อเพิ่มพลังความจำเพาะในการคุมมิติ) */
@@ -400,7 +469,7 @@ header {
     width: 100%; 
     margin: 4px 0; 
     padding: 12px; 
-    background-color: #ff9f43; /* เฉดสีส้มสว่างสังเกตง่าย */
+    background-color: #ffffff; 
     color: #000000; 
     border-radius: 8px; 
     border: none; 
@@ -424,6 +493,23 @@ header {
     font-size: 14px;
     text-align: center;
 }
+
+/* 1. เปลี่ยนสีของตัวหนังสือเวลาที่เรา "พิมพ์ข้อความค้นหาลงไปจริง ๆ" */
+#smart-search-input {
+    color: #333333;             /* เปลี่ยนเป็นสีเทาเข้มเพื่อให้เห็นชัดตอนพิมพ์ */
+    font-weight: bold;          /* ปรับให้ตัวหนานิดหน่อยเพิ่มความวินเทจ */
+}
+
+/* 2. เปลี่ยนสีของข้อความคำแนะนำ "🔍 พิมพ์ชื่อเมนูเพื่อค้นหา..." (Placeholder) */
+#smart-search-input::placeholder {
+    color: #FF7900;             /* 🟠 ตัวอย่าง: เปลี่ยนเป็นสีส้มเฉด Figma ของนาย หรือใส่สีที่ชอบได้เลย */
+    opacity: 0.8;               /* คุมความโปร่งแสงให้ดูเนียนตา ไม่แข็งทื่อจนเกินไป */
+    font-weight: 300;
+}
+
+/* รองรับสำหรับเบราว์เซอร์เก่าบางตัว (ใส่พ่วงไว้เพื่อความชัวร์) */
+#smart-search-input::-webkit-input-placeholder { color: #ababab; opacity: 0.8; }
+#smart-search-input::-moz-placeholder { color: #FF7900; opacity: 0.8; }
 
 
 
@@ -463,8 +549,27 @@ header {
    📊 1. กล่องสรุปยอดขายหลัก (The Profit Dashboard) 08-06-2026
    ========================================================================== */
 #sales-summary {
-    background: white;
-    border: 2px solid #f1f2f6;
+     background: rgba(255, 255, 255, 0.20);  /* สีขาว FFFFFF ความโปร่งแสง 20% */
+    border-radius: 15px; /* ความโค้งมน Corner radius: 15 */
+    opacity: 1; /* Opacity: 100% (ค่าปกติของกล่อง) */
+
+    /* --- Effects (เอฟเฟกต์เบลอหลัง + เงาหนุน) --- */
+    backdrop-filter: blur(1px);            /* Background blur: สั่งเบลอฉากหลังให้เนียนตาเหมือนกระจกฝ้า */
+    -webkit-backdrop-filter: blur(3px);    /* รองรับเบราว์เซอร์ฝั่ง iOS/Safari ให้แสดงผลได้สมบูรณ์ */
+
+    /* Drop Shadow: เงาสีดำจาง ๆ ดันกล่องให้ดูมีมิติลอยขึ้นมาจากจอ */
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+
+    /* --- Stroke (เส้นขอบตามคัสตอมใน Figma: Mixed 0, 0, 0.8, 0.8) --- */   
+    /* ใน Figma: Top=0, Right=0, Bottom=0.8, Left=0.8 (หรือสลับตามลำดับ Custom) */
+    border-top: 0.8px solid rgba(255, 255, 255, 1); 
+    border-right: none; /* ด้านขวา: หนา 0.8px สีขาวทึบ 100% */
+    border-bottom: 0.8px solid rgba(255, 255, 255, 1);/* ด้านล่าง: หนา 0.8px สีขาวทึบ 100% */
+    border-left: none;                              /* ด้านซ้าย: ไม่มีเส้นขอบ (0) */
+
+    /* Position: Inside (จำลองมิติให้เส้นขอบยุบตัวเข้าด้านใน ไม่ดันขนาดกล่องเพี้ยน) */
+    box-sizing: border-box;
+
     margin: 0 10px 15px 10px; /* ยุบรวม margin: จัดเกยหัวแอป 10px และเว้นด้านล่าง 15px */
     width: auto;
     position: relative;
@@ -478,9 +583,26 @@ header {
 /* ข้อความหัวข้อ "💰 ยอดขายวันนี้:" */
 .sales-title {
     margin: 0;
-    color: #333333;
+    color: #ffffff;
 }
 
+
+
+
+
+
+
+/* 1. เปลี่ยนตัวครอบใหญ่ให้เป็นสีเทาตามที่ยายต้องการ */
+#total-sales-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #000000;       /* สีเทาอ่อนตามรูป 476 */
+    padding: 12px 15px;
+    border-radius: 10px;
+    margin: 5px 0;
+}
 
 
 /* ตัวเลขแสดงยอดรวมสีเขียวเหนี่ยวทรัพย์ */
@@ -490,7 +612,6 @@ header {
     font-weight: bold;
     color: #2ed573; 
     margin: 5px 0;
-    background: rgba(46, 213, 115, 0.1); /* สีพื้นหลังโปร่งแสงจาง ๆ */
     padding: 5px 15px;
     border-radius: 10px;
 }
@@ -498,13 +619,20 @@ header {
 /* กล่องแสดงแยกยอด เงินสด และ โอน */
 .payment-method-box {
     display: inline-block;
-    border: 2px solid #00acc1;
-    border-radius: 8px;
     padding: 5px 15px;
     margin-bottom: 15px;
     font-size: 0.9rem;
-    color: #555555;
+    color: #ffffff;
 }
+
+
+
+
+
+
+
+
+
 
 
 /* ==========================================================================
@@ -514,11 +642,9 @@ header {
     display: inline-block;
     width: 100%;
     padding: 10px 20px;
-    border-radius: 50px; /* ทรงแคปซูล ดูทันสมัย */
     font-size: 1.1rem;
     font-weight: bold;
     margin-top: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease; /* เวลา JS เปลี่ยนสีกำไร-ขาดทุน จะค่อยๆ ไล่เฉดนุ่มๆ */
     min-width: 180px;
     text-align: center;
@@ -545,13 +671,19 @@ header {
     width: 100%; 
     margin-top: 15px; 
     padding: 12px; 
-    background: #333333; 
-    color: #e2ff42; /* สีเหลืองนีออนเด่น ๆ */
-    border: 1px solid #e2ff42; 
-    border-radius: 12px; 
-    font-weight: bold; 
+    background: radial-gradient(circle, #676565 0%, #333333 100%);
+    color: #64DBFB; /* สีเหลืองนีออนเด่น ๆ */
+    border: 1px solid #ffffff; 
+    border-radius: 9px; 
+    opacity: 1;
+    border-top: 0.5px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    box-sizing: border-box;
+    font-weight: 300; 
     cursor: pointer; 
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.25);
     transition: background 0.2s ease, transform 0.1s ease; /* แถมความนุ่มนวลเวลาจิ้มปุ่ม */
 }
 
@@ -1035,8 +1167,8 @@ header {
     color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาอ่านง่าย */
     padding: 5px 5px; 
     border-radius: 20px; /* 💊 สั่งหักขอบโค้งมนจนกลายเป็นทรงป้ายแคปซูลสวยงาม */
-    font-size: 10px;   /* ขนาดตัวหนังสือย่อมลงมานิดนึงเพื่อให้ดูเป็นป้ายกำกับ */
-    font-weight: bold;
+    font-size: 15px;   /* ขนาดตัวหนังสือย่อมลงมานิดนึงเพื่อให้ดูเป็นป้ายกำกับ */
+    font-weight: 300; /* บางกำลังสวย นิยมใช้กับหัวข้อตัวใหญ่ ๆ */
     display: inline-block; /* ป้องกันไม่ให้ป้ายยืดแผ่เต็มหน้าจอ ให้กว้างพอดีคำ */
     box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* ใส่เงาบางๆ ให้ป้ายดูลอยตัวมีมิติ */
 }
@@ -1076,7 +1208,8 @@ header {
     display: block; 
     border-block-start: 2.5px solid;
     background: #000000; 
-    color: #ffffff;
+    color: #E47E22;
+    border-top: 2.5px solid #FFFFFF;
     margin-bottom: 0px;
     border-radius:  20px 20px 0px 0px;
     
@@ -1087,6 +1220,7 @@ header {
     flex: 1; /* สั่งให้ยืดขยายสัดส่วนคนละครึ่งจอ */
     background: #049D4E; 
     color: #ffffff;
+    font-weight: 300;
 }
 
 /* 3. ปุ่มเงินโอน/QR: สีน้ำเงินแบงก์กิ้งสว่าง */
@@ -1094,6 +1228,7 @@ header {
     flex: 1; /* สั่งให้ยืดขยายสัดส่วนคนละครึ่งจอ */
     background: #034DE2; 
     color: #ffffff;
+    font-weight: 300;
 }
 
 /* เอฟเฟกต์ตอบสนองทันทีเวลานิ้วจิ้มปุ่มชำระเงินบนหน้าจอมือถือ */
@@ -1112,7 +1247,7 @@ header {
     align-items: center; 
     justify-content: center; 
     background: #E47E22; /* สีพื้นหลังเทาอ่อนสะอาดตา */
-    padding: 15px; 
+    padding: 20px; 
     border-radius: 0px; 
     border: 0px solid #dee2e6; 
     margin-top: 0px;
@@ -1131,7 +1266,7 @@ header {
 /* ข้อความตัวหนังสือบอกสถานะระบบ */
 .warp-status-message {
     font-weight: bold; 
-    color: #6c757d; /* ตัวหนังสือสีเทาเข้มอ่านง่ายนุ่มตา */
+    color: #ffffff; /* ตัวหนังสือสีเทาเข้มอ่านง่ายนุ่มตา */
     font-size: 0.9em;
 }
 
@@ -1142,14 +1277,14 @@ header {
 /* กล่องครอบภายนอก: ดันระยะห่างจากระบบคิดเงินด้านบนลงมา 30px แยกสัดส่วนชัดเจน */
 .close-day-wrapper {
     margin-top: 0px; 
-    padding: 0 0px;
+    padding: 0px 0px;
 }
 
 /* ตัวปุ่มปิดยอด: สีแดงสดสะดุดตา ขนาดใหญ่เต็มความกว้างจอ กดง่ายเหมาะกับมือถือ */
 .close-day-trigger-btn {
     background-color: #000000; /* สีแดงสากลสำหรับปุ่มยืนยันขั้นตอนสุดท้าย */
-    color: #ffffff;            /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
-    padding: 15px; 
+    color: #33C77B;            /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
+    padding: 25px; 
     border: none; 
     border-radius: 0px; 
     font-size: 18px; /* ขนาดตัวหนังสือใหญ่สะใจ ยายจิ้มไม่พลาดแน่นอน */
@@ -2654,13 +2789,14 @@ input[type="checkbox"] {
     left: 150px;          
     display: flex;
     align-items: center;
-    gap: 3px;
-    background: rgba(255, 255, 255, 75%); /* โปร่งแสงสวย ๆ */
+    gap: 10px;
+    background: linear-gradient(to bottom, #FF7900 36%, #000000 100%);
     padding: 5px 3px;
     padding-top: 5px;
     padding-bottom:5px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.4);      
+    border-radius: 15px;
+    border-top: 0.7px solid #FFFFFF;
+    box-sizing: content-box;    
     z-index: auto;
     margin: 0;
 }
@@ -2678,8 +2814,8 @@ input[type="checkbox"] {
 /* ข้อความตัวหนังสือ "ทุนวันนี้:" */
 .breakeven-label {
     font-size: 12px;
-    color: #2c3e50;
-    padding-bottom:10px;
+    color: #ffffff;
+    padding-bottom:0px;
 }
 
 /* ช่องพิมพ์ตัวเลขกรอกทุน */
@@ -2695,6 +2831,7 @@ input[type="checkbox"] {
 .breakeven-currency {
     font-weight: bold;
     padding-bottom:10px;
+    color: #ffffff;
 }
 
 /* ................................................................................... */
@@ -3013,29 +3150,27 @@ input[type="checkbox"] {
 /* โครงสร้างหลักของป้ายสถานะ (รูปร่าง ขนาด ช่องไฟ) */
 .profit-badge {
     padding: 10px 20px; 
-    border-radius: 20px; 
     font-weight: bold; 
     display: inline-flex; 
     align-items: center; 
     gap: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* เติมเงาละมุนเพิ่มมิติความพรีเมียม */
 }
 
 /* สถานะย่อย 1: กรณีมีกำไร (เฉดเขียวเหนี่ยวทรัพย์) */
 .profit-badge.is-surplus {
-    background-color: #e8f5e9; 
+    background-color: none; 
     color: #2e7d32;
 }
 
 /* สถานะย่อย 2: กรณีสภาวะยังไม่คืนทุน (เฉดแดงแจ้งเตือนรอบคอบ) */
 .profit-badge.is-deficit {
-    background-color: #fff5f5; 
+    background-color: none;  
     color: #e74c3c;
 }
 
 /* สถานะย่อย 3: กรณีเท่าทุนพอดี (เฉดสีเทาสากลสุภาพ) */
 .profit-badge.is-break-even {
-    background-color: #f8f9fa; 
+    background-color: none;  
     color: #555555;
 }
 
@@ -3108,8 +3243,14 @@ input[type="checkbox"] {
 /* 1. ป้ายแสดงสถานะด้านบนเมื่อเข้าโหมด Walk-in (เฉดกรมท่าเข้ม นิ่งสนิท ยายอ่านง่าย) */
 /* 🟢 ใช้การระบุ ID แม่นำหน้า เพื่อเพิ่มพลังความเจาะจง (Specificity) ล็อกสีให้ถูกต้องตามกติกาสากล */
 #current-table-display.table-display-walkin {
-    background-color: #34495e;
-    color: #ffffff;
+    background: #0f1720; /* สีเทาเข้มสไตล์มินิมอล */
+    color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาอ่านง่าย */
+    padding: 5px 5px; 
+    border-radius: 20px; /* 💊 สั่งหักขอบโค้งมนจนกลายเป็นทรงป้ายแคปซูลสวยงาม */
+    font-size: 12px;   /* ขนาดตัวหนังสือย่อมลงมานิดนึงเพื่อให้ดูเป็นป้ายกำกับ */
+    font-weight: 300; /* บางกำลังสวย นิยมใช้กับหัวข้อตัวใหญ่ ๆ */
+    display: inline-block; /* ป้องกันไม่ให้ป้ายยืดแผ่เต็มหน้าจอ ให้กว้างพอดีคำ */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* ใส่เงาบางๆ ให้ป้ายดูลอยตัวมีมิติ */
 }
 
 /* 2. ปุ่มเลือกโหมดสั่งกลับบ้าน / ขายหน้าร้าน (btn-takeaway) */
@@ -3158,13 +3299,19 @@ span.stg-hidden,
 
 /* คลาสย่อยสถานะ 1: โต๊ะว่างเพิ่งเปิดจอง (ระบุ ID แม่นำหน้าเพื่อล็อกเฉดสีเขียวให้พรีเมียม) */
 #current-table-display.table-display-green {
-    background-color: #2ecc71;
+    background-color: none;
+    padding: 3px 10px; 
+    font-size: 15px;
+    font-weight: 300;
     color: #ffffff;
 }
 
 /* คลาสย่อยสถานะ 2: โต๊ะมีออเดอร์ค้าง/มีคนนั่งอยู่ (ระบุ ID แม่นำหน้าเพื่อล็อกเฉดสีส้มเตือนใจยาย) */
 #current-table-display.table-display-orange {
-    background-color: #e67e22;
+    background-color: none;
+    padding: 3px 10px; 
+    font-size: 15px;
+    font-weight: 300;
     color: #ffffff;
 }
 
@@ -3225,7 +3372,7 @@ span.stg-hidden,
     padding-bottom: 0px;
     border-radius: 12px;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 1.0rem;
     text-align: left;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     z-index: 10;              /* ลด Z-index ลงไม่ให้ลอยไปทับส่วนอื่น */

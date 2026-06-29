@@ -38,7 +38,7 @@ db.open().then(() => {
 // กล่องที่ 2: ระบบจัดการหน้าตาเว็บและการตั้งค่า
 // ==========================================
 function showSetting() {
-    // 1. ดึงค่าชื่อร้าน และชื่อเมนูหลัก มาใส่ใน Input
+    // 1. ดึงค่าชื่อร้าน และชื่อเมนูหลัก มาใส่ใน Input (ทำงานปกติ ไม่กระทบโครงสร้าง)
     const nameInput = document.getElementById('name-input');
     const nameMain = document.getElementById('name-main');
     if (nameInput && nameMain) nameInput.value = nameMain.innerText;
@@ -47,45 +47,48 @@ function showSetting() {
     const menuName = document.getElementById('menu-name');
     if (menuInput && menuName) menuInput.value = menuName.innerText;
 
-    // 2. ดึงค่า "ชื่อการนับ" และ "หน่วย" มาใส่ใน Input
+    // 2. 🎯 [จุดแก้ไขสำคัญ]: ดึงค่าข้อมูลดิบจาก LocalStorage แทนการแกะจากหน้าจอ
     const counterLabelInput = document.getElementById('counter-label-input');
     const counterUnitInput = document.getElementById('counter-unit-input');
     
     if (counterLabelInput) {
-        counterLabelInput.value = localStorage.getItem('counterLabel') || 'ไข่ดาว';
-    }
-    if (counterUnitInput) {
-        counterUnitInput.value = localStorage.getItem('counterUnit') || 'ฟอง';
+        // เปลี่ยนจากเดิมที่ไปดึง display-label.innerText มาลบคำออก
+        // มาเป็นดึงค่าดิบ (เช่น "ไข่ดาว", "กะเพรา") จาก localStorage ตรง ๆ
+        // วิธีนี้จะเกิดอะไรขึ้น: หน้ากรอกข้อมูลจะสะอาดเสมอ ไม่มีคำตกแต่งเบิ้ล "วันนี้ใช้..." ค้างมาแน่นอน
+        counterLabelInput.value = localStorage.getItem('counterLabel') || '';
     }
 
-    // 3. จัดการเรื่อง Browser History
+    if (counterUnitInput) {
+        // ดึงค่าหน่วยจาก localStorage โดยตรงเพื่อความสอดคล้องกับระบบจัดเก็บข้อมูล
+        counterUnitInput.value = localStorage.getItem('counterUnit') || '';
+    }
+
+    // 3. จัดการเรื่อง Browser History (คงไว้เหมือนเดิม)
     history.pushState({ page: 'settings' }, 'Settings', '#settings');
 
-    // 4. สลับหน้าจอ
-    document.getElementById('front-page').style.display = 'none';
-    document.getElementById('back-page').style.display = 'block';
+    // 4. สลับหน้าจอ (ทำงานร่วมกับระบบสลับหน้าใหม่ที่เราแก้ CSS/HTML ผ่านตัวแปรไอดี)
+    showPage('setting-page');
 
-    // 5. โหลดข้อมูลต่างๆ มาโชว์ในหน้าตั้งค่า
-    loadDashboardData();
-    renderMenuSettings(); // แสดงเฉพาะเมนูขายหน้าแรก
-    renderOptionsSettings(); 
+    // 5. โหลดข้อมูลต่างๆ มาโชว์ในหน้าตั้งค่า (คงเดิมไว้ทั้งหมด ไม่ได้ลบฟังก์ชันไหนออก)
+    if (typeof loadDashboardData === "function") loadDashboardData();
+    if (typeof renderMenuSettings === "function") renderMenuSettings(); // แสดงเฉพาะเมนูขายหน้าแรก
+    if (typeof renderOptionsSettings === "function") renderOptionsSettings(); 
 }
 
 async function saveAndExit() {
-    // --- 1. ดึงค่าพื้นฐานจากหน้าตั้งค่า (30-04-2026) ---
+    // --- 1. ดึงค่าพื้นฐานจากหน้าตั้งค่า (ทำงานปกติ ไม่กระทบระบบ) ---
     const shopName = document.getElementById('name-input').value;
     const shopMenu = document.getElementById('menu-input').value;
     const counterLabel = document.getElementById('counter-label-input').value;
     const counterUnit = document.getElementById('counter-unit-input').value;
     
-    // 🔥 แก้ไขจุดที่ 1: ดึงค่าทั้งจากช่องตัวเลข และ Dropdown
     const discountInput = document.getElementById('set_discount');
-    const discountType = document.getElementById('discount_type'); // ดึงตัวเลือก บาท/% มาด้วย
+    const discountType = document.getElementById('discount_type');
     
     const rawNum = discountInput ? discountInput.value.trim() : "0";
     const selectedType = discountType ? discountType.value : "amount"; 
 
-    // --- 2. บันทึกรายการเมนูขายหน้าแรก (เหมือนเดิมที่คุณยายเขียน) ---
+    // --- 2. บันทึกรายการเมนูขายหน้าแรก (ใช้ระบบดั้งเดิมคู่กับ LocalStorage/IndexedDB) ---
     const menuList = [];
     const container = document.getElementById('menu-settings-list');
     if (container) {
@@ -103,7 +106,7 @@ async function saveAndExit() {
         localStorage.setItem('quickMenus', JSON.stringify(menuList));
     }
 
-    // --- 3. บันทึกชื่อร้านและหัวข้อเมนู (เหมือนเดิม) ---
+    // --- 3. บันทึกชื่อร้านและหัวข้อเมนู ---
     if(shopName.trim() !== "") {
         if(document.getElementById('name-main')) document.getElementById('name-main').innerText = shopName;
         localStorage.setItem('shopName', shopName);
@@ -113,10 +116,12 @@ async function saveAndExit() {
         localStorage.setItem('shopMenu', shopMenu);
     }
 
-    // --- 4. บันทึกค่าการนับและอัปเดตป้ายแจ้งสถานะสากล (ปรับปรุง 29-05-2026) ---
+    // --- 4. 🎯 [จุดแก้ไขสำคัญ]: บันทึกเฉพาะข้อมูลดิบ เพื่อส่งต่อให้ระบบดึงค่ากลับไปใช้แบบคลีน ๆ
     if (counterLabel.trim() !== "") {
+        // บันทึกเฉพาะค่าดิบที่กรอกจริง เช่น "ไข่ดาว" ลงไปในหน่วยความจำ
         localStorage.setItem('counterLabel', counterLabel);
-        // 🎯 หยอดชื่อวัตถุดิบลงไปในป้ายแสดงผลให้สวยงาม ไม่พ่นคำว่า "ไปแล้ว" เบียดบังช่องอื่น
+        
+        // เวลาเอาไปแปะบนหน้าจอ ค่อยเสริมคำตกแต่ง เพื่อความสวยงามในหน้า UI หลัก
         if (document.getElementById('display-label')) {
             document.getElementById('display-label').innerText = "📊 วันนี้ใช้ " + counterLabel + " ไปแล้ว";
         }
@@ -124,18 +129,16 @@ async function saveAndExit() {
     
     if (counterUnit.trim() !== "") {
         localStorage.setItem('counterUnit', counterUnit);
-        // 🎯 [อุดรอยรั่วเดิม]: สั่งให้หน่วยบนหน้าจอหลักอัปเดตตามที่ยายตั้งค่าทันที ไม่ค้างคำว่าฟองตลอดกาล
         if (document.getElementById('display-unit')) {
             document.getElementById('display-unit').innerText = counterUnit;
         }
     }
 
-    // --- 5. 🔥 ส่วนที่แก้ไขใหม่: รวมร่างตัวเลขกับเครื่องหมาย % ---
+    // --- 5. ส่วนรวมร่างตัวเลขกับเครื่องหมาย % ---
     let finalDiscountValue = "0";
     let numValue = parseFloat(rawNum) || 0;
 
     if (numValue > 0) {
-        // ถ้าเลือกโหมดเปอร์เซ็นต์ ให้เติม % ต่อท้ายก่อนบันทึก
         if (selectedType === 'percent') {
             finalDiscountValue = numValue.toString() + "%";
         } else {
@@ -143,22 +146,28 @@ async function saveAndExit() {
         }
     }
     
-    // บันทึกลงระบบ (ทั้งคู่เพื่อความชัวร์)
     localStorage.setItem('default_discount', finalDiscountValue);
     if (typeof db !== 'undefined') {
         await db.settings.put({ key: 'default_discount', value: finalDiscountValue });
     }
     
-    console.log(`🎯 บันทึกสำเร็จ: ${finalDiscountValue} (${finalDiscountValue.includes('%') ? 'โหมดเปอร์เซ็นต์' : 'โหมดบาท'})`);
+    console.log(`🎯 บันทึกสำเร็จ: ${finalDiscountValue}`);
 
-    // --- 6. ปิดหน้าตั้งค่า ---
+    // --- 6. ปิดหน้าตั้งค่า สลับหน้าจอกลับไปหน้าหลัก ---
     if (window.location.hash === '#settings') {
         history.back(); 
     }
-    document.getElementById('front-page').style.display = 'block';
-    document.getElementById('back-page').style.display = 'none';
+    showPage('front-page');
     
-    // --- 7. อัปเดตหน้าจอขาย ---
+    // --- 7. 🎯 [จุดกู้ชีพเมนูด่วนหาย]: ตรวจสอบฟังก์ชันดั้งเดิมให้แม่นยำ ---
+    // ปลดล็อกการเรียกใช้งานฟังก์ชันดึงเมนูของระบบเดี่ยวดั้งเดิม (ถ้ามีชื่อต่างกันใน Codebase)
+    if (typeof loadQuickMenus === "function") {
+        loadQuickMenus(); 
+    } else if (typeof loadMenus === "function") {
+        loadMenus();
+    }
+
+    // เรียกฟังก์ชันวาด (Render) ปุ่ม UI บนหน้าจอหลักจากข้อมูล IndexedDB
     if (typeof renderOrderButtons === "function") renderOrderButtons();  
     if (typeof renderExtraOptions === "function") renderExtraOptions();  
     

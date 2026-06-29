@@ -21,7 +21,7 @@
     <script src="./dexie.js"></script>
 
         <!--QR Cord 26-04-2026 js?v=1.1 ทุกครั้งที่แก้ ต้อวเปลี่ยน Version ไปเรื่อย ๆ-->
-    <script src="qrcode.min.js?v=14.9"></script>
+    <script src="qrcode.min.js?v=15.0"></script>
 
             <!--ระบบสร้าง QR Code แบบที่ธนาคารยอมรับ อยู่ในเครื่อง 27-04-2026-->
     <script src="promptpay-qr-local.js"></script>
@@ -36,7 +36,7 @@
     <link rel="manifest" href="Grandmashop.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
-    <script src="Standalone.js?v=14.9" defer></script>
+    <script src="Standalone.js?v=15.0" defer></script>
 
     <!---------------------------------------------------------------------->
 
@@ -44,475 +44,513 @@
 
 <body>
 
-    <!--Header mobile-->
-    <div class="app-container">
-  
-  <header class="app-header">
-
-    <div class="header-top">
-        <h1 id="name-main">ร้านยายขายทุกอย่าง</h1>
-        <button class="app-setting-trigger-btn" onclick="showSetting()">⚙️</button>
-    </div>
-
-    <div class="header-bottom">
-        <div class="left-status-group">
-            <div id="role-badge">
-                <span id="role-icon"></span> 
-                <span id="role-text"></span>
-            </div>
-
-            <div class="status-badge-wrapper">
-                <span id="current-table-display" class="status-badge-capsule">
-                📍ขาย:หน้าร้าน(Walk-in)
-                </span>
-            </div>
-        </div>
-         
-            <!-- กล่องคำนวณทุนวันนี้ 07-06-2026 -->
-            <div id="break-even-box" class="breakeven-container">
-                <label for="daily-cost" class="breakeven-label">💰ทุนวันนี้: </label>
-                <input type="number" id="daily-cost" class="breakeven-input" placeholder="วันนี้ลงทุนไปเท่าไหร่?" onchange="saveCostAndRefresh()">
-                <span class="breakeven-currency"> .-</span>
-            </div>
-
-    </div>
-
-            
-            
     
+<div id="front-page" class="app-container page-section active">
 
-           
+    
+  
+  <!--Header mobile-->
+    <header class="app-header">
 
-   
-  </header>
+
+
+        <div class="header-top">
+            <h1 id="name-main">ร้านยายขายทุกอย่าง</h1>
+            <button class="app-setting-trigger-btn" onclick="showSetting()">⚙️</button>
+
+        </div>
+
+
+        <div class="header-bottom">
+            <div class="left-status-group">
+                <div id="role-badge">
+                    <span id="role-icon"></span> 
+                    <span id="role-text"></span>
+                </div>
+
+                <div class="status-badge-wrapper">
+                    <span id="current-table-display" class="status-badge-capsule">
+                    📍ขาย:หน้าร้าน(Walk-in)
+                    </span>
+                </div>
+            </div>
+            
+                <!-- กล่องคำนวณทุนวันนี้ 07-06-2026 -->
+                <div id="break-even-box" class="breakeven-container">
+                    <label for="daily-cost" class="breakeven-label">💰ทุนวันนี้: </label>
+                    <input type="number" id="daily-cost" class="breakeven-input" placeholder="วันนี้ลงทุนไปเท่าไหร่?" onchange="saveCostAndRefresh()">
+                    <span class="breakeven-currency"> .-</span>
+                </div>
+
+
+        </div>
+    
+    </header>
 
   <!--content mobile-->
 
-  <main class="app-content">
-    
-    <div id="front-page" class="page-section active">
-
-               <div id="front-page">
-        <header>
-
-            
-
-            
-
-            <!-- กล่องยอดขายวันนี้ 08-06-2026 -->
-            <div id="sales-summary">
-                <p class="sales-title">💰 ยอดขายวันนี้:</p>
+    <main class="app-content">
+        <div id="front-page" class="page-section active">
 
                 
-                
-                <div id="total-sales-display">0.-</div>
+            <header>
 
-                <div class="payment-method-box">
-                    💵 เงินสด: <span id="cash-display">0</span> | 📱 โอน: <span id="qr-display">0</span>
-                </div>
+                <!-- กล่องยอดขายวันนี้ 08-06-2026 -->
+                <div id="sales-summary">
+                    <p class="sales-title">💰 ยอดขายวันนี้:</p>
 
-                <div id="profit-status">
-                    <div class="profit-waiting-badge">
-                        ⚠️ รอคำนวณกำไร...
-                    </div>
-                </div>
-            </div>
-
-            <!--ดูสรุปภาพรวมธุรกิจ (มุมหลานรัก)  08-06--2026-->
-            <button onclick="openGrandmaDashboard()" class="grandma-dashboard-btn">
-                🚀 ดูสรุปภาพรวมธุรกิจ (มุมหลานรัก)
-            </button>
-
-           
-
-            <!-- Dashboard Modal Overlay 08-06-2026 -->
-            <div id="dashboard-modal" class="gma-modal-overlay">
-                <div class="gma-modal-content">
-                    <span onclick="closeDashboard()" class="gma-modal-close-btn">✕</span>
                     
-                    <h2 class="gma-modal-title">🏠 มุมหลานรักของยาย</h2>
+                    <div id="total-sales-container">
 
-                    <div class="gma-filter-group">
-                        <button onclick="openGrandmaDashboard(7)" class="gma-filter-btn">7 วัน</button>
-                        <button onclick="openGrandmaDashboard(30)" class="gma-filter-btn">30 วัน</button>
-                        <button onclick="openGrandmaDashboard(365)" class="gma-filter-btn">1 ปี</button>
-                        <button onclick="openGrandmaDashboard('all')" class="gma-filter-btn btn-active">ทั้งหมด</button>
-                    </div>
-                    
-                    <div class="gma-chart-container">
-                        <canvas id="businessHeartChart"></canvas>
-                    </div>
+                        <div id="total-sales-display">0.-</div>
 
-                    <div id="dashboard-stats" class="gma-stats-grid">
+                         <div class="payment-method-box">
+                            💵 เงินสด: <span id="cash-display">0</span> | 📱 โอน: <span id="qr-display">0</span>
                         </div>
-
-                    <div id="grandma-message" class="gma-warm-message">
-                        "กำลังประมวลผลข้อมูลให้ยายอยู่นะครับ..."
+  
                     </div>
 
-                    <div id="smart-analysis" class="gma-analysis-section">
-                        <h3 class="gma-analysis-title">💡 ข้อมูลช่วยยายตัดสินใจ</h3>
-
-                             <!-- 2. หน้าต่างเจาะลึกประวัติราคา (แก้ไขให้เด้งแน่นอน) 08-06-2026 -->
-                            <div id="price-history-modal" class="prc-hist-overlay">
-                                <div class="prc-hist-container">
-                                    
-                                    
-                                    <!-- หัวข้อและปุ่มปิด -->
-                                    <div class="prc-hist-header">
-                                            <h3 id="history-title" class="prc-hist-title">📊 ประวัติราคา</h3>
-                                            <button type="button" class="prc-hist-close-btn" onclick="closePriceHistoryModal()">✕</button>
-                                    </div>
-
-                                    <div id="history-table-content" class="prc-hist-body-content">
-                                        <!-- ข้อมูลจากฟังก์ชัน showPriceHistory จะมาลงตรงนี้ -->
-                                    </div>
-                                    
-                                </div>
-                            </div>
-                        
-                        <div class="gma-analysis-grid">
-
-                            <div id="price-insight-card" class="gma-card card-yellow">
-                                <strong class="card-title-yellow">🛒 ราคาน่ารู้:</strong>
-                                <div id="price-content" class="card-body-text">กำลังดึงข้อมูลราคาล่าสุด...</div>
-                            </div>
-
-                            <div id="efficiency-card" class="gma-card card-blue">
-                                <strong class="card-title-blue">🏆 คะแนนการบริหารวันนี้:</strong>
-                                
-                                <div id="score-content" class="gma-big-score">0/10</div>
-                                
-                                <div id="score-message" class="card-body-text">กำลังคำนวณคะแนน...</div>
-                                
-                                <div id="efficiency-content-area">
-                                    <div class="gma-score-placeholder">--/10</div>
-                                    <div class="gma-text-placeholder">กำลังประมวลผลความเฮง...</div>
-                                </div>
-                            </div>
-
-                            <div id="shopping-suggestion-card" class="gma-card card-purple">
-                                <strong class="card-title-purple">📝 เตรียมตัวไปตลาด:</strong>
-                                <div id="suggestion-content" class="card-body-text">กำลังตรวจสอบสต็อกสินค้า...</div>
-                            </div>
-
-                            <div id="peak-sales-card" class="gma-card card-white">
-                                <strong class="card-title-dark">🕒 วิเคราะห์ช่วงเวลาทำเงิน</strong>
-                                <div id="peak-sales-chart" class="gma-peak-chart-area">
-                                    <p class="gma-analyzing-text">กำลังวิเคราะห์ข้อมูลการขาย...</p>
-                                </div>
-                            </div>
-
+                    <div id="profit-status">
+                        <div class="profit-waiting-badge">
+                            ⚠️ รอคำนวณกำไร...
                         </div>
                     </div>
-
                 </div>
-            </div>
 
-
-            <h2 id="menu-name">กะเพรารสเด็ด</h2>
-
-            <!--เพิ่มเติม 08-06-2026 เพิ่มระบบค้นหา--> 
-            <div class="search-container">
-                <input type="text" 
-                    id="smart-search-input" 
-                    class="search-input-field"
-                    oninput="searchSmartMenu(this.value)" 
-                    placeholder="🔍 พิมพ์ชื่อเมนูเพื่อค้นหา...">
-                
-                <div id="search-results-area" class="search-dropdown-results stg-hidden"></div>
-            </div>
-
-
-
-            <!-- เพิ่มปุ่มนี้เข้าไปในส่วนที่แสดงปุ่มโต๊ะของคุณยายครับ 08-06-2026 -->
-            <div class="mode-selector">
-                <button id="btn-takeaway" class="takeaway-mode-btn" onclick="selectWalkIn()">
-                    🍳 ขายหน้าร้าน (กลับบ้าน)
+                <!--ดูสรุปภาพรวมธุรกิจ (มุมหลานรัก)  08-06--2026-->
+                <button onclick="openGrandmaDashboard()" class="grandma-dashboard-btn">
+                    🚀 ดูสรุปภาพรวมธุรกิจ (มุมหลานรัก)
                 </button>
-            </div>
 
-            <!-- ORDER MENU PANEL (ส่วนกล่องแสดงรายการปุ่มเมนูอาหาร) 08-06-2026 -->
-            <div id="Order-menu" class="menu-items-grid">
-            </div>
+            
 
-            <div id="options-display">
-                <h3 class="options-main-title">ส่วนเพิ่มเติม</h3>
-                <div id="dynamic-options-list">
+                <!-- Dashboard Modal Overlay 08-06-2026 -->
+                <div id="dashboard-modal" class="gma-modal-overlay">
+                    <div class="gma-modal-content">
+                        <span onclick="closeDashboard()" class="gma-modal-close-btn">✕</span>
+                        
+                        <h2 class="gma-modal-title">🏠 มุมหลานรักของยาย</h2>
+
+                        <div class="gma-filter-group">
+                            <button onclick="openGrandmaDashboard(7)" class="gma-filter-btn">7 วัน</button>
+                            <button onclick="openGrandmaDashboard(30)" class="gma-filter-btn">30 วัน</button>
+                            <button onclick="openGrandmaDashboard(365)" class="gma-filter-btn">1 ปี</button>
+                            <button onclick="openGrandmaDashboard('all')" class="gma-filter-btn btn-active">ทั้งหมด</button>
+                        </div>
+                        
+                        <div class="gma-chart-container">
+                            <canvas id="businessHeartChart"></canvas>
+                        </div>
+
+                        <div id="dashboard-stats" class="gma-stats-grid">
+                            </div>
+
+                        <div id="grandma-message" class="gma-warm-message">
+                            "กำลังประมวลผลข้อมูลให้ยายอยู่นะครับ..."
+                        </div>
+
+                        <div id="smart-analysis" class="gma-analysis-section">
+                            <h3 class="gma-analysis-title">💡 ข้อมูลช่วยยายตัดสินใจ</h3>
+
+                                <!-- 2. หน้าต่างเจาะลึกประวัติราคา (แก้ไขให้เด้งแน่นอน) 08-06-2026 -->
+                                <div id="price-history-modal" class="prc-hist-overlay">
+                                    <div class="prc-hist-container">
+                                        
+                                        
+                                        <!-- หัวข้อและปุ่มปิด -->
+                                        <div class="prc-hist-header">
+                                                <h3 id="history-title" class="prc-hist-title">📊 ประวัติราคา</h3>
+                                                <button type="button" class="prc-hist-close-btn" onclick="closePriceHistoryModal()">✕</button>
+                                        </div>
+
+                                        <div id="history-table-content" class="prc-hist-body-content">
+                                            <!-- ข้อมูลจากฟังก์ชัน showPriceHistory จะมาลงตรงนี้ -->
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                            
+                            <div class="gma-analysis-grid">
+
+                                <div id="price-insight-card" class="gma-card card-yellow">
+                                    <strong class="card-title-yellow">🛒 ราคาน่ารู้:</strong>
+                                    <div id="price-content" class="card-body-text">กำลังดึงข้อมูลราคาล่าสุด...</div>
+                                </div>
+
+                                <div id="efficiency-card" class="gma-card card-blue">
+                                    <strong class="card-title-blue">🏆 คะแนนการบริหารวันนี้:</strong>
+                                    
+                                    <div id="score-content" class="gma-big-score">0/10</div>
+                                    
+                                    <div id="score-message" class="card-body-text">กำลังคำนวณคะแนน...</div>
+                                    
+                                    <div id="efficiency-content-area">
+                                        <div class="gma-score-placeholder">--/10</div>
+                                        <div class="gma-text-placeholder">กำลังประมวลผลความเฮง...</div>
+                                    </div>
+                                </div>
+
+                                <div id="shopping-suggestion-card" class="gma-card card-purple">
+                                    <strong class="card-title-purple">📝 เตรียมตัวไปตลาด:</strong>
+                                    <div id="suggestion-content" class="card-body-text">กำลังตรวจสอบสต็อกสินค้า...</div>
+                                </div>
+
+                                <div id="peak-sales-card" class="gma-card card-white">
+                                    <strong class="card-title-dark">🕒 วิเคราะห์ช่วงเวลาทำเงิน</strong>
+                                    <div id="peak-sales-chart" class="gma-peak-chart-area">
+                                        <p class="gma-analyzing-text">กำลังวิเคราะห์ข้อมูลการขาย...</p>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
                     </div>
-            </div>
+                </div>
 
 
-             <!--08-06-2026-->
-           <div id="universal-counter">
-                <p class="counter-text-line">
-                    <span id="display-label">📊 วันนี้ใช้ไปแล้ว</span>: 
-                    <span id="total-count">0</span> 
-                    <span id="display-unit">ฟอง</span>
-                </p>
+                <h2 id="menu-name">กะเพรารสเด็ด</h2>
+
+                <!--เพิ่มเติม 08-06-2026 เพิ่มระบบค้นหา--> 
+                <div class="search-container">
+                    <input type="text" 
+                        id="smart-search-input" 
+                        class="search-input-field"
+                        oninput="searchSmartMenu(this.value)" 
+                        placeholder="🔍 พิมพ์ชื่อเมนูเพื่อค้นหา...">
+                    
+                    <div id="search-results-area" class="search-dropdown-results stg-hidden"></div>
+                </div>
+
+
+
+                <!-- เพิ่มปุ่มนี้เข้าไปในส่วนที่แสดงปุ่มโต๊ะของคุณยายครับ 08-06-2026 -->
+                <div class="mode-selector">
+                    <button id="btn-takeaway" class="takeaway-mode-btn" onclick="selectWalkIn()">
+                        🍳 ขายหน้าร้าน (กลับบ้าน)
+                    </button>
+                </div>
+
+                <!-- ORDER MENU PANEL (ส่วนกล่องแสดงรายการปุ่มเมนูอาหาร) 08-06-2026 -->
+                <div id="Order-menu" class="menu-items-grid">
+                </div>
+
+                <div id="options-display">
+                    <h3 class="options-main-title">ส่วนเพิ่มเติม</h3>
+                    <div id="dynamic-options-list">
+                        </div>
+                </div>
+
+
+                <!--08-06-2026 วันนี้ใช้ ก๋วยเตี๋ยว...-->
+            <div id="universal-counter">
+                    <p class="counter-text-line">
+                        <span id="display-label">📊 วันนี้ใช้ไปแล้ว</span>: 
+                        <span id="total-count">0</span> 
+                        <span id="display-unit">ฟอง</span>
+                    </p>
             </div>
             <br>
 
-           <div id="order-preview-box" class="preview-main-card">
-                <strong class="preview-title">📝 รายการที่เลือก:</strong>
-                <p id="order-detail" class="preview-menu-name">ยังไม่ได้เลือกเมนู</p>
-                <p id="order-total-price" class="preview-price-text">รวม: 0.-</p>
+                <!--สมุดจดออเดอร์...-->
+            <div id="order-preview-box" class="preview-main-card">
+                    <strong class="preview-title">📝 รายการที่เลือก:</strong>
+                    <p id="order-detail" class="preview-menu-name">ยังไม่ได้เลือกเมนู</p>
+                    <p id="order-total-price" class="preview-price-text">รวม: 0.-</p>
 
-                <div class="preview-qty-control-row">
-                    <span class="preview-qty-label">จำนวน:</span>
-                    
-                    <button type="button" class="qty-btn btn-decrease" onclick="changeQty(-1)">-</button>
-                    <span id="order-qty" class="preview-qty-number">1</span>
-                    <button type="button" class="qty-btn btn-increase" onclick="changeQty(1)">+</button>
-                    
-                    <span class="preview-qty-label">จาน</span>
-                </div>
-            </div>
-  
-            <div class="reset-order-wrapper">
-                <button type="button" class="reset-order-btn" onclick="resetOrder()">
-                    ❌ ล้างรายการออเดอร์
-                </button>
-            </div>
-
-            <!--กล่องเก็บบิล 08-06-2026-->
-            <div id="pending-billing-box" class="billing-main-panel">
-                <div class="billing-header-row">
-                    <h3 id="billing-table-title" class="billing-title">📝 รายการโต๊ะ --</h3>
-                    <button onclick="closeBillingBox()" class="billing-close-btn">✕</button>
-                </div>
-
-                <div id="billing-items-list" class="billing-scroller-area"></div>
-
-                <div class="billing-footer-row">
-                    <div class="billing-total-group">
-                        <span class="billing-total-label">ยอดรวมปัจจุบัน:</span><br>
-                        <strong id="billing-total-amount" class="billing-total-price">0.-</strong>
+                    <div class="preview-qty-control-row">
+                        <span class="preview-qty-label">จำนวน:</span>
+                        
+                        <button type="button" class="qty-btn btn-decrease" onclick="changeQty(-1)">-</button>
+                        <span id="order-qty" class="preview-qty-number">1</span>
+                        <button type="button" class="qty-btn btn-increase" onclick="changeQty(1)">+</button>
+                        
+                        <span class="preview-qty-label">จาน</span>
                     </div>
-                    <button onclick="checkoutTable()" class="billing-checkout-btn">
-                        💰 เช็คบิลเก็บเงิน
+                </div>
+    
+                <!--ล้างรายการ...-->
+                <div class="reset-order-wrapper">
+                    <button type="button" class="reset-order-btn" onclick="resetOrder()">
+                        ❌ ล้างรายการออเดอร์
                     </button>
                 </div>
-            </div>
 
-            <!--"พื้นที่วางปุ่มโต๊ะ 08-06-2026-->
-            <div id="table-selection-area" class="table-zone-container">
-                <p class="table-zone-placeholder">กรุณาตั้งค่าจำนวนโต๊ะที่หน้าหลังบ้านก่อนครับ</p>
-            </div>
+                <!--กล่องเก็บบิล 08-06-2026-->
+                <div id="pending-billing-box" class="billing-main-panel">
+                    <div class="billing-header-row">
+                        <h3 id="billing-table-title" class="billing-title">📝 รายการโต๊ะ --</h3>
+                        <button onclick="closeBillingBox()" class="billing-close-btn">✕</button>
+                    </div>
 
-            
+                    <div id="billing-items-list" class="billing-scroller-area"></div>
 
-            
+                    <div class="billing-footer-row">
+                        <div class="billing-total-group">
+                            <span class="billing-total-label">ยอดรวมปัจจุบัน:</span><br>
+                            <strong id="billing-total-amount" class="billing-total-price">0.-</strong>
+                        </div>
+                        <button onclick="checkoutTable()" class="billing-checkout-btn">
+                            💰 เช็คบิลเก็บเงิน
+                        </button>
+                    </div>
+                </div>
 
-           
-        </header>
-    </div>
+                <!--"พื้นที่วางปุ่มโต๊ะ 08-06-2026-->
+                <div id="table-selection-area" class="table-zone-container">
+                    <p class="table-zone-placeholder">กรุณาตั้งค่าจำนวนโต๊ะที่หน้าหลังบ้านก่อนครับ</p>
+                </div>
 
+            </header>
+        </div>
+    </main>
 
-      
-      </div>
+  <!--footer mobile-->
+    <footer class="app-footer">
+        
+                <!--"พื้นที่วางปุ่มโต๊ะ 08-06-2026-->
+                <div id="payment-group" class="payment-action-container">
+        
+                    <button id="btn-to-table" class="payment-btn btn-table-deposit" onclick="saveOrderToTable()">
+                        📥 ฝากลงโต๊ะ
+                    </button>
 
-    <div id="bank-page" class="page-section">
+                    <div class="payment-quick-row">
+                        <button id="btn-pay-cash" class="payment-btn btn-cash-accent" onclick="confirmOrder('cash')">
+                            💵 เงินสด
+                        </button>
+                        <button id="btn-pay-transfer" class="payment-btn btn-transfer-accent" onclick="confirmOrder('transfer')">
+                            📱 เงินโอน/QR
+                        </button>
+                    </div>
 
-         <div id="back-page" style="display: none;"> 
+                </div>
+
+                <!--โชว์สถานะการส่ง P2P  08-06-2026-->
+                <div id="warp-status-bar" class="warp-status-container">
+                    <div id="status-dot" class="warp-status-indicator"></div>
+                    <span id="status-text" class="warp-status-message">ระบบวาร์ป: พร้อมส่งออเดอร์</span>
+                </div>                
+
+            <div class="close-day-wrapper">
+                    <button id="btn-close-day" class="close-day-trigger-btn" onclick="handleCloseDay()">
+                        🏁 ปิดยอดประจำวัน
+                    </button>
+                </div>
+    </footer>
+
     
 
-    <!--ตั้งค่าเลขบัญชี QR Code 08-06-2026-->
-    <button class="promptpay-config-btn" onclick="openPromptPayModal()">
-        📱 ตั้งค่าเลข PromptPay รับเงินโอน
-    </button>
-
-    <!--ระบบ ยกเลิกตั้งค่า  Promptpay 08-06-2026-->
-    <button class="security-reset-btn" onclick="clearSecurityData()">
-        🔄 ล้างรหัสและเลข PromptPay ให้เป็นค่าว่าง
-    </button>
+</div>
 
 
-    <!--08-06-2026 เชื่อมระบบ P2P-->
-    <div id="p2p-control-panel" class="p2p-main-card">
-        <h4 class="p2p-main-title">📡 ระบบเชื่อมต่อร้านค้า</h4>
-        
-        <label class="switch p2p-switch-label">
-            <input type="checkbox" id="p2p-toggle" onchange="toggleP2P()">
-            <span class="slider"></span> เปิดใช้งานระบบเครือข่าย
-        </label>
+    <!--------------------------------------------------------------------bank-page---------------------------------------------------------------------------------->  
+    
+<div id="setting-page" class="page-section">
 
-        <div id="p2p-settings" class="p2p-settings-group">
-            <input type="text" id="shop-id-input" class="p2p-id-field" placeholder="ระบุชื่อร้าน (เช่น Grandma01)">
-            
-            <div class="p2p-buttons-row">
-                <button class="p2p-btn btn-hub-mode" onclick="setupAsHub()">เป็นเครื่องแม่ (Hub)</button>
-                <button class="p2p-btn btn-client-mode" onclick="setupAsClient()">เป็นเครื่องลูก (Client)</button>
-                <button class="p2p-btn btn-kitchen-mode" onclick="setupAsKitchen()">เป็นจอครัว (Kitchen)</button>
-            </div>
-        </div>
+    <div class="setting-app-header">
+         ⚙️ ตั้งค่าระบบ
     </div>
+
+
+    <div class="setting-app-content">
+
+                                <!--ตั้งค่าเลขบัญชี QR Code 08-06-2026-->
+            <button class="promptpay-config-btn" onclick="openPromptPayModal()">
+                📱 ตั้งค่าเลข PromptPay รับเงินโอน
+            </button>
+
+            <!--ระบบ ยกเลิกตั้งค่า  Promptpay 08-06-2026-->
+            <button class="security-reset-btn" onclick="clearSecurityData()">
+                🔄 ล้างรหัสและเลข PromptPay ให้เป็นค่าว่าง
+            </button>
+
+
+            <!--08-06-2026 เชื่อมระบบ P2P-->
+            <div id="p2p-control-panel" class="p2p-main-card">
+                <h4 class="p2p-main-title">📡 ระบบเชื่อมต่อร้านค้า</h4>
+                
+                <label class="switch p2p-switch-label">
+                    <input type="checkbox" id="p2p-toggle" onchange="toggleP2P()">
+                    <span class="slider"></span> เปิดใช้งานระบบเครือข่าย
+                </label>
+
+                <div id="p2p-settings" class="p2p-settings-group">
+                    <input type="text" id="shop-id-input" class="p2p-id-field" placeholder="ระบุชื่อร้าน (เช่น Grandma01)">
+                    
+                    <div class="p2p-buttons-row">
+                        <button class="p2p-btn btn-hub-mode" onclick="setupAsHub()">เป็นเครื่องแม่ (Hub)</button>
+                        <button class="p2p-btn btn-client-mode" onclick="setupAsClient()">เป็นเครื่องลูก (Client)</button>
+                        <button class="p2p-btn btn-kitchen-mode" onclick="setupAsKitchen()">เป็นจอครัว (Kitchen)</button>
+                    </div>
+                </div>
+            </div>
   
     
     <!--...................................................................-->
 
 
 
-    <!-- Modal สำหรับตั้งค่า PromptPay 08-06-2026 -->
-    <div id="ppModal" class="modal-overlay">
-        <div class="modal-card">
-            <h3 class="modal-title">🔐 ตั้งค่าการรับเงิน</h3>
-            
-            <label class="modal-field-label">เลข PromptPay ใหม่:</label>
-            <input type="number" id="promptpay-input" class="modal-text-field" oninput="checkMatch()" placeholder="10 หรือ 13 หลัก">
+            <!-- Modal สำหรับตั้งค่า PromptPay 08-06-2026 -->
+            <div id="ppModal" class="modal-overlay">
+                <div class="modal-card">
+                    <h3 class="modal-title">🔐 ตั้งค่าการรับเงิน</h3>
+                    
+                    <label class="modal-field-label">เลข PromptPay ใหม่:</label>
+                    <input type="number" id="promptpay-input" class="modal-text-field" oninput="checkMatch()" placeholder="10 หรือ 13 หลัก">
 
-            <label class="modal-field-label">ยืนยันเลขอีกครั้ง:</label>
-            <input type="number" id="promptpay-confirm" class="modal-text-field" oninput="checkMatch()" placeholder="พิมพ์เลขเดิมซ้ำอีกครั้ง">
+                    <label class="modal-field-label">ยืนยันเลขอีกครั้ง:</label>
+                    <input type="number" id="promptpay-confirm" class="modal-text-field" oninput="checkMatch()" placeholder="พิมพ์เลขเดิมซ้ำอีกครั้ง">
 
-            <div class="modal-actions-row">
-                <button class="modal-btn btn-modal-cancel" onclick="closePromptPayModal()">ยกเลิก</button>
-                <button id="save-btn" class="modal-btn btn-modal-save" onclick="secureSavePromptPay()" disabled>บันทึก</button>
+                    <div class="modal-actions-row">
+                        <button class="modal-btn btn-modal-cancel" onclick="closePromptPayModal()">ยกเลิก</button>
+                        <button id="save-btn" class="modal-btn btn-modal-save" onclick="secureSavePromptPay()" disabled>บันทึก</button>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
 
     <!--******************-->
-    <div class="config-field-group">
-        <label for="name-input" class="config-field-label">ชื่อร้าน:</label>
-        <input type="text" id="name-input" class="config-input-text" placeholder="ระบุชื่อร้าน">
-    </div>
-
-   <div class="config-field-group">
-        <label for="menu-input" class="config-field-label">หัวข้อเมนู (เช่น กะเพรารสเด็ด):</label>
-        <input type="text" id="menu-input" class="config-input-text" placeholder="ระบุหัวข้อเมนู">
-    </div>
-    <hr>
-
-    <h4>🍳 จัดการส่วนเพิ่มเติม (Options)</h4>
-    <div id="options-settings-list"></div>
-    <button type="button" class="add-option-trigger-btn" onclick="addOptionField()">
-        ➕ เพิ่มตัวเลือกใหม่ (ไข่ดาว, พิเศษ)
-    </button>
-
-    <hr>
-    <h4>📋 จัดการรายการเมนูขาย</h4>
-    <div id="menu-settings-list"></div>
-    <button type="button" class="add-menu-row-trigger-btn" onclick="addMenuField()">
-        ➕ เพิ่มแถวเมนูใหม่
-    </button>
-
-    <!--กล่องเลือกโต๊ะ & ที่พักบิล 08-06-2026-->
-    <div class="setting-item table-config-card">
-        <label class="table-config-label">🔢 จำนวนโต๊ะในร้าน:</label>
-        <input type="number" id="table-count-input" class="table-config-input" placeholder="เช่น 10">
-        <button class="table-config-btn" onclick="saveTableSettings()">ตกลง</button>
-    </div>
-
-    <!--เพิ่มเติม 08-06-2026 เพิ่มระบบหลังบ้านเมนู-->
-    <button class="menu-manager-trigger-btn" onclick="openMenuManager()">
-        📋 จัดการรายการเมนูทั้งหมด
-    </button>
-
-    <!--การเพิ่มปุ่มเปิดหน้าจอครัว 08-06-2026-->
-    <!-- ปุ่มสลับไปหน้าครัว -->
-    <button class="kds-mode-trigger-btn" onclick="showKitchen()">
-        👨‍🍳 โหมดห้องครัว (KDS)
-    </button>
-
-    <!-- หน้าจอครัว (ซ่อนไว้ก่อนในตอนแรก) 08-06-2026 -->
-    <div id="kitchen-screen" class="kds-screen-overlay">
-        <div class="kds-screen-padding">
-            
-            <div class="kds-screen-header">
-                <h2 class="kds-screen-title">👨‍🍳 รายการอาหารที่ต้องทำ</h2>
-                <button class="kds-close-btn" onclick="hideKitchen()">❌ ปิดหน้าครัว</button>
+            <div class="config-field-group">
+                <label for="name-input" class="config-field-label">ชื่อร้าน:</label>
+                <input type="text" id="name-input" class="config-input-text" placeholder="ระบุชื่อร้าน">
             </div>
+
+            <div class="config-field-group">
+                    <label for="menu-input" class="config-field-label">หัวข้อเมนู (เช่น กะเพรารสเด็ด):</label>
+                    <input type="text" id="menu-input" class="config-input-text" placeholder="ระบุหัวข้อเมนู">
+            </div>
+            <hr>
+
+            <h4>🍳 จัดการส่วนเพิ่มเติม (Options)</h4>
+            <div id="options-settings-list"></div>
+            <button type="button" class="add-option-trigger-btn" onclick="addOptionField()">
+                ➕ เพิ่มตัวเลือกใหม่ (ไข่ดาว, พิเศษ)
+            </button>
+
+            <hr>
+            <h4>📋 จัดการรายการเมนูขาย</h4>
+            <div id="menu-settings-list"></div>
+            <button type="button" class="add-menu-row-trigger-btn" onclick="addMenuField()">
+                ➕ เพิ่มแถวเมนูใหม่
+            </button>
+
+            <!--กล่องเลือกโต๊ะ & ที่พักบิล 08-06-2026-->
+            <div class="setting-item table-config-card">
+                <label class="table-config-label">🔢 จำนวนโต๊ะในร้าน:</label>
+                <input type="number" id="table-count-input" class="table-config-input" placeholder="เช่น 10">
+                <button class="table-config-btn" onclick="saveTableSettings()">ตกลง</button>
+            </div>
+
+            <!--เพิ่มเติม 08-06-2026 เพิ่มระบบหลังบ้านเมนู-->
+            <button class="menu-manager-trigger-btn" onclick="openMenuManager()">
+                📋 จัดการรายการเมนูทั้งหมด
+            </button>
+
+            <!--การเพิ่มปุ่มเปิดหน้าจอครัว 08-06-2026-->
+            <!-- ปุ่มสลับไปหน้าครัว -->
+            <button class="kds-mode-trigger-btn" onclick="showKitchen()">
+                👨‍🍳 โหมดห้องครัว (KDS)
+            </button>
+
+            <!-- หน้าจอครัว (ซ่อนไว้ก่อนในตอนแรก) 08-06-2026 -->
+            <div id="kitchen-screen" class="kds-screen-overlay">
+                <div class="kds-screen-padding">
+                    
+                    <div class="kds-screen-header">
+                        <h2 class="kds-screen-title">👨‍🍳 รายการอาหารที่ต้องทำ</h2>
+                        <button class="kds-close-btn" onclick="hideKitchen()">❌ ปิดหน้าครัว</button>
+                    </div>
+                    
+                    <hr class="kds-screen-divider">
+                    
+                    <div id="kitchen-ticket-container" class="kds-tickets-board">
+                        </div>
+
+                </div>
+            </div>
+
+            <div id="menu-manager-section" class="menu-mgmt-overlay">
             
-            <hr class="kds-screen-divider">
-            
-            <div id="kitchen-ticket-container" class="kds-tickets-board">
+                <div class="menu-mgmt-header">
+                    <h2 class="menu-mgmt-title">เพิ่ม/ลบ เมนูทั้งหมด</h2>
+                    <button class="menu-mgmt-close-btn" onclick="closeMenuManager()">❌ ปิด</button>
                 </div>
 
-        </div>
-    </div>
+                <div class="menu-mgmt-form-card">
+                    <input type="text" id="new-menu-name" class="menu-mgmt-input" placeholder="ชื่อเมนู (เช่น กะเพราเนื้อ)">
+                    <input type="number" id="new-menu-price" class="menu-mgmt-input" placeholder="ราคา (เช่น 60)">
+                    <button class="menu-mgmt-save-btn" onclick="addNewMenu()">➕ บันทึกเมนูใหม่</button>
+                </div>
 
-    <div id="menu-manager-section" class="menu-mgmt-overlay">
-    
-        <div class="menu-mgmt-header">
-            <h2 class="menu-mgmt-title">เพิ่ม/ลบ เมนูทั้งหมด</h2>
-            <button class="menu-mgmt-close-btn" onclick="closeMenuManager()">❌ ปิด</button>
-        </div>
+                <!--กล่องค้นหา 23-06-2026-->
+                <div class="menu-search-wrapper">
+                    <input type="text" id="menuSearchInput" class="menu-mgmt-input" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหาเมนู..." onkeyup="filterMenuList()">
+                </div>
 
-        <div class="menu-mgmt-form-card">
-            <input type="text" id="new-menu-name" class="menu-mgmt-input" placeholder="ชื่อเมนู (เช่น กะเพราเนื้อ)">
-            <input type="number" id="new-menu-price" class="menu-mgmt-input" placeholder="ราคา (เช่น 60)">
-            <button class="menu-mgmt-save-btn" onclick="addNewMenu()">➕ บันทึกเมนูใหม่</button>
-        </div>
-
-        <!--กล่องค้นหา 23-06-2026-->
-        <div class="menu-search-wrapper">
-            <input type="text" id="menuSearchInput" class="menu-mgmt-input" placeholder="🔍 พิมพ์ชื่อเพื่อค้นหาเมนู..." onkeyup="filterMenuList()">
-        </div>
-
-        <h3 class="menu-mgmt-subtitle">รายการเมนูของฉัน</h3>
-        
-        <ul id="menu-list-items" class="menu-mgmt-list-board">
-            </ul>
-    </div>
-
-    <hr>
-    <h4>📊 ตั้งค่าการนับยอดสะสมพิเศษ</h4>
-
-    <div class="config-field-group">
-        <label for="counter-label-input" class="config-field-label">สิ่งที่ต้องการนับ (เช่น ไข่ดาว, แก้ว):</label>
-        <input type="text" id="counter-label-input" class="config-input-text" placeholder="เช่น ไข่ดาว">
-    </div>
-
-    <div class="config-field-group">
-        <label for="counter-unit-input" class="config-field-label">หน่วยนับ (เช่น ฟอง, แก้ว, ถุง):</label>
-        <input type="text" id="counter-unit-input" class="config-input-text" placeholder="เช่น ฟอง">
-    </div>
-
-    <div id="dashboard-section" class="dash-main-card">
-        <h3 class="dash-main-title">📊 สรุปยอดขาย 7 วันล่าสุด</h3>
-        
-        <div class="dash-table-responsive">
-            <table class="dash-data-table sales-summary-table">
-                <thead>
-                    <tr class="dash-table-header-blue">
-                        <th class="dash-th">วันที่</th>
-                        <th class="dash-th">ยอดขาย (฿)</th>
-                        <th class="dash-th">
-                            <span id="dashboard-unit-header">สิ่งที่นับ</span> (<span id="dashboard-unit-name">หน่วยนับ</span>)
-                        </th>
-                    </tr>
-                </thead>
-                <tbody id="dashboard-table-body">
-                    </tbody>
-            </table>
-        </div>
-
-        <!--ปรับส่วนหน้า Dashboard ให้แสดง "รายการออเดอร์ล่าสุด" 08-06-2026-->
-        <div id="recent-orders-list" class="dash-orders-zone">
-            <h3 class="dash-subtitle">รายการออเดอร์วันนี้</h3>
-            <div class="dash-table-responsive">
-                <table class="dash-data-table recent-orders-table">
-                    <thead>
-                        <tr class="dash-table-header-gray">
-                            <th class="dash-th th-left">เวลา</th>
-                            <th class="dash-th th-left">เมนู</th>
-                            <th class="dash-th th-right">ยอด</th>
-                            <th class="dash-th th-center">ใบเสร็จ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="recent-orders-body">
-                        </tbody>
-                </table>
+                <h3 class="menu-mgmt-subtitle">รายการเมนูของฉัน</h3>
+                
+                <ul id="menu-list-items" class="menu-mgmt-list-board">
+                    </ul>
             </div>
-        </div>
-        
-        <div class="dash-actions-row">
-            <button class="dash-btn btn-dash-refresh" onclick="loadDashboardData()">🔄 อัปเดตตาราง</button>
-            <button class="dash-btn btn-dash-export" onclick="exportToCSV()">📥 โหลด CSV</button>
-        </div>
-    </div>
 
-         <!--ช่องกรอกส่วนลดใน 08-06-2026-->
+            <hr>
+            <h4>📊 ตั้งค่าการนับยอดสะสมพิเศษ</h4>
+
+            <div class="config-field-group">
+                <label for="counter-label-input" class="config-field-label">สิ่งที่ต้องการนับ (เช่น ไข่ดาว, แก้ว):</label>
+                <input type="text" id="counter-label-input" class="config-input-text" placeholder="เช่น ไข่ดาว">
+            </div>
+
+            <div class="config-field-group">
+                <label for="counter-unit-input" class="config-field-label">หน่วยนับ (เช่น ฟอง, แก้ว, ถุง):</label>
+                <input type="text" id="counter-unit-input" class="config-input-text" placeholder="เช่น ฟอง">
+            </div>
+
+            <div id="dashboard-section" class="dash-main-card">
+                <h3 class="dash-main-title">📊 สรุปยอดขาย 7 วันล่าสุด</h3>
+                
+                <div class="dash-table-responsive">
+                    <table class="dash-data-table sales-summary-table">
+                        <thead>
+                            <tr class="dash-table-header-blue">
+                                <th class="dash-th">วันที่</th>
+                                <th class="dash-th">ยอดขาย (฿)</th>
+                                <th class="dash-th">
+                                    <span id="dashboard-unit-header">สิ่งที่นับ</span> (<span id="dashboard-unit-name">หน่วยนับ</span>)
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-table-body">
+                            </tbody>
+                    </table>
+                </div>
+
+                <!--ปรับส่วนหน้า Dashboard ให้แสดง "รายการออเดอร์ล่าสุด" 08-06-2026-->
+                <div id="recent-orders-list" class="dash-orders-zone">
+                    <h3 class="dash-subtitle">รายการออเดอร์วันนี้</h3>
+                    <div class="dash-table-responsive">
+                        <table class="dash-data-table recent-orders-table">
+                            <thead>
+                                <tr class="dash-table-header-gray">
+                                    <th class="dash-th th-left">เวลา</th>
+                                    <th class="dash-th th-left">เมนู</th>
+                                    <th class="dash-th th-right">ยอด</th>
+                                    <th class="dash-th th-center">ใบเสร็จ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-orders-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="dash-actions-row">
+                    <button class="dash-btn btn-dash-refresh" onclick="loadDashboardData()">🔄 อัปเดตตาราง</button>
+                    <button class="dash-btn btn-dash-export" onclick="exportToCSV()">📥 โหลด CSV</button>
+                </div>
+            </div>
+
+            <!--ช่องกรอกส่วนลดใน 08-06-2026-->
                 <div class="promo-config-card">
                     <h4 class="promo-config-title">🎯 ตั้งค่าส่วนลด (Promotion)</h4>
                     
@@ -533,86 +571,79 @@
                 </div>
 
 
-    <div class="danger-zone-card">
-        <h4 class="danger-zone-title">🗑️ โซนอันตราย</h4>
-        <p class="danger-zone-note">หากข้อมูลเยอะจนเครื่องเริ่มช้า หรือต้องการเริ่มระบบใหม่ (ควรโหลด CSV เก็บไว้ก่อน)</p>
+                <div class="danger-zone-card">
+                    <h4 class="danger-zone-title">🗑️ โซนอันตราย</h4>
+                    <p class="danger-zone-note">หากข้อมูลเยอะจนเครื่องเริ่มช้า หรือต้องการเริ่มระบบใหม่ (ควรโหลด CSV เก็บไว้ก่อน)</p>
 
-        <button type="button" class="danger-zone-btn" onclick="clearOldOrders()">
-            ล้างประวัติออเดอร์ทั้งหมด
-        </button>
-    </div>
+                    <button type="button" class="danger-zone-btn" onclick="clearOldOrders()">
+                        ล้างประวัติออเดอร์ทั้งหมด
+                    </button>
+                </div>
 
-    <div class="backup-section db-mgmt-card">
-        <h3 class="db-mgmt-title">📦 จัดการฐานข้อมูล (ย้ายเครื่อง)</h3>
-        
-        <button type="button" class="db-mgmt-btn btn-db-backup" onclick="backupDatabase()">
-            📤 สำรองข้อมูล (Backup)
-        </button>
-        
-        <label for="importFile" class="db-mgmt-label">นำเข้าข้อมูลจากเครื่องเก่า:</label>
+                <div class="backup-section db-mgmt-card">
+                    <h3 class="db-mgmt-title">📦 จัดการฐานข้อมูล (ย้ายเครื่อง)</h3>
+                    
+                    <button type="button" class="db-mgmt-btn btn-db-backup" onclick="backupDatabase()">
+                        📤 สำรองข้อมูล (Backup)
+                    </button>
+                    
+                    <label for="importFile" class="db-mgmt-label">นำเข้าข้อมูลจากเครื่องเก่า:</label>
 
-        <input type="file" id="importFile" accept=".json" onchange="handleFileChangeWrapper(event)" class="db-mgmt-file-hidden">
+                    <input type="file" id="importFile" accept=".json" onchange="handleFileChangeWrapper(event)" class="db-mgmt-file-hidden">
 
-        <div class="db-mgmt-upload-row">
-            <button type="button" class="db-mgmt-btn btn-db-trigger" onclick="document.getElementById('importFile').click()">
-                📂 เลือกไฟล์สำรอง
-            </button>
+                    <div class="db-mgmt-upload-row">
+                        <button type="button" class="db-mgmt-btn btn-db-trigger" onclick="document.getElementById('importFile').click()">
+                            📂 เลือกไฟล์สำรอง
+                        </button>
+                        
+                        <span id="import-file-name-display" class="db-mgmt-filename">กดไฟล์สำรองตรงนี้เลยจ๊ะ</span>
+                    </div>
+                </div>
+
+            <!--ระบบจดบันทึกวัตถุดิบ 08-06-2026-->
+            <!-- ช่องรับข้อมูลที่เน้นปุ่มใหญ่สไตล์คุณยาย -->
+
             
-            <span id="import-file-name-display" class="db-mgmt-filename">กดไฟล์สำรองตรงนี้เลยจ๊ะ</span>
-        </div>
-    </div>
-
-    <!--ระบบจดบันทึกวัตถุดิบ 08-06-2026-->
-    <!-- ช่องรับข้อมูลที่เน้นปุ่มใหญ่สไตล์คุณยาย -->
-
-    <!-- ปุ่มหลักที่หน้าขายของ -->
-    <div class="shopping-trigger-wrapper">
-        <button type="button" class="shopping-trigger-btn" onclick="openShoppingManager()">
-            🛒 ไปหน้าจดของและลงบัญชี
-        </button>
-    </div>
 
 
-    <!-- หน้าจัดการวัตถุดิบ (Modal เต็มจอ) 08-06-2026 -->
-<div id="shopping-manager-page" class="shop-ledger-overlay">
+                <!-- หน้าจัดการวัตถุดิบ (Modal เต็มจอ) 08-06-2026 -->
+            <div id="shopping-manager-page" class="shop-ledger-overlay">
 
-    <!-- ส่วนหัวหน้า -->
-    <div class="shop-ledger-header">
-        <h2 class="shop-ledger-title">🧺 รายการซื้อของ</h2>
-        <button class="shop-ledger-close-circle" onclick="closeShoppingManager()">✕</button>
-    </div>
+                <!-- ส่วนหัวหน้า -->
+                <div class="shop-ledger-header">
+                    <h2 class="shop-ledger-title">🧺 รายการซื้อของ</h2>
+                    <button class="shop-ledger-close-circle" onclick="closeShoppingManager()">✕</button>
+                </div>
 
-    <!-- ส่วนที่ 1: พูดชื่อของเพื่อจด (Input) -->
-    <div class="shop-ledger-input-card">
-        <h3 class="shop-input-title">🎙️ พูดชื่อของที่จะซื้อ</h3>
-        <input type="text" id="shopping-input" class="shop-input-field" placeholder="เช่น หมูบด 1 กิโล...">
-        
-        <button class="shop-btn-action btn-shop-add" onclick="addShoppingItem()">
-            ➕ บันทึกรายการวัตถุดิบ
-        </button>
-    </div>
+                <!-- ส่วนที่ 1: พูดชื่อของเพื่อจด (Input) -->
+                <div class="shop-ledger-input-card">
+                    <h3 class="shop-input-title">🎙️ พูดชื่อของที่จะซื้อ</h3>
+                    <input type="text" id="shopping-input" class="shop-input-field" placeholder="เช่น หมูบด 1 กิโล...">
+                    
+                    <button class="shop-btn-action btn-shop-add" onclick="addShoppingItem()">
+                        ➕ บันทึกรายการวัตถุดิบ
+                    </button>
+                </div>
 
-    <!-- ส่วนที่ 2: รายการที่จดแล้ว รอใส่ราคา (Display) -->
-    <div id="shopping-list-display" class="shop-display-board">
-        </div>
-    
-    <!-- ส่วนที่ 3: ปุ่มปิดและสรุป -->    
-    <button class="shop-btn-action btn-shop-save-all" onclick="saveAndCloseShopping()">
-        💾 บันทึกยอดรวมและปิดหน้าจอ
-    </button>
+                <!-- ส่วนที่ 2: รายการที่จดแล้ว รอใส่ราคา (Display) -->
+                <div id="shopping-list-display" class="shop-display-board">
+                    </div>
+                
+                <!-- ส่วนที่ 3: ปุ่มปิดและสรุป -->    
+                <button class="shop-btn-action btn-shop-save-all" onclick="saveAndCloseShopping()">
+                    💾 บันทึกยอดรวมและปิดหน้าจอ
+                </button>
 
-    <!-- ประวัติการซื้อทั้งหมด (ส่วนที่เพิ่มใหม่) -->
-    <h3 class="shop-history-title">📜 ประวัติการซื้อล่าสุด</h3>
-    <div id="full-history-display" class="shop-history-board">
-        </div>
+                <!-- ประวัติการซื้อทั้งหมด (ส่วนที่เพิ่มใหม่) -->
+                <h3 class="shop-history-title">📜 ประวัติการซื้อล่าสุด</h3>
+                <div id="full-history-display" class="shop-history-board">
+                    </div>
 
-</div>
+            </div>
 
-<button type="button" class="config-save-exit-btn" onclick="saveAndExit()">
-    💾 บันทึกและกลับหน้าหลัก
-</button>
+       
 
-<!--------------->
+<!-------------------------------------------------------------------------------------------------------------------------->
 
 
     <!--เพิ่มเติม 08-06-2026 เพิ่มระบบหลังบ้านเมนู-->
@@ -677,30 +708,6 @@
         </div>
     </div>
 
-     
-    <!--สร้างเลขบัญชีโอนเงิน เป็น QR Code 08-06-2026-->
-<!--        <div id="settingsModal" class="modal stg-modal-overlay">
-            <div class="stg-modal-container">
-                <h3 class="stg-modal-title">⚙️ ตั้งค่าร้านค้า & ส่วนลด</h3>
-                
-                <label class="stg-modal-label">📱 เลข PromptPay ปัจจุบัน:</label>
-
-                <input type="text" id="set_promptpay" class="stg-input-readonly" readonly placeholder="กดปุ่มด้านล่างเพื่อแก้ไข">
-
-                <button type="button" class="stg-btn btn-stg-secure" onclick="openPromptPayModal()">
-                    🔐 แก้ไขเลขรับเงิน (ต้องใช้ PIN)
-                </button>
-
-                <button type="button" class="stg-btn btn-stg-save" onclick="saveSettings()">
-                    💾 บันทึกการตั้งค่าทั้งหมด
-                </button>
-                
-                <button type="button" class="stg-btn btn-stg-close" onclick="document.getElementById('settingsModal').style.display='none'">
-                    ปิดหน้าต่าง
-                </button>
-            </div>
-        </div>              -->
-
       
 
     <script>
@@ -712,45 +719,31 @@
         });
     }
     </script>
-      
-      </div>
 
-  </main>
+    <!--.......................................................................-->
+         
+    </div>
 
-  <!--footer mobile-->
 
-  <footer class="app-footer">
-    
-            <!--"พื้นที่วางปุ่มโต๊ะ 08-06-2026-->
-            <div id="payment-group" class="payment-action-container">
-    
-                <button id="btn-to-table" class="payment-btn btn-table-deposit" onclick="saveOrderToTable()">
-                    📥 ฝากลงโต๊ะ
-                </button>
-
-                <div class="payment-quick-row">
-                    <button id="btn-pay-cash" class="payment-btn btn-cash-accent" onclick="confirmOrder('cash')">
-                        💵 เงินสด
-                    </button>
-                    <button id="btn-pay-transfer" class="payment-btn btn-transfer-accent" onclick="confirmOrder('transfer')">
-                        📱 เงินโอน/QR
+    <div class="setting-app-footer">
+         
+            <!-- ปุ่มหลักที่หน้าขายของ -->
+                <div class="shopping-trigger-wrapper">
+                    <button type="button" class="shopping-trigger-btn" onclick="openShoppingManager()">
+                        🛒 ไปหน้าจดของและลงบัญชี
                     </button>
                 </div>
 
-            </div>
-
-             <!--โชว์สถานะการส่ง P2P  08-06-2026-->
-            <div id="warp-status-bar" class="warp-status-container">
-                <div id="status-dot" class="warp-status-indicator"></div>
-                <span id="status-text" class="warp-status-message">ระบบวาร์ป: พร้อมส่งออเดอร์</span>
-            </div>                
-
-           <div class="close-day-wrapper">
-                <button id="btn-close-day" class="close-day-trigger-btn" onclick="handleCloseDay()">
-                    🏁 ปิดยอดประจำวัน
+                 <button type="button" class="config-save-exit-btn" onclick="saveAndExit()">
+                    💾 บันทึกและกลับหน้าหลัก
                 </button>
-            </div>
-  </footer>
+
+    </div>
+
+
+</div>
+         
+    
 
   <script>
     function showPage(pageId) {
@@ -764,7 +757,8 @@
     }
   </script>
 
-</div>
+
+
 
 
    
