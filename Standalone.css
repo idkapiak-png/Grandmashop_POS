@@ -96,7 +96,7 @@
   flex-grow: 1;             /* มีพื้นที่เหลือเท่าไหร่ ยืดกินพื้นที่ให้หมด */
   overflow-y: auto;         /* ถ้าเมนูก๋วยเตี๋ยวยาวเกิน ให้สกรอลล์เฉพาะส่วนนี้ */
   padding: 16px;
-  background-image: url('bgApp.jpg');
+  background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.3)), url('bgApp.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -134,7 +134,11 @@
     left: 0;
     width: 100%;
     height: 100vh;
-    background-color: #ffffff; /* หรือสีพื้นหลังของแอปพี่ */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.3)), url('bgApp.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: scroll;
     z-index: 9999;          /* ให้มันอยู่ชั้นบนสุด */
 
     /* ⚡ เตรียมโครงสร้าง Flexbox แนวตั้งไว้ล่วงหน้า */
@@ -146,13 +150,17 @@
 /* 🟢 CSS กรอบสีเขียว (Header) */
 .setting-app-header {
     flex-shrink: 0;         /* ห้ามโดนบีบขนาด */
-    padding: 15px;
+    height: auto;
+    min-height: 0px;
+    background-color: #000000;
+    border-bottom: 2.0px solid #ffffff;
+    box-sizing: border-box; /* สำคัญมาก: ช่วยให้ padding ไม่ไปเพิ่มขนาดให้ header เกินหน้าจอ */
+    border-radius:  0px 0px 30px 30px;
+    padding: 20px 15px;
     text-align: center;
     font-size: 20px;
-    font-weight: bold;
-    background-color: #000000;
-    color: #fff;
-    border-bottom: 1px solid #222; /* เส้นใต้บาง ๆ */
+    font-weight: 300;
+    color: #ffffff;
 }
 
 /* 🟢 เติมตัวนี้เพิ่ม: สั่งดักไว้เลยว่าถ้า #setting-page ไม่มีคลาส active ให้เชื่อฟังคำสั่งซ่อนตัว */
@@ -162,9 +170,9 @@
 
 /* 🔵 CSS กรอบสีฟ้า (Content ตรงกลาง - พระเอกของงานนี้) */
 .setting-app-content {
-    flex: 1;                /* ยืดพื้นที่กินส่วนต่างที่เหลือทั้งหมดตรงกลาง */
+     flex: 1;                /* ยืดพื้นที่กินส่วนต่างที่เหลือทั้งหมดตรงกลาง */
     overflow-y: auto;       /* ⚡ จุดสำคัญ! ถ้าเนื้อหายาวเกินจอ ให้ถูนิ้วเลื่อนได้เฉพาะโซนนี้ */
-    padding: 15px;
+    padding: 30px;
     /* ป้องกันการสะท้อนหรือการดึงหน้าจอเอ๋อเวลารูดบน iOS */
     -webkit-overflow-scrolling: touch; 
 }
@@ -172,9 +180,10 @@
 /* 💗 CSS กรอบสีชมพู (Footer) */
 .setting-app-footer {
     flex-shrink: 0;         /* ห้ามโดนบีบขนาด ยึดตำแหน่งไว้ล่างสุดเสมอ */
-    padding: 15px;
-    border-top: 1px solid #222; /* เส้นบนบาง ๆ */
-    background-color: #000; /* กันเนื้อหาตรงกลางทะลุลงมาซ้อนข้อความ */
+    padding: 10px 10px;
+    border-top: 2.5px solid #FFFFFF;
+    border-radius:  20px 20px 0px 0px;
+    background-color: #000000; /* กันเนื้อหาตรงกลางทะลุลงมาซ้อนข้อความ */
 }
 
 
@@ -219,7 +228,8 @@ body {
 
 /* หัวข้อคำว่า "ส่วนเพิ่มเติม" (ย้ายสไตล์มาจาก HTML) */
 .options-main-title {
-    color: #ff9f43; /* สีส้มสว่างคุมโทนส่วนเพิ่มเติม */
+    font-weight: 300;
+    color: #ffffff; /* สีส้มสว่างคุมโทนส่วนเพิ่มเติม */
     margin: 5px 0;
 }
 
@@ -227,14 +237,20 @@ body {
 #options-display label {
     display: flex;
     align-items: center;
-    background: #ff9f43; /* พื้นหลังปุ่มสีส้มเด่นชัด */
+    background: rgba(228, 126, 34, 0.80);
     color: #000000;      /* ตัวหนังสือสีดำเข้มตัดกับปุ่ม */
-    padding: 15px;
-    border-radius: 18px; /* ขอบมนสวยงามสไตล์โมเดิร์น */
+    padding: 15px 150px;
+    border-radius: 10px; /* ขอบมนสวยงามสไตล์โมเดิร์น */
+    opacity: 1;
+    border-top: 1.5px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 1.5px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    box-sizing: border-box;
+    backdrop-filter: blur(3px);
     margin-bottom: 8px;
-    border: 1px solid #000000; /* เส้นขอบสีดำช่วยตัดขอบให้เห็นชัดเจนบนหน้าจอ */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
     cursor: pointer;
+    -webkit-backdrop-filter: blur(3px);
     transition: transform 0.2s ease, background-color 0.2s ease; /* สลับสีและขยับนุ่มนวล */
 }
 
@@ -363,24 +379,29 @@ input[type="number"]:focus {
 
 /* ................................................................................... */
 
-/* 07-06-2026 */
+/* 07-06-2026 เนื้อหาหน้าลักมือถือ */
 header {
     /* 1. จัดระเบียบโครงสร้างหลักและการเรียงตัว (จากตัวที่ 3) */
     display: flex;
     flex-direction: column;
+    align-items: center;        /* 🎯 จัดองค์ประกอบภายในทุกชิ้น (รูปโปรไฟล์, ข้อความ, กล่องเงินทุน) ให้ตรงกึ่งกลางแนวตั้งเป๊ะๆ */
+    justify-content: center;
     text-align: center;
     position: relative;
+    gap: 12px;
+    
 
     /* 2. จัดแต่งหน้าตา ระยะห่าง และความมนของขอบ (จากตัวที่ 1) */
-    padding: 20px 0 80px 0; /* รวมระยะพ่นด้านล่าง 80px จากตัวที่ 2 เพื่อให้ปุ่มไม่บัง */
+    padding: 20px 15px;
     border-radius: 0 0 25px 25px; /* มนเฉพาะขอบล่างให้ดูนุ่มนวล */
-    margin-bottom: 20px;
+    margin-bottom: 25px;
     color: #000000; 
 
     /* 3. การจัดการรูปภาพพื้นหลังและเงา (จากตัวที่ 2) */
     background-attachment: scroll;
     background-color: rgba(0, 0, 0, 0.0);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
 }
 
 /* ชื่อร้านหลักด้านบนสุด (Header) 08-06-2026 */
@@ -397,15 +418,15 @@ header {
 
 /* ชื่อเมนูอาหารหลักที่แสดงบนหน้าจอ 08-06-2026 */
 #menu-name {
-    font-size: 1.1rem;
+   font-size: 1.1rem;
     font-weight: bold;
     color: #e2ff42;       /* สีเหลืองนีออนเด่นชัด (เลือกตัวนี้ตามโทนแอปหลัก) */
     display: block;       /* สั่งให้ขึ้นบรรทัดใหม่แยกสัดส่วนชัดเจน */
-    margin-top: 20px;     /* เว้นระยะห่างจากขอบด้านบน */
-    margin-bottom: 20px;  /* เว้นระยะห่างจากของด้านล่าง 20px */
+    margin: 2px 10px 8px 10px;
     opacity: 0.9;         /* ปรับความโปร่งแสงเล็กน้อยให้ดูนุ่มตา */
     position: relative;
     z-index: 20;          /* ดันให้ตัวหนังสือลอยเหนือกล่องสีขาวด้านหลัง */
+
 }
 
 /* ==========================================================================
@@ -414,7 +435,8 @@ header {
 
 /* 1. กล่องครอบภายนอกสุด (แม่คุมฐานเสาเข็มหลัก) */
 .search-container {
-    margin: 15px; 
+    margin-bottom: 10px; 
+    width: 100%; 
     text-align: center; 
     position: relative; /* 🟢 ล็อคพิกัดให้กล่องลูกกางใต้ช่องพิมพ์ได้อย่างเที่ยงตรง */
     z-index: 100;       /* ดันให้ระบบค้นหาลอยอยู่เหนือเมนูอาหารด้านล่าง */
@@ -519,7 +541,6 @@ header {
 
 /* กล่องครอบปุ่มสลับโหมด */
 .mode-selector {
-    margin-bottom: 15px; 
     display: flex; 
     gap: 10px;
 }
@@ -527,7 +548,7 @@ header {
 /* ปุ่มโหมด "ขายหน้าร้าน (กลับบ้าน)" ปรับแต่งให้กดง่ายเหมาะกับมือถือ */
 .takeaway-mode-btn {
     flex: 1; 
-    padding: 15px; 
+    padding: 15px 113px; 
     background-color: #58baf7; /* สีฟ้าสว่าง สบายตา มองเห็นชัด */
     color: #000000; /* ตัวหนังสือสีดำเข้มตัดกับปุ่ม */
     border: none; 
@@ -549,7 +570,7 @@ header {
    📊 1. กล่องสรุปยอดขายหลัก (The Profit Dashboard) 08-06-2026
    ========================================================================== */
 #sales-summary {
-     background: rgba(255, 255, 255, 0.20);  /* สีขาว FFFFFF ความโปร่งแสง 20% */
+    background: rgba(255, 255, 255, 0.20);  /* สีขาว FFFFFF ความโปร่งแสง 20% */
     border-radius: 15px; /* ความโค้งมน Corner radius: 15 */
     opacity: 1; /* Opacity: 100% (ค่าปกติของกล่อง) */
 
@@ -574,7 +595,7 @@ header {
     width: auto;
     position: relative;
     z-index: 10;
-    padding: 15px;
+    padding: 10px;
     border-radius: 15px;
     text-align: center;
     box-shadow: 0 10px 10px rgba(0, 0, 0, 0.05); /* เพิ่มมิติความลอยตัว */
@@ -599,9 +620,14 @@ header {
     align-items: center;
     justify-content: center;
     background: #000000;       /* สีเทาอ่อนตามรูป 476 */
-    padding: 12px 15px;
-    border-radius: 10px;
-    margin: 5px 0;
+    border-top: 2.7px solid #FFFFFF;
+    border-bottom: 2.7px solid #FFFFFF;
+    border-left: 0.1px solid #FFFFFF;
+    border-right: 0.1px solid #FFFFFF;
+    padding: 12px 120px;
+    padding-bottom: 5px;
+    border-radius: 20px;
+    margin: 10px 5px;
 }
 
 
@@ -618,9 +644,14 @@ header {
 
 /* กล่องแสดงแยกยอด เงินสด และ โอน */
 .payment-method-box {
-    display: inline-block;
-    padding: 5px 15px;
-    margin-bottom: 15px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    white-space: nowrap;
+    gap: 2px;
+    padding: 6px 0px;
+    margin-bottom: 10px;
     font-size: 0.9rem;
     color: #ffffff;
 }
@@ -641,10 +672,10 @@ header {
 #profit-status {
     display: inline-block;
     width: 100%;
-    padding: 10px 20px;
+    padding: 1px 20px;
     font-size: 1.1rem;
     font-weight: bold;
-    margin-top: 10px;
+    margin-top: 1px;
     transition: all 0.3s ease; /* เวลา JS เปลี่ยนสีกำไร-ขาดทุน จะค่อยๆ ไล่เฉดนุ่มๆ */
     min-width: 180px;
     text-align: center;
@@ -669,10 +700,10 @@ header {
    ========================================================================== */
 .grandma-dashboard-btn {
     width: 100%; 
-    margin-top: 15px; 
-    padding: 12px; 
+    margin: 15px auto 0 auto;
+    padding: 10px; 
     background: radial-gradient(circle, #676565 0%, #333333 100%);
-    color: #64DBFB; /* สีเหลืองนีออนเด่น ๆ */
+    color: #7ed6ee; /* สีเหลืองนีออนเด่น ๆ */
     border: 1px solid #ffffff; 
     border-radius: 9px; 
     opacity: 1;
@@ -681,7 +712,8 @@ header {
     border-bottom: 0.5px solid rgba(255, 255, 255, 1);
     border-left: none;
     box-sizing: border-box;
-    font-weight: 300; 
+    font-weight: 300;
+    font-size: 20px;
     cursor: pointer; 
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.25);
     transition: background 0.2s ease, transform 0.1s ease; /* แถมความนุ่มนวลเวลาจิ้มปุ่ม */
@@ -891,12 +923,19 @@ header {
     padding: 15px;
     margin: 10px 0;
     border: none;
-    border-radius: 12px;
-    background-color: #333333; /* สีพื้นหลังปุ่มเทาเข้ม */
+    border-radius: 10px;
+    opacity: 1;
+    background: rgba(51, 51, 51, 0.80);
+    border-top: 0.5px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    box-sizing: border-box;
+    backdrop-filter: blur(3px);
     color: #e2ff42;            /* สีตัวหนังสือเหลืองนีออนอ่านง่ายชัดเจน */
     font-weight: bold;
     font-size: 1rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    -webkit-backdrop-filter: blur(3px);
     transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
@@ -910,19 +949,25 @@ header {
    📊 UNIVERSAL COUNTER (ส่วนกล่องนับจำนวนสารพัดประโยชน์) 08-06-2026
    ========================================================================== */
 #universal-counter {
-    background: #fff4eb; /* 🥚 ปรับสีกระดาษให้เป็นสีครีมไข่แดงละมุนตา ตามคอมเม้นท์เดิมของเพื่อน */
+    background: rgba(255, 255, 255, 0.20);
     padding: 10px;
     border-radius: 10px;
+    opacity: 1;
     text-align: center;
     margin-bottom: -20px; /* ให้กล่องยื่นซ้อนลงไปด้านล่างดูมีมิติ */
-    border: 5px dashed #ff9f43; /* เส้นขอบปะสีส้มอิฐ ล้อมรอบกล่อง */
+    border: none;
+    box-shadow:  0px -1px 0px 0px rgba(255, 255, 255, 1.0), 0px 1px 0px 0px rgba(255, 255, 255, 1.0);
+    box-sizing: border-box;
+    backdrop-filter: blur(2px);
+    width: 100%;
+    -webkit-backdrop-filter: blur(2px);
 }
 
 /* ข้อความตัวหนังสือด้านในกล่องนับจำนวน (ย้ายสไตล์มาจาก HTML) */
 .counter-text-line {
-    font-weight: bold; /* สั่งให้ตัวหนังสือและตัวเลขทั้งหมดหนาเด่นชัด ยายมองเห็นง่าย */
+    font-weight: 300;
     margin: 5px 0;
-    color: #333333;
+    color: #ffffff;
 }
 
 /* ==========================================================================
@@ -931,11 +976,12 @@ header {
 
 /* กล่องหลัก: กระดาษสีเหลืองนวล เส้นขอบประสีส้มทอง */
 .preview-main-card {
-    background: #fff3cd; 
+    background: #ffffff; 
     padding: 15px; 
-    border-radius: 10px; 
+    border-radius: 12px; 
     margin: 15px; 
     border: 1px dashed #ffa502;
+    width: 100%; 
 }
 
 /* หัวข้อข้อความ "รายการที่เลือก" */
@@ -1019,15 +1065,27 @@ header {
 
 /* ตัวปุ่มล้างออเดอร์: สีเทาเรียบง่ายแต่กดง่ายเต็มความกว้างจอ */
 .reset-order-btn {
-    background: #cccccc; /* สีเทาอ่อนคุมโทนไม่ให้เด่นแข่งกับปุ่มบันทึกออเดอร์ */
-    color: #333333;      /* ตัวหนังสือสีเทาเข้มอ่านง่ายชัดเจน */
-    border: none; 
-    padding: 10px; 
-    border-radius: 8px; 
-    cursor: pointer; 
-    width: 100%; 
-    margin-bottom: 10px;
-    font-weight: bold;
+    background: rgba(233, 7, 7, 0.80);
+    color: #ffffff;      /* ตัวหนังสือสีเทาเข้มอ่านง่ายชัดเจน */
+    border: none;
+    border-top: 0.7px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 0.7px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    box-sizing: border-box;
+    padding: 12px 162px; 
+    border-radius: 12px;
+    opacity: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    width: 92%; 
+    margin: 0 auto 10px auto;
+    font-weight: 300;
+    font-size: 16px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     transition: background-color 0.2s ease, transform 0.1s ease;
 }
@@ -1136,12 +1194,21 @@ header {
 .table-zone-container {
     display: flex; 
     flex-wrap: wrap; /* 🔄 ถ้ายายตั้งค่าจำนวนโต๊ะไว้เยอะ ปล่อยให้ปุ่มโต๊ะไหลลงมาขึ้นแถวใหม่ได้สวยงาม ไม่หลุดขอบจอ */
+    justify-content: space-around;
+    align-items: center;   /* จัดให้อยู่กึ่งกลางแนวตั้ง */
     gap: 10px; /* เว้นช่องไฟระยะห่างระหว่างปุ่มโต๊ะแต่ละใบ */
     margin-bottom: 20px; 
-    padding: 10px; 
-    background: #ffffff; /* พื้นหลังสีขาวสะอาด */
-    border-radius: 10px; 
-    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1); /* ใส่เงาหลุมยุบลงไปด้านในกล่องเพื่อให้ดูมีมิติสวยงาม */
+    padding: 14px 10px; 
+    background: rgba(0, 0, 0, 0.50);
+    border-top: 0.7px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 0.7px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    box-sizing: border-box;
+    border-radius: 12px;
+    opacity: 1;
+    width: 100%;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 /* ข้อความแจ้งเตือนสีเทาเริ่มต้น (ย้ายสไตล์มาจาก HTML) */
@@ -1309,19 +1376,29 @@ header {
    📱 PROMPTPAY CONFIG TRIGGER (ส่วนปุ่มกดตั้งค่าเลขพร้อมเพย์รับเงินโอน) 08-06-2026
    ========================================================================== */
 
+#Text-PromptPay {
+    color: #ffffff;
+    padding: 10px 10px;
+}
+
 /* ตัวปุ่มตั้งค่าพร้อมเพย์: สีน้ำเงินกรมท่าเข้ม ขนาดใหญ่กดง่ายเต็มความกว้างจอ */
 .promptpay-config-btn {
     width: 100%; 
     padding: 15px; 
-    background: #23508c; /* สีน้ำเงินกรมท่าเข้ม ดูเป็นระบบการเงินที่ปลอดภัย */
+    background: rgba(35, 79, 140, 0.80);
+    border-top: 0.7px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 0.7px solid rgba(255, 255, 255, 1);
+    border-left: none;
     color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาอ่านง่ายเด่นชัด */
-    border: none; 
-    border-radius: 10px; 
-    font-weight: bold; 
-    font-size: 1rem;     /* ขนาดฟอนต์มาตรฐานพอดีสายตา */
+    border-radius: 20px;
+    opacity: 0.7;
+    font-weight: 300; 
+    font-size: 20px;     /* ขนาดฟอนต์มาตรฐานพอดีสายตา */
     margin-bottom: 20px; /* เว้นระยะห่างจากวัตถุด้านล่าง 20px */
     cursor: pointer;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* เพิ่มมิติเงาบางๆ ให้ปุ่มดูลอยตัวน่ากด */
+    box-sizing: border-box;
     transition: background-color 0.2s ease, transform 0.1s ease; /* ขยับและสลับสีนุ่มนวล */
 }
 
@@ -1338,13 +1415,18 @@ header {
 /* ตัวปุ่มล้างข้อมูลความปลอดภัย: พื้นหลังขาวขอบแดง ตัวหนังสือแดง แจ้งเตือนสายตา */
 .security-reset-btn {
     width: 100%; 
-    padding: 12px; 
-    background: #f1f3f5;       /* พื้นหลังสีขาวเทาอ่อนนุ่มตา */
-    color: #e74c3c;            /* ตัวหนังสือสีแดงแจ้งเตือน */
-    border: 1px solid #e74c3c; /* เส้นขอบสีแดงสลักขอบชัดเจน */
-    border-radius: 8px; 
-    font-weight: bold; 
-    margin-top: 10px;          /* เว้นระยะห่างจากวัตถุด้านบน 10px */
+    padding: 20px; 
+    background: rgba(242, 243, 245, 0.50);
+    color: #ffffff;            /* ตัวหนังสือสีแดงแจ้งเตือน */
+    border-top: 0.7px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 0.7px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    box-sizing: border-box;
+    border-radius: 20px;                     /* ความโค้งมนมุมกล่อง Corner radius: 20 */
+    opacity: 1;; 
+    font-weight: 300;
+    font-size:15px;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
     transition: background-color 0.2s ease, transform 0.1s ease;
@@ -1359,6 +1441,13 @@ header {
 /* ==========================================================================
    📡 P2P CONTROL PANEL (ส่วนระบบเชื่อมต่อเครือข่ายร้านค้า Hub/Client) 08-06-2026
    ========================================================================== */
+
+#Text-P2P {
+    color: #ffffff;
+    padding:10px;
+}
+
+
 
 /* กล่องหลักภายนอกสุดของระบบเครือข่าย: พื้นหลังสีเทาอ่อนแยกสัดส่วนชัดเจน */
 .p2p-main-card {
@@ -2292,8 +2381,8 @@ input[type="checkbox"] {
 
 /* กล่องครอบจัดระยะห่างภายนอกของปุ่ม */
 .shopping-trigger-wrapper {
-    margin-top: 20px; 
-    padding: 10px;
+    margin-top: 0px; 
+    padding: 0px;
     box-sizing: border-box;
 }
 
@@ -2302,14 +2391,12 @@ input[type="checkbox"] {
     display: block;
     width: 100%; 
     padding: 20px;            /* ขนาดใหญ่พิเศษเพื่อให้คุณยายจิ้มง่ายไม่พลาดเป้า */
-    background: #3498db;      /* เฉดสีฟ้าน้ำทะเล สดใส สบายตา */
-    color: #ffffff;           /* ตัวหนังสือสีขาวสะอาดเด่นชัด */
+    background: #000000;      /* เฉดสีฟ้าน้ำทะเล สดใส สบายตา */
+    color: #E47E22;           /* ตัวหนังสือสีขาวสะอาดเด่นชัด */
     border: none; 
-    border-radius: 15px;      /* หักขอบมนโค้งสวยงาม สไตล์โมเดิร์นเข้าธีม */
-    font-weight: bold; 
+    font-weight: 300; 
     font-size: 1.2rem;        /* ขนาดตัวหนังสือใหญ่เต็มตาอ่านง่าย */
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3); /* มิติเงานุ่มนวลสีฟ้าจางๆ ลอยตัวเหนือก้อนวัตถุอื่น */
     transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
 }
 
@@ -2478,12 +2565,10 @@ input[type="checkbox"] {
 .config-save-exit-btn {
     display: block;
     width: 100%; 
-    margin-top: 20px; 
-    padding: 15px; 
-    background: #2c3e50;      /* สีกรมท่าสากล ดูมั่นคง ปลอดภัย น่าเชื่อถือ */
+    padding: 20px; 
+    background: #272727;      /* สีกรมท่าสากล ดูมั่นคง ปลอดภัย น่าเชื่อถือ */
     color: #ffffff;           /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
     border: none; 
-    border-radius: 10px;      /* หักขอบมนสวยงามเข้าธีมของระบบ */
     font-weight: bold;
     font-size: 1.1rem;        /* ขนาดตัวอักษรใหญ่พอดีสายตา */
     cursor: pointer;
@@ -2957,18 +3042,24 @@ input[type="checkbox"] {
 
 /* ตัวครอบกล่อง Checkbox ตัวเลือกเสริมแต่ละรายการ */
 .extra-opt-label {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     margin-bottom: 8px;        /* เพิ่มช่องไฟด้านล่างให้ห่างขึ้นอีกนิดนึง นิ้วจะได้ไม่จิ้มพลาด */
     cursor: pointer;           /* เปลี่ยนเมาส์เป็นรูปมือบอกให้รู้ว่าจิ้มกดได้ */
     user-select: none;         /* ป้องกันไม่ให้ขึ้นแถบไฮไลต์ข้อความเวลาคุณยายกดรัว ๆ */
+    width: 100%;
 }
 
 /* ปรับแต่งระยะตัวอักษรข้างหลัง Checkbox ให้เว้นระยะสวยงามอ่านง่าย */
 .extra-opt-label span {
     font-size: 1rem;
-    color: #2c3e50;            /* เฉดสีเข้มชัดเจนตัดกับพื้นหลังแอป */
-    margin-left: 6px;          /* เว้นระยะห่างจากตัวเช็กบ็อกซ์เล็กน้อยไม่ให้อึดอัด */
+    color: #000000;            /* เฉดสีเข้มชัดเจนตัดกับพื้นหลังแอป */
+    margin-left: 0x;          /* เว้นระยะห่างจากตัวเช็กบ็อกซ์เล็กน้อยไม่ให้อึดอัด */
+    padding:0px;
     vertical-align: middle;    /* จัดให้ตัวอักษรอยู่กึ่งกลางระดับสายตาพอดีกับตัวติ๊กถูก */
+    white-space: nowrap;
 }
 
 /* ขยายขนาดช่องติ๊กถูกให้ใหญ่ขึ้นนุ่มนิ้วเวลากดบนมือถือ */
@@ -3149,7 +3240,7 @@ input[type="checkbox"] {
 
 /* โครงสร้างหลักของป้ายสถานะ (รูปร่าง ขนาด ช่องไฟ) */
 .profit-badge {
-    padding: 10px 20px; 
+    padding: 5px 20px; 
     font-weight: bold; 
     display: inline-flex; 
     align-items: center; 
@@ -3159,19 +3250,37 @@ input[type="checkbox"] {
 /* สถานะย่อย 1: กรณีมีกำไร (เฉดเขียวเหนี่ยวทรัพย์) */
 .profit-badge.is-surplus {
     background-color: none; 
-    color: #2e7d32;
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow:
+        /* เลเยอร์ 2: รัศมีไฟนีออนสีเขียวสะท้อนแสง (#48df17) อัดแน่นชิดรอบตัวอักษร */
+        0 0 8px #48df17,
+        /* เลเยอร์ 3: รัศมีไฟนีออนสีเขียวขยายวงกว้างนุ่มนวล */
+        0 0 18px #48df17,
+        /* เลเยอร์ 4: แสงฟุ้งจาง ๆ วงนอกสุด คุมความโปร่งแสงไว้ที่ 40% ไม่ให้บวมจนกวนสายตา */
+        0 0 35px rgba(72, 223, 23, 0.4);
 }
 
 /* สถานะย่อย 2: กรณีสภาวะยังไม่คืนทุน (เฉดแดงแจ้งเตือนรอบคอบ) */
 .profit-badge.is-deficit {
     background-color: none;  
-    color: #e74c3c;
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow:
+        /* เลเยอร์ 2: รัศมีไฟนีออนสีน้ำแดงไซเบอร์วงใน อัดแน่นชิดตัวอักษร */
+        0 0 8px #FF003C,
+        /* เลเยอร์ 3: รัศมีไฟสีแดงสว่างกระจายตัวออกรอบนอก */
+        0 0 18px #FF003C,
+        /* เลเยอร์ 4: แสงฟุ้งวงกว้าง คุมความโปร่งแสงไว้ที่ 40% ไม่ให้บดบังเนื้อหาหลัก */
+        0 0 35px rgba(255, 0, 60, 0.4);
 }
 
 /* สถานะย่อย 3: กรณีเท่าทุนพอดี (เฉดสีเทาสากลสุภาพ) */
 .profit-badge.is-break-even {
     background-color: none;  
-    color: #555555;
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 0 0 1px rgba(0,0,0,1), 0 0 10px #ffe600,  0 0 20px #ff6600,  0 0 40px rgba(255,102,0, 0.4);
 }
 
 /*🔴🔴🔴🔴 async function renderTableSelection 🔴🔴🔴🔴*/
@@ -3183,7 +3292,7 @@ input[type="checkbox"] {
 .table-btn {
     padding: 20px 10px; 
     margin: 5px; 
-    border-radius: 15px; 
+    border-radius: 22px; 
     font-size: 1.2rem;
     font-weight: bold;
     cursor: pointer;
@@ -3195,9 +3304,8 @@ input[type="checkbox"] {
     
     /* เฉดสีโต๊ะว่างตั้งต้น */
     background-color: #ffffff; 
-    color: #2c3e50;
+    color: #000000;
     border: 2px solid #bdc3c7; 
-    box-shadow: 0 5px 0 #bdc3c7;
 }
 
 /* 2. สถานะย่อย: มีออเดอร์ค้างในระบบ (แจ้งเตือนเฉดสีส้ม) */
@@ -3205,7 +3313,6 @@ input[type="checkbox"] {
     background-color: #e67e22; 
     color: #ffffff;
     border: 2px solid #d35400; 
-    box-shadow: 0 5px 0 #a04000;
 }
 
 /* 3. สถานะสูงสุด: คุณยายกำลังเลือกจัดการโต๊ะนี้อยู่ (เฉดสีเขียวเหนี่ยวทรัพย์เด่นสุด) */
@@ -3213,7 +3320,6 @@ input[type="checkbox"] {
     background-color: #2ecc71; 
     color: #ffffff;
     border: 2px solid #27ae60; 
-    box-shadow: 0 5px 0 #27ae60;
 }
 
 
