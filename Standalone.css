@@ -224,6 +224,9 @@ body {
     display: flex;       
     flex-direction: column; 
     gap: 12px;           /* เว้นระยะห่างระหว่างกลุ่มปุ่ม */
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 /* หัวข้อคำว่า "ส่วนเพิ่มเติม" (ย้ายสไตล์มาจาก HTML) */
@@ -239,7 +242,7 @@ body {
     align-items: center;
     background: rgba(228, 126, 34, 0.80);
     color: #000000;      /* ตัวหนังสือสีดำเข้มตัดกับปุ่ม */
-    padding: 15px 150px;
+    padding: 15px 15px;
     border-radius: 10px; /* ขอบมนสวยงามสไตล์โมเดิร์น */
     opacity: 1;
     border-top: 1.5px solid rgba(255, 255, 255, 1);
@@ -248,10 +251,22 @@ body {
     border-left: none;
     box-sizing: border-box;
     backdrop-filter: blur(3px);
-    margin-bottom: 8px;
+    margin: 0 auto 8px auto;
+    width: 100%;
     cursor: pointer;
     -webkit-backdrop-filter: blur(3px);
     transition: transform 0.2s ease, background-color 0.2s ease; /* สลับสีและขยับนุ่มนวล */
+}
+
+/* 🎯 สั่งให้กล่องกลางกางเต็มพื้นที่หน้าจอ โดยเขียนเจาะจงลึกเข้าไป 2 ชั้นเพื่อให้ชนะค่าเริ่มต้น */
+#options-display #dynamic-options-list {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    display: flex;
+    flex-direction: column;      /* จัดเรียงปุ่มส้มลงมาเป็นแนวตั้ง */
+    align-items: center;         /* จัดปุ่มส้มให้อยู่ตรงกลางระนาบ */
+    box-sizing: border-box;
 }
 
 /* เอฟเฟกต์ตอบสนองทันทีเมื่อคุณยายเอานิ้วจิ้มเลือกท็อปปิ้งบนมือถือ */
@@ -355,7 +370,7 @@ body {
 input[type="text"], 
 input[type="number"] {
     width: 100%;
-    padding: 12px 16px;              /* เพิ่มช่องไฟด้านข้างให้ดูหรูหรา ไม่เบียดตัวหนังสือ */
+    padding: 15px 16px;              /* เพิ่มช่องไฟด้านข้างให้ดูหรูหรา ไม่เบียดตัวหนังสือ */
     border: 1;       /* ใช้สีขอบเทาจางนุ่มตา */
     border-radius: none;             /* ขอบโค้งมนสวยงามสไตล์ iOS/Modern App */
     font-size: 1rem;                 /* ขนาดตัวอักษรพอดีสายตา */
@@ -591,12 +606,12 @@ header {
     /* Position: Inside (จำลองมิติให้เส้นขอบยุบตัวเข้าด้านใน ไม่ดันขนาดกล่องเพี้ยน) */
     box-sizing: border-box;
 
-    margin: 0 10px 15px 10px; /* ยุบรวม margin: จัดเกยหัวแอป 10px และเว้นด้านล่าง 15px */
-    width: auto;
+    margin: 10px auto;
+    width: 100%;
+    max-width: 480px;
     position: relative;
     z-index: 10;
-    padding: 10px;
-    border-radius: 15px;
+    padding: 0 10px;
     text-align: center;
     box-shadow: 0 10px 10px rgba(0, 0, 0, 0.05); /* เพิ่มมิติความลอยตัว */
 }
@@ -605,6 +620,7 @@ header {
 .sales-title {
     margin: 0;
     color: #ffffff;
+    padding:5px;
 }
 
 
@@ -624,10 +640,13 @@ header {
     border-bottom: 2.7px solid #FFFFFF;
     border-left: 0.1px solid #FFFFFF;
     border-right: 0.1px solid #FFFFFF;
-    padding: 12px 120px;
+    padding: 12px 15px;
     padding-bottom: 5px;
     border-radius: 20px;
-    margin: 10px 5px;
+    width: 92%;
+    margin: 10px auto;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 
@@ -672,7 +691,7 @@ header {
 #profit-status {
     display: inline-block;
     width: 100%;
-    padding: 1px 20px;
+    padding: 5px 5px;
     font-size: 1.1rem;
     font-weight: bold;
     margin-top: 1px;
@@ -1060,7 +1079,9 @@ header {
 
 /* กล่องครอบภายนอก: ช่วยจัดระยะช่องไฟซ้าย-ขวา */
 .reset-order-wrapper {
-    padding: 0 15px;
+    padding: 0px;
+    box-sizing: border-box;
+    width: 100%; 
 }
 
 /* ตัวปุ่มล้างออเดอร์: สีเทาเรียบง่ายแต่กดง่ายเต็มความกว้างจอ */
@@ -1073,17 +1094,17 @@ header {
     border-bottom: 0.7px solid rgba(255, 255, 255, 1);
     border-left: none;
     box-sizing: border-box;
-    padding: 12px 162px; 
     border-radius: 12px;
     opacity: 1;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     white-space: nowrap;
-    width: 92%; 
-    margin: 0 auto 10px auto;
+    padding: 12px 15px; 
+    width: 100%; 
+    margin: 0 0 10px 0;
     font-weight: 300;
     font-size: 16px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -1442,6 +1463,7 @@ header {
    📡 P2P CONTROL PANEL (ส่วนระบบเชื่อมต่อเครือข่ายร้านค้า Hub/Client) 08-06-2026
    ========================================================================== */
 
+/* หัวข้อระบบเชื่อมต่อ */
 #Text-P2P {
     color: #ffffff;
     padding:10px;
@@ -1451,23 +1473,37 @@ header {
 
 /* กล่องหลักภายนอกสุดของระบบเครือข่าย: พื้นหลังสีเทาอ่อนแยกสัดส่วนชัดเจน */
 .p2p-main-card {
-    background: #ecf0f1; 
+    background-color: rgba(0, 0, 0, 0.20); 
+    border-top: 1px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    opacity: 1;
+    box-sizing: border-box;
     padding: 15px; 
-    border-radius: 8px; 
+    border-radius: 10px; 
     margin-top: 10px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-/* หัวข้อระบบเชื่อมต่อ */
-.p2p-main-title {
-    margin: 0 0 10px 0;
-    color: #2c3e50;
+/* กล่องระบุชื่อ */
+.p2p-id-field {
+    background-color:#ffffff;
+    padding: 15px;
 }
 
 /* ป้ายกำกับข้อความข้างสวิตช์เปิดปิด */
 .p2p-switch-label {
-    color: #333333;
-    font-weight: bold;
+    color: #ffffff;
+    font-weight: 300;
+}
+
+.p2p-id-field::placeholder {
+    color: rgb(99, 99, 99);
+    font-size: 14px;
+    font-weight: 300;
 }
 
 /* ทำให้ช่องติ๊ก Checkbox ใหญ่ขึ้น */
@@ -1509,10 +1545,13 @@ input[type="checkbox"] {
 /* โครงสร้างพื้นฐานของปุ่มในกลุ่มเน็ตเวิร์กทั้งหมด */
 .p2p-btn {
     width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
+    padding: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    border-radius: 15px;
+    font-weight: 300;
     font-size: 1rem;
     color: #ffffff; /* ตัวหนังสือสีขาวเด่นชัดตัดกับสีปุ่ม */
     cursor: pointer;
@@ -1523,16 +1562,38 @@ input[type="checkbox"] {
 /* 🎨 แยกเฉดสีปุ่มตามหน้าที่และโหมดการทำงานเดิมอย่างปลอดภัย */
 
 /* 1. ปุ่มเครื่องแม่ (Hub): สีเขียวเหนี่ยวทรัพย์ */
-.btn-hub-mode { background: #27ae60; }
-.btn-hub-mode:hover { background: #219653; }
+.btn-hub-mode { 
+    /* 🎨 สีเขียว #27AE61 โปร่งแสง 70% */
+    background: rgba(39, 174, 97, 0.50); 
+}
+.btn-hub-mode:hover { 
+    /* 🎨 สีเขียวเดิม แต่สว่างขึ้นด้วยการเพิ่มความโปร่งแสงเป็น 85% */
+    background: rgba(39, 174, 97, 0.85); 
+}
+
+
 
 /* 2. ปุ่มเครื่องลูก (Client): สีน้ำเงินระบบ */
-.btn-client-mode { background: #2980b9; }
-.btn-client-mode:hover { background: #2471a3; }
+.btn-client-mode { 
+    /* 🎨 สีน้ำเงิน #2A7EB6 โปร่งแสง 70% */
+    background: rgba(42, 126, 182, 0.50); 
+}
+.btn-client-mode:hover { 
+    /* 🎨 สีน้ำเงินเดิม แต่สว่างขึ้นด้วยการเพิ่มความโปร่งแสงเป็น 85% */
+    background: rgba(42, 126, 182, 0.85); 
+}
+
+
 
 /* 3. ปุ่มจอห้องครัว (Kitchen): สีส้มแจ้งเตือนออเดอร์ */
-.btn-kitchen-mode { background: #f39c12; }
-.btn-kitchen-mode:hover { background: #d68910; }
+.btn-kitchen-mode { 
+    /* 🎨 สีส้ม #F39C11 โปร่งแสง 70% */
+    background: rgba(243, 156, 17, 0.50); 
+}
+.btn-kitchen-mode:hover { 
+    /* 🎨 สีส้มเดิม แต่สว่างขึ้นด้วยการเพิ่มความโปร่งแสงเป็น 85% */
+    background: rgba(243, 156, 17, 0.85); 
+}
 
 /* เอฟเฟกต์ตอบสนองทันทีเวลานิ้วจิ้มปุ่มเน็ตเวิร์กบนหน้าจอมือถือ */
 .p2p-btn:active {
@@ -1648,15 +1709,23 @@ input[type="checkbox"] {
 
 /* กล่องครอบกลุ่ม: ช่วยจัดระยะห่างไม่ให้เบียดกันเกินไป */
 .config-field-group {
-    margin-bottom: 15px;
+    margin-bottom: 0px;
 }
 
 /* ป้ายข้อความหัวข้อ "ชื่อร้าน" (ย้ายสไตล์มาจาก HTML) */
 .config-field-label {
     display: block;       /* สั่งให้ขึ้นบรรทัดใหม่ทันทีแยกจากช่องกรอก */
     margin-bottom: 5px;   /* เว้นช่องไฟด้านล่างนิดนึงก่อนถึงช่องอินพุต */
-    font-weight: bold;    /* ทำตัวหนังสือหนาเด่นชัด ยายมองเห็นง่าย */
-    color: #2c3e50;       /* ใช้สีเทาเข้มโทนสุภาพ */
+    padding:5px;
+    font-weight: 300;    /* ทำตัวหนังสือหนาเด่นชัด ยายมองเห็นง่าย */
+    color: #ffffff;       /* ใช้สีเทาเข้มโทนสุภาพ */
+}
+
+h4 {
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    padding:10px;
 }
 
 /* ช่องพิมพ์กรอกชื่อร้านค้า (Text Input Box) */
@@ -1686,13 +1755,16 @@ input[type="checkbox"] {
 .add-option-trigger-btn {
     display: block;
     width: 100%; 
-    padding: 10px; 
-    background: #3498db; /* สีฟ้าน้ำทะเลสว่าง มองเห็นได้ง่ายและชัดเจน */
+    padding: 15px; 
+    background-color: rgba(53, 152, 219, 0.70);
+    border-top: 1.5px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 1.5px solid rgba(255, 255, 255, 1);
+    border-left: none;
     color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
-    border: none; 
-    border-radius: 5px;   /* หักขอบมนเล็กน้อยเข้าธีมหน้าต่างหลังบ้าน */
+    border-radius: 10px;   /* หักขอบมนเล็กน้อยเข้าธีมหน้าต่างหลังบ้าน */
     margin-top: 10px;    /* เว้นระยะห่างจากวัตถุด้านบน 10px */
-    font-weight: bold;
+    font-weight: 300;
     font-size: 1rem;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(52, 152, 219, 0.2); /* เพิ่มเงาสีฟ้าจางๆ ให้ปุ่มดูมีมิติลอยตัว */
@@ -1713,13 +1785,17 @@ input[type="checkbox"] {
 .add-menu-row-trigger-btn {
     display: block;
     width: 100%; 
-    padding: 10px; 
-    background: #2ed573; /* สีเขียวสว่างสดใส สื่อถึงการเพิ่มข้อมูล/สิ่งใหม่ */
+    padding: 15px; 
+    background-color: rgba(45, 214, 115, 0.50);
+    border-top: 1.5px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 1.5px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    opacity: 1;
+    box-sizing: border-box;
     color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
-    border: none; 
-    border-radius: 5px;   /* หักขอบมนเล็กน้อยเข้าธีมหน้าต่างหลังบ้าน */
-    margin-top: 10px;    /* เว้นระยะห่างจากวัตถุด้านบน 10px */
-    font-weight: bold;
+    border-radius: 10px;   /* หักขอบมนเล็กน้อยเข้าธีมหน้าต่างหลังบ้าน */
+    font-weight: 300;
     font-size: 1rem;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(46, 213, 115, 0.2); /* เพิ่มเงาสีเขียวจางๆ ให้ปุ่มดูมีมิติลอยตัว */
@@ -1736,9 +1812,25 @@ input[type="checkbox"] {
    🔢 TABLE COUNT CONFIGURATION (ส่วนกล่องตั้งค่าจำนวนโต๊ะในร้าน) 08-06-2026
    ========================================================================== */
 
+#table-number {
+    padding:10px;
+    color: #ffffff;
+    font-weight: 300;
+    font-size: 1rem;
+}
+
+/* 💭 แต่งสีตัวหนังสือบอกแนวทาง (Placeholder) */
+.table-config-input::placeholder {
+    color: rgb(122, 122, 122);
+    font-size: 14px;
+    font-weight: 300;
+    padding: 0px;
+}
+
+
 /* ตัวกล่องครอบการตั้งค่าโต๊ะ: นำสไตล์เดิมมาจัดกลุ่มและแต่งเสริมมิติ */
 .table-config-card {
-    margin-top: 15px; 
+    margin-top: 0px; 
     padding: 10px; 
     border: 1px solid #dddddd; 
     border-radius: 10px;
@@ -1798,11 +1890,17 @@ input[type="checkbox"] {
     display: block;
     width: 100%; 
     padding: 12px; 
-    margin-top: 10px; 
-    background-color: #576574; /* สีเทาเข้มสไตล์มินิมอล แยกหมวดหมู่ชัดเจน */
+    margin-top: 15px; 
+    margin-bottom:10px;
+    background-color: rgba(88, 101, 117, 0.70);
+    border-top: 1px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    opacity: 1;
+    box-sizing: border-box;
     color: #ffffff;            /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
-    border: none; 
-    border-radius: 8px; 
+    border-radius: 10px; 
     font-weight: bold; 
     font-size: 1rem;
     cursor: pointer;
@@ -1824,11 +1922,14 @@ input[type="checkbox"] {
 .kds-mode-trigger-btn {
     display: block;
     width: 100%; 
-    padding: 10px; 
-    background: #e67e22; /* สีส้มอิฐ เด่นชัด มองเห็นง่ายในสภาวะหน้าจอห้องครัว */
+    padding: 15px; 
+    background-color: #E67F22;
+    border-top: 1px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 1);
+    border-left: none;
     color: #ffffff;      /* ตัวหนังสือสีขาวสะอาดตาเด่นชัด */
-    border: none; 
-    border-radius: 5px;  /* หักขอบมนเล็กน้อยเข้าธีมของระบบ */
+    border-radius: 10px;  /* หักขอบมนเล็กน้อยเข้าธีมของระบบ */
     font-weight: bold;
     font-size: 1rem;
     cursor: pointer;
@@ -2042,7 +2143,14 @@ input[type="checkbox"] {
 .dash-main-card {
     margin-top: 30px; 
     padding: 15px; 
-    background: #ffffff; 
+    background-color: rgba(255, 255, 255, 0.50);
+    backdrop-filter: blur(1px);
+    border-top: 3px solid rgba(255, 255, 255, 1);
+    border-right: none;
+    border-bottom: 3px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    opacity: 1;
+    box-sizing: border-box;
     border-radius: 12px; 
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -2050,8 +2158,8 @@ input[type="checkbox"] {
 /* หัวข้อใหญ่ประจำแดชบอร์ด */
 .dash-main-title {
     margin: 0 0 15px 0;
-    color: #2c3e50; 
-    border-bottom: 2px solid #3498db; 
+    color: #ffffff; 
+    border-bottom: 2px solid #ffffff; 
     padding-bottom: 10px;
 }
 
@@ -2070,13 +2178,52 @@ input[type="checkbox"] {
     -webkit-overflow-scrolling: touch; /* ช่วยให้เลื่อนตารางบน iOS ได้ลื่นไหลขึ้น */
 }
 
+
+/* ==========================================================================
+   🎯 SPECIFIC STYLES FOR SALES SUMMARY (เพิ่มเติม: จัดข้อความข้อมูลให้อยู่กึ่งกลาง)
+   ========================================================================== */
+
+/* 1. สั่งให้ตัวข้อมูลภายในเซลล์ตาราง (ทั้ง td และ th) ของตารางนี้จัดกึ่งกลางทั้งหมด */
+#dashboard-section .sales-summary-table th,
+#dashboard-section .sales-summary-table td {
+    text-align: center;      /* จัดตัวหนังสือและตัวเลขให้อยู่ตรงกลางเป๊ะ */
+    vertical-align: middle;  /* จัดระดับให้อยู่กึ่งกลางแนวตั้ง ไม่เยื้องบนหรือล่าง */
+    padding: 10px 6px;       /* เว้นช่องไฟให้กว้างพอดีสายตา ไม่เบียดชิดกัน */
+}
+
+/* 2. บล็อกสไตล์กรณีตัวเนื้อหาด้านล่างมีความหนา (ถ้ามีคลาส bold-text โผล่มา) */
+#dashboard-section .sales-summary-table td.bold-text {
+    font-weight: 600;
+}
+
+
+
+
 /* โครงสร้างพื้นฐานของตารางแดชบอร์ดทั้งหมด */
 .dash-data-table {
     width: 100%; 
-    border-collapse: collapse; 
+    border-collapse: separate; 
     margin-top: 15px; 
     font-size: 0.95rem;
 }
+
+/* ==========================================================================
+   🎯 SPECIFIC STYLES FOR SALES SUMMARY (สั่งแยกกล่องส้ม 3 กล่องแนวนอน)
+   ========================================================================== */
+
+/* ดันระยะห่างระหว่างกล่องสีส้มในแนวนอนออกจากกัน 10px */
+#dashboard-section .sales-summary-table {
+    border-spacing: 10px 0; /* ดันช่องไฟซ้าย-ขวา 10px, บน-ล่าง 0 */
+}
+
+/* ล็อกเป้าหมายที่เซลล์หัวตารางในโซนสรุปยอดขายเพื่อดัดขอบให้โค้งมนแยกชิ้น */
+#dashboard-section .sales-summary-table thead tr th.dash-th {
+    border-radius: 6px;    /* 📐 ดัดขอบมนตามรูป */
+    padding: 8px 12px;     /* 📦 เพิ่มพื้นที่หนานุ่มภายในกล่อง */
+    font-weight: 300;      /* ✍️ ปรับฟอนต์ให้ดูบาง สวย พรีเมียม */
+    border: none;          /* 🛡️ ล้างเส้นขอบสีเทาเดิมออกให้หมดจด */
+}
+
 
 /* ตารางรายการออเดอร์ล่าสุดปรับฟอนต์ให้เล็กกระชับสายตาตามสไตล์เดิม */
 .recent-orders-table {
@@ -2088,7 +2235,7 @@ input[type="checkbox"] {
 
 /* ส่วนหัวตารางสรุปยอดขาย 7 วัน: พื้นหลังสีฟ้าตัวอักษรขาว */
 .dash-table-header-blue {
-    background: #3498db; 
+    background: #E67F22; 
     color: #ffffff;
 }
 
@@ -2996,6 +3143,7 @@ input[type="checkbox"] {
 .btn-row-delete {
     background-color: #ff4757; 
     color: #ffffff;
+    padding:15px;
 }
 .btn-row-delete:hover { background-color: #ff6b81; }
 
@@ -3017,6 +3165,7 @@ input[type="checkbox"] {
 .menu-setting-row .stg-row-btn.btn-row-edit {
     background-color: #3498db;
     color: #ffffff;
+    padding:15px;
 }
 .menu-setting-row .stg-row-btn.btn-row-edit:hover {
     background-color: #2980b9;  /* หม่นแสงลงนุ่มนวลเวลานิ้วแตะ */
@@ -3080,14 +3229,14 @@ input[type="checkbox"] {
 .opt-setting-row {
     display: flex; 
     gap: 6px;                  
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     align-items: center;       
 }
 
 /* ช่องกรอกข้อมูลตัวเลือกเสริม (พร้อมให้พิมพ์ได้ทันที) - ล็อกพิกัดเจาะจง 3 ชั้น */
 .opt-setting-row input[type="text"],
 .opt-setting-row input[type="number"] {
-    padding: 10px;             
+    padding: 15px;             
     border: 1px solid #00acc1;  /* เส้นขอบสีฟ้าเทอร์ควอยซ์บึกบึนพร้อมให้พิมพ์ */
     border-radius: 8px;
     background-color: #ffffff;
@@ -3110,7 +3259,7 @@ input[type="checkbox"] {
     background-color: #ff4757; 
     color: #ffffff;
     border: none; 
-    padding: 8px 12px;         
+    padding: 15px;         
     border-radius: 6px; 
     font-size: 1rem;
     cursor: pointer;
@@ -3662,7 +3811,7 @@ button.btn-menu-to-quick {
 /* 2. อินพุตกรอกชื่ออาหารในแถวตั้งค่าด่วน */
 .menu-setting-row input[type="text"] {
     flex: 2;
-    padding: 8px;
+    padding: 15px;
     border: 1px solid #dddddd;
     border-radius: 5px;
 }
@@ -3670,7 +3819,7 @@ button.btn-menu-to-quick {
 /* 3. อินพุตกรอกราคาในแถวตั้งค่าด่วน */
 .menu-setting-row input[type="number"] {
     width: 70px;
-    padding: 8px;
+    padding: 15px;
     border: 1px solid #dddddd;
     border-radius: 5px;
 }
@@ -4381,7 +4530,7 @@ table.history-table tbody td.col-price {
 /* 1. ส่วนหัวของแผงรายการออเดอร์ */
 .recent-orders-title {
     margin: 15px 0 10px 0; 
-    color: #2c3e50; 
+    color: #000000; 
     font-size: 1.1rem; 
     display: flex; 
     align-items: center;
